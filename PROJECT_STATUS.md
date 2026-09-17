@@ -330,17 +330,53 @@ this section is intentionally just a summary.
 
 
 
+\*\*PHASE 9 — SYNCHRONIZED MORSE PLAYBACK — COMPLETE.\*\*
+
+
+
+A narrowly-scoped hardening pass on exactly the Phase 8 playback
+
+mechanism (no formal-testing/statistics/UI/deployment work, per that
+
+phase's explicit scope limit). Found and fixed a real, previously
+
+unverified bug: the scheduled-playback trigger could silently never
+
+fire at all on a fast LAN, because the server's `item_active` broadcast
+
+raced against — and could suppress — the client's own countdown-based
+
+play() trigger. This was only caught by actually driving real browser
+
+instances through the flow (Playwright, multiple simultaneous browser
+
+contexts), which Phase 8 had not done. Also: multi-sample
+
+(median-of-3) clock-offset estimation replacing a single ping/pong
+
+sample, and a fix so a student reconnecting mid-item always gets a
+
+clear, working way to start audio (previously the control stayed
+
+hidden). 29 new automated tests added (142/142 total passing). See
+
+`docs/checkpoints/phase-9-checkpoint.md` for full detail, including the
+
+honest limitation that real multi-machine LAN timing still hasn't been
+
+measured (only same-machine multi-browser-context testing was possible
+
+here).
+
+
+
 \## Current task
 
 
 
-Phase 8 is complete. Waiting for explicit direction before starting
+Phase 9 is complete. Waiting for explicit direction before starting
 
-Phase 9 (Formal Testing was pulled forward into Phase 8 and is already
-
-implemented — Phase 9's actual remaining scope should be re-evaluated
-
-against what exists now, not assumed from the original roadmap).
+Phase 10.
 
 
 

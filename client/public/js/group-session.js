@@ -51,8 +51,12 @@ let latestSessionState = null; // last {session, roster} broadcast
 let player = null;
 
 // Clock-offset estimation (see sessionRuntime.js on the server for the
-// matching half of this): serverNow ≈ Date.now() + clockOffsetMs.
+// matching half of this): serverNow ≈ Date.now() + clockOffsetMs. Uses
+// clock-sync.js's pure helpers, fed by a small burst of ping/pong
+// round trips rather than a single sample (see recordOffsetSample).
 let clockOffsetMs = 0;
+let offsetSamples = [];
+const MAX_OFFSET_SAMPLES = 5;
 
 let currentItem = null; // the item payload from scheduled_start / item_active
 let currentItemIndex = null;
@@ -61,6 +65,7 @@ let scheduledStartAt = null; // future SERVER timestamp for this item's playback
 let itemDeadlineAt = null; // future SERVER timestamp when the answer window closes
 let itemActivatedAt = null; // local Date.now() when this item became answerable, for durationMs
 let hasSubmittedCurrentItem = false;
+let hasPlayedCurrentItem = false; // whether audio has actually played in THIS browser instance for the current item
 let countdownTimer = null;
 
 function ensurePlayer() {
@@ -72,6 +77,21 @@ function ensurePlayer() {
 
 function estimatedServerNow() {
     return Date.now() + clockOffsetMs;
+}
+
+/** Records one ping/pong round trip's offset estimate and folds it into a rolling median. */
+function recordOffsetSample(clientSentAt, serverTime, clientReceivedAt) {
+    const { offsetMs } = ClockSync.estimateOffsetFromPong(clientSentAt, serverTime, clientReceivedAt);
+    offsetSamples.push(offsetMs);
+    if (offsetSamples.length > MAX_OFFSET_SAMPLES) offsetSamples.shift();
+    clockOffsetMs = ClockSync.medianOffset(offsetSamples);
+}
+
+/** A short burst (not just one round trip) so one slow/blocked sample can't skew the estimate. */
+function sendPingBurst(count = 3, spacingMs = 80) {
+    for (let i = 0; i < count; i += 1) {
+        setTimeout(() => send({ type: 'ping', clientTime: Date.now() }), i * spacingMs);
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -141,7 +161,8 @@ function connectWs(onOpenCb) {
     ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
     ws.addEventListener('open', () => {
-        send({ type: 'ping', clientTime: Date.now() });
+        offsetSamples = [];
+        sendPingBurst();
         if (onOpenCb) onOpenCb();
     });
     ws.addEventListener('message', handleWsMessage);
@@ -160,13 +181,9 @@ function connectWs(onOpenCb) {
 function handleWsMessage(event) {
     const msg = JSON.parse(event.data);
     switch (msg.type) {
-        case 'pong': {
-            const now = Date.now();
-            const rtt = now - msg.clientTime;
-            const estimatedServerNowAtArrival = msg.serverTime + rtt / 2;
-            clockOffsetMs = estimatedServerNowAtArrival - now;
+        case 'pong':
+            recordOffsetSample(msg.clientTime, msg.serverTime, Date.now());
             break;
-        }
         case 'session_state':
             onSessionState(msg);
             break;
@@ -203,6 +220,7 @@ function joinSession(sessionId) {
     currentItem = null;
     currentItemIndex = null;
     hasSubmittedCurrentItem = false;
+    hasPlayedCurrentItem = false;
     sessionStorage.setItem('gs_joined_session_id', String(sessionId));
 
     showScreen('waiting');
@@ -280,6 +298,14 @@ function onScheduledStart(msg) {
     scheduledStartAt = msg.startAt;
     itemDeadlineAt = null;
     hasSubmittedCurrentItem = false;
+    hasPlayedCurrentItem = false;
+
+    // Refresh the clock-offset estimate right before it's actually used —
+    // the freshest possible reading for the instant that matters most,
+    // rather than relying solely on whatever was measured at connect time
+    // (which could be seconds or minutes earlier for a student who joined
+    // the waiting room early).
+    sendPingBurst();
 
     showScreen('exercise');
     el('exercise-item-progress').textContent = `Item ${msg.itemIndex + 1} of ${itemsTotal}`;
@@ -295,10 +321,24 @@ function onScheduledStart(msg) {
 }
 
 function onItemActive(msg) {
+    // A resync (fresh join mid-item, or a reconnect) never went through
+    // our own onScheduledStart countdown in this browser instance, so
+    // nothing has played here yet — that must not be confused with
+    // "already played" just because some other student's audio finished.
+    const isResync = currentItemIndex !== msg.itemIndex || currentItem === null;
+    if (isResync) hasPlayedCurrentItem = false;
+
     if (msg.item) currentItem = msg.item;
     currentItemIndex = msg.itemIndex;
     if (msg.itemsTotal) itemsTotal = msg.itemsTotal;
-    scheduledStartAt = null;
+    // NOTE: scheduledStartAt is deliberately left untouched here (it is
+    // NOT reset to null). item_active arrives at essentially the same
+    // instant the local countdown independently reaches zero — nulling
+    // this out used to silently race against the countdown loop's own
+    // 150ms tick and could suppress the local play() trigger entirely if
+    // this message happened to win the race, which on a fast LAN it
+    // reliably did. hasPlayedCurrentItem (not scheduledStartAt) is what
+    // now prevents re-triggering, so it's safe to leave this set.
     itemDeadlineAt = msg.deadlineAt;
     itemActivatedAt = Date.now();
 
@@ -313,6 +353,24 @@ function onItemActive(msg) {
         // already-playing item — either way, make sure audio/prompt state
         // actually matches what the server says is active right now.
         prepareItemDisplay(currentItem, { reveal: true });
+
+        const needsAudio = currentItem.mode === 'audio_to_text' || currentItem.mode === 'character_recognition';
+        if (isResync && needsAudio) {
+            // Browser autoplay restrictions mean the server activating the
+            // item is not enough on a genuine resync — there was no user
+            // gesture at this exact moment, so audio cannot auto-play
+            // here. Make the manual control clearly available and
+            // clearly labeled rather than leaving the student staring at
+            // a silent screen. (A normal, non-resync activation is
+            // instead auto-played by the countdown loop below, driven by
+            // the student's own earlier "I'm Ready" gesture.)
+            const btn = el('exercise-replay-button');
+            btn.hidden = false;
+            btn.textContent = '▶ Play';
+            el('exercise-feedback').hidden = false;
+            el('exercise-feedback').textContent = 'This item is already playing for the class — press Play to hear it.';
+            hasPlayedCurrentItem = true;
+        }
     }
 
     if (!hasSubmittedCurrentItem) {
@@ -373,10 +431,13 @@ function prepareItemDisplay(item, { reveal }) {
 
 /** Triggers local playback/reveal once our own corrected clock reaches the server's scheduled instant — never on message arrival. */
 function beginScheduledPlayback() {
+    hasPlayedCurrentItem = true;
     const needsAudio = currentItem.mode === 'audio_to_text' || currentItem.mode === 'character_recognition';
     if (needsAudio) {
         ensurePlayer().play();
-        el('exercise-replay-button').hidden = false;
+        const btn = el('exercise-replay-button');
+        btn.hidden = false;
+        btn.textContent = '↻ Replay';
     } else {
         prepareItemDisplay(currentItem, { reveal: true });
     }
@@ -384,22 +445,31 @@ function beginScheduledPlayback() {
 
 function startCountdownLoop() {
     clearInterval(countdownTimer);
-    let playbackTriggered = false;
     countdownTimer = setInterval(() => {
         const now = estimatedServerNow();
-        if (scheduledStartAt !== null) {
+
+        // Whether to start playback is checked every tick using
+        // hasPlayedCurrentItem as the sole guard against re-triggering —
+        // deliberately NOT gated on itemDeadlineAt being unset. The
+        // server's item_active broadcast (which sets itemDeadlineAt)
+        // arrives at essentially the same instant this countdown
+        // independently reaches zero; if this check were skipped just
+        // because itemDeadlineAt had already become known, a fast
+        // low-latency client (ironically, the *best*-synchronized ones)
+        // could have its item_active message win that race and silently
+        // suppress the local play() trigger entirely.
+        if (scheduledStartAt !== null && !hasPlayedCurrentItem) {
             const remaining = scheduledStartAt - now;
             if (remaining > 0) {
                 el('exercise-countdown').textContent = `Starting in ${(remaining / 1000).toFixed(1)}s`;
             } else {
                 el('exercise-countdown-banner').hidden = true;
+                beginScheduledPlayback();
                 el('exercise-countdown').textContent = 'Playing…';
-                if (!playbackTriggered) {
-                    playbackTriggered = true;
-                    beginScheduledPlayback();
-                }
             }
-        } else if (itemDeadlineAt !== null) {
+        }
+
+        if (itemDeadlineAt !== null && hasPlayedCurrentItem) {
             const remaining = itemDeadlineAt - now;
             if (remaining > 0) {
                 el('exercise-countdown').textContent = `Time left: ${Math.ceil(remaining / 1000)}s`;
@@ -506,7 +576,11 @@ async function init() {
         send({ type: 'set_ready', ready: !(me && me.isReady) });
     });
 
-    el('exercise-replay-button').addEventListener('click', () => ensurePlayer().play());
+    el('exercise-replay-button').addEventListener('click', () => {
+        ensurePlayer().play();
+        hasPlayedCurrentItem = true;
+        el('exercise-replay-button').textContent = '↻ Replay';
+    });
     el('exercise-submit-button').addEventListener('click', submitAnswer);
     el('exercise-answer').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitAnswer();
