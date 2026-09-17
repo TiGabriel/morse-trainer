@@ -33,6 +33,11 @@ const MODE_LABELS = {
 let classesCache = [];
 let ws = null;
 let monitoredSessionId = null;
+let currentSessionType = 'group';
+// itemIndex -> Set of studentIds who have submitted, reset each time a new item is scheduled.
+let progressByItem = new Map();
+let currentItemIndex = null;
+let currentItemsTotal = null;
 
 // ---------------------------------------------------------------------
 // List view
@@ -54,9 +59,10 @@ async function loadSessions() {
     tbody.innerHTML = '';
     sessions.forEach((s) => {
         const tr = document.createElement('tr');
+        const typeLabel = s.type === 'test' ? 'Formal Test' : 'Group Practice';
         tr.innerHTML = `
             <td>${escapeHtml(s.className || '—')}</td>
-            <td>${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</td>
+            <td>${typeLabel} &middot; ${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</td>
             <td>${escapeHtml(s.difficulty || '—')}</td>
             <td>${s.wpm || '—'}</td>
             <td>${s.exerciseCount}</td>
@@ -72,17 +78,30 @@ async function loadSessions() {
     });
 }
 
+function updateTestSettingsVisibility() {
+    const isTest = el('new-type').value === 'test';
+    el('test-settings').hidden = !isTest;
+}
+
 async function createSession(e) {
     e.preventDefault();
     el('create-error').hidden = true;
 
+    const type = el('new-type').value;
     const body = {
+        type,
         classId: Number(el('new-class').value),
         exerciseMode: el('new-mode').value,
         difficulty: el('new-difficulty').value,
         wpm: el('new-wpm').value || undefined,
         exerciseCount: Number(el('new-count').value),
     };
+    if (type === 'test') {
+        body.prepTimeMs = Number(el('new-prep-time').value) * 1000;
+        body.answerTimeMs = Number(el('new-answer-time').value) * 1000;
+        body.allowedAttempts = Number(el('new-allowed-attempts').value);
+        body.passThresholdPercent = el('new-pass-threshold').value === '' ? undefined : Number(el('new-pass-threshold').value);
+    }
 
     try {
         const { session } = await api('/api/sessions', { method: 'POST', body: JSON.stringify(body) });
@@ -105,6 +124,11 @@ function showView(name) {
 
 function openMonitor(sessionId) {
     monitoredSessionId = sessionId;
+    progressByItem = new Map();
+    currentItemIndex = null;
+    currentItemsTotal = null;
+    el('progress-panel').hidden = true;
+    el('results-panel').hidden = true;
     showView('monitor');
     connectWebSocket(sessionId);
 }
@@ -117,6 +141,43 @@ function closeMonitor() {
     monitoredSessionId = null;
     showView('list');
     loadSessions();
+}
+
+function renderProgress() {
+    if (currentItemIndex === null) return;
+    el('progress-panel').hidden = false;
+    const submittedCount = (progressByItem.get(currentItemIndex) || new Set()).size;
+    const total = currentItemsTotal !== null ? currentItemsTotal : '?';
+    el('progress-summary').textContent =
+        `Item ${currentItemIndex + 1} of ${total} — ${submittedCount} submission(s) so far`;
+}
+
+async function loadResults(sessionId) {
+    try {
+        const { results } = await api(`/api/sessions/${sessionId}/results`);
+        el('results-panel').hidden = false;
+        const tbody = el('results-tbody');
+        if (results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="muted">No results yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        results.forEach((r) => {
+            const tr = document.createElement('tr');
+            const name = [r.firstName, r.lastName].filter(Boolean).join(' ') || r.username;
+            tr.innerHTML = `
+                <td>${r.orderIndex + 1}</td>
+                <td>${escapeHtml(name)}</td>
+                <td>${escapeHtml(r.submittedText || '—')}</td>
+                <td>${r.attemptCount}</td>
+                <td>${r.score !== null && r.score !== undefined ? r.score + '%' : '—'}</td>
+                <td>${r.grade ? `<span class="badge status-${r.grade === 'pass' ? 'running' : 'cancelled'}">${r.grade}</span>` : '—'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
 }
 
 function connectWebSocket(sessionId) {
@@ -133,6 +194,26 @@ function connectWebSocket(sessionId) {
         const msg = JSON.parse(event.data);
         if (msg.type === 'session_state') {
             renderMonitor(msg.session, msg.roster);
+            currentSessionType = msg.session.type;
+            if (msg.session.status === 'finished') loadResults(sessionId);
+        } else if (msg.type === 'scheduled_start') {
+            currentItemIndex = msg.itemIndex;
+            currentItemsTotal = msg.itemsTotal;
+            progressByItem.set(msg.itemIndex, new Set());
+            renderProgress();
+            showToast(`Item ${msg.itemIndex + 1} of ${msg.itemsTotal} starting shortly…`);
+        } else if (msg.type === 'item_active') {
+            currentItemIndex = msg.itemIndex;
+            renderProgress();
+        } else if (msg.type === 'progress_update') {
+            if (!progressByItem.has(msg.itemIndex)) progressByItem.set(msg.itemIndex, new Set());
+            progressByItem.get(msg.itemIndex).add(msg.studentId);
+            renderProgress();
+        } else if (msg.type === 'item_closed') {
+            renderProgress();
+        } else if (msg.type === 'session_finished') {
+            showToast('Session finished.', 'success');
+            loadResults(sessionId);
         } else if (msg.type === 'error') {
             showToast(msg.error, 'error');
         }
@@ -179,7 +260,7 @@ function renderMonitor(session, roster) {
 
     const tbody = el('roster-tbody');
     if (roster.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="muted">No students in this class yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No students in this class yet.</td></tr>';
         return;
     }
     tbody.innerHTML = '';
@@ -191,6 +272,7 @@ function renderMonitor(session, roster) {
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(r.className || '—')}</td>
             <td class="connection-${r.connectionStatus}">${r.connectionStatus === 'connected' ? '● Connected' : '○ Disconnected'}</td>
+            <td>${r.isReady ? '✓ Ready' : '—'}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -237,6 +319,8 @@ async function init() {
     });
 
     el('create-form').addEventListener('submit', createSession);
+    el('new-type').addEventListener('change', updateTestSettingsVisibility);
+    updateTestSettingsVisibility();
     el('back-to-list-button').addEventListener('click', closeMonitor);
 
     el('btn-open').addEventListener('click', () => sendTransition('open'));

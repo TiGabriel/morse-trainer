@@ -3,10 +3,13 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'morse_trainer.db');
+// Overridable so automated tests can point at an isolated temp file
+// instead of the real classroom database — unset, behavior is unchanged.
+const DB_PATH = process.env.MORSE_DB_PATH || path.join(DATA_DIR, 'morse_trainer.db');
 
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
 }
 
 const db = new Database(DB_PATH);

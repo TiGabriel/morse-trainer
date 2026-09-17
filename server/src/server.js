@@ -16,6 +16,8 @@ const usersRoutes = require('./modules/users/usersRoutes');
 const classesRoutes = require('./modules/classes/classesRoutes');
 const morseRoutes = require('./modules/morse-engine/morseRoutes');
 const practiceRoutes = require('./modules/practice/practiceRoutes');
+const sessionsRoutes = require('./modules/sessions/sessionsRoutes');
+const realtimeHub = require('./realtime/hub');
 
 async function main() {
     // Foundation from Phase 1: applies the DB schema (idempotent).
@@ -86,6 +88,9 @@ async function main() {
     // ---- Phase 7: individual practice (any authenticated user, self-scoped) -
     app.use('/api/practice', practiceRoutes);
 
+    // ---- Phase 8: group sessions & formal testing ---------------------------
+    app.use('/api/sessions', sessionsRoutes);
+
     // ---- Static client ------------------------------------------------------
     const clientPublicDir = path.join(__dirname, '..', '..', 'client', 'public');
     app.use(express.static(clientPublicDir));
@@ -115,6 +120,9 @@ async function main() {
         console.log('========================================================');
         console.log('');
     });
+
+    // ---- Phase 8: realtime hub, attached to the same HTTP server ------------
+    realtimeHub.init(server);
 
     // ---- Graceful shutdown --------------------------------------------------
     function shutdown(signal) {

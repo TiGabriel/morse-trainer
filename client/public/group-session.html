@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer — Group Session</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/teacher.css" />
+    <link rel="stylesheet" href="/css/practice.css" />
+    <link rel="stylesheet" href="/css/group-session.css" />
+</head>
+<body class="practice-body">
+    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+
+    <div id="app" hidden>
+        <header class="practice-header">
+            <a href="/" class="practice-home-link">&larr; Home</a>
+            <span id="user-name" class="muted"></span>
+        </header>
+
+        <main class="practice-main">
+            <!-- LIST: available sessions for this student's class -->
+            <section id="screen-list" class="practice-screen">
+                <h1>Group Sessions</h1>
+                <p class="subtitle">Sessions your teacher has opened for your class.</p>
+                <div id="no-class-notice" class="modal-error" hidden>
+                    You are not assigned to a class yet — ask your teacher to assign you one.
+                </div>
+                <div id="sessions-list" class="gs-session-list"></div>
+                <button id="refresh-list-button" class="link-button" type="button">Refresh</button>
+            </section>
+
+            <!-- WAITING ROOM: joined, waiting for the teacher to start -->
+            <section id="screen-waiting" class="practice-screen" hidden>
+                <h1>Waiting Room</h1>
+                <p class="subtitle" id="waiting-config">&mdash;</p>
+
+                <div class="gs-status-box">
+                    <div id="waiting-status-badge" class="badge status-waiting">waiting</div>
+                    <div id="waiting-ready-count" class="muted">&mdash;</div>
+                </div>
+
+                <button id="ready-toggle-button" class="btn btn-primary btn-large" type="button">I'm Ready</button>
+                <p class="modal-note">Clicking "I'm Ready" also unlocks audio playback in this browser — required once per session by your browser's autoplay rules.</p>
+
+                <button id="leave-waiting-button" class="link-button" type="button">Leave this session</button>
+            </section>
+
+            <!-- EXERCISE: countdown, playback, and answer submission -->
+            <section id="screen-exercise" class="practice-screen" hidden>
+                <div class="gs-item-header">
+                    <span id="exercise-item-progress" class="muted">Item 1 of 1</span>
+                    <span id="exercise-countdown" class="gs-countdown">&mdash;</span>
+                </div>
+
+                <div id="exercise-countdown-banner" class="gs-countdown-banner" hidden>Get ready&hellip;</div>
+
+                <div class="exercise-prompt">
+                    <div id="exercise-audio-controls" class="exercise-audio-controls" hidden>
+                        <button id="exercise-replay-button" class="btn btn-secondary" type="button" hidden>&#8635; Replay</button>
+                    </div>
+                    <div id="exercise-text-prompt" class="exercise-text-prompt" hidden></div>
+                </div>
+
+                <div class="modal-field">
+                    <label for="exercise-answer" id="exercise-answer-label">Your answer</label>
+                    <input type="text" id="exercise-answer" autocomplete="off" autocapitalize="characters" spellcheck="false" disabled />
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="exercise-submit-button" class="btn btn-primary btn-large" type="button" disabled>Submit</button>
+                </div>
+
+                <div id="exercise-feedback" class="modal-note" hidden></div>
+            </section>
+
+            <!-- FINISHED -->
+            <section id="screen-finished" class="practice-screen" hidden>
+                <h1>Session Complete</h1>
+                <p class="subtitle" id="finished-subtitle">Great work.</p>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Item</th><th>Answer</th><th>Score</th><th>Grade</th></tr>
+                        </thead>
+                        <tbody id="finished-results-tbody"><tr><td colspan="4" class="muted">Loading&hellip;</td></tr></tbody>
+                    </table>
+                </div>
+
+                <button id="finished-back-button" class="btn btn-primary btn-large" type="button">Back to Sessions</button>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/group-session.js"></script>
+</body>
+</html>

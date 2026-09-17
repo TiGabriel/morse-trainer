@@ -175,6 +175,68 @@ an accuracy percentage.
 (settings → exercise → results), reusing the Phase 6 `MorseAudioPlayer`
 for the audio-based modes.
 
+## Group Sessions & Formal Testing (Phase 8)
+
+Teacher-controlled group training and formal tests, built on a
+server-authoritative state machine and a new WebSocket realtime hub —
+the `sessions`/`realtime` folders were empty placeholders before this
+phase.
+
+**State machine** (`server/src/modules/sessions/sessionEngine.js`):
+`created → waiting → running ↔ paused → finished`, with `cancelled`
+reachable from any non-terminal status. Every transition is validated
+server-side (`POST /api/sessions/:id/{open,start,pause,resume,stop,cancel}`,
+teacher-only) and applied as an atomic, race-safe DB update.
+
+**Synchronized playback**: on Start, the server picks a *future*
+timestamp and broadcasts it (`scheduled_start`) ahead of time along with
+the item's playback plan, so every client can preload and then begin
+playback **locally, at that absolute server timestamp** — corrected for
+each client's own estimated clock offset (a single ping/pong round
+trip) — rather than reacting to when the message happens to arrive.
+The server's own timer fires at the same instant to open the
+authoritative answer window (`item_active`, with a server-computed
+deadline) and, later, to close it and auto-advance to the next item.
+
+**Realtime hub** (`server/src/realtime/hub.js`): a `ws.Server` on `/ws`,
+authenticated via the same session cookie as the rest of the app. One
+room per session, shared by the teacher's monitor and joined students.
+Handles `monitor_session`, `join_session`, `set_ready`, and `ping`; a
+join (fresh or reconnect) is always re-sent the session's current
+authoritative state, so a page refresh or a dropped LAN connection
+never leaves a client trusting stale local state.
+
+**Formal tests**: the same session machinery with `type: 'test'` and
+extra config (preparation time, answer time, allowed attempts, pass
+threshold) — the only real differences from group practice are
+enforcing `allowedAttempts` and withholding score/grade from the
+student until the test reaches `finished`.
+
+**Endpoints** (`/api/sessions`, all `requireAuth`):
+- `POST /` / `GET /` (teacher) — create (also generates+persists all
+  items) / list own sessions
+- `GET /available` (student) — open sessions for their own class
+- `GET /:id`, `GET /:id/results` — role-scoped (teacher sees everything;
+  a student sees only their own, withheld mid-test)
+- `POST /:id/items/:itemId/attempts` (student) — validated against the
+  currently-active item and server-computed deadline, graded immediately
+  via the existing `scoring.js`
+
+**UI**: `teacher.html` now links to the (previously unreachable)
+`sessions.html`, extended with a session-type selector, formal-test
+settings, a live-progress panel, and a results table. A brand-new
+`group-session.html` gives students a join → ready → countdown →
+answer → results flow, reusing the existing `MorseAudioPlayer` (which
+gained one small addition, `unlock()`, to satisfy the browser's
+autoplay-gesture requirement ahead of the server-scheduled playback
+trigger).
+
+See `docs/checkpoints/phase-8-checkpoint.md` for full implementation
+detail, exact tests performed, and known limitations (most notably: an
+in-memory scheduler means a server restart mid-session loses its
+timers, and pause/resume restarts the current item rather than
+resuming mid-playback).
+
 ## Verifying offline operation
 
 After `npm install` has been run once, disconnect the machine from the
@@ -219,14 +281,16 @@ morse-trainer/
 │   │   │   ├── classes/              class CRUD
 │   │   │   ├── morse-engine/         text<->Morse, timing, difficulty, generator, playback plan, scoring, HTTP preview routes (Phase 5+6+7)
 │   │   │   ├── practice/             individual training exercises + history (Phase 7)
-│   │   │   ├── sessions/             empty placeholder (group/test sessions, later phase)
-│   │   │   ├── grading/              empty placeholder (later phase)
+│   │   │   ├── sessions/             group sessions + formal testing: engine, repository, runtime scheduler, HTTP routes (Phase 8)
+│   │   │   ├── grading/              empty placeholder (grading is handled inline in sessions/ for now — see Phase 8 checkpoint)
 │   │   │   └── stats/                empty placeholder (later phase)
-│   │   ├── realtime/               empty placeholder (WebSocket hub, later phase)
+│   │   ├── realtime/               WebSocket hub — /ws, session rooms, broadcasts (Phase 8)
 │   │   └── server.js               entry point
 │   ├── data/                      SQLite database file (gitignored)
 │   └── logs/                      server.log (gitignored)
 ├── client/
-│   └── public/                    static placeholder page, css/, js/
+│   └── public/                    static pages, css/, js/ (plain HTML/JS, no framework/build step)
+│       ├── group-session.html      student group-session/test UI (Phase 8)
+│       └── sessions.html           teacher group-session/test dashboard (Phase 8)
 └── docs/checkpoints/               one file per phase checkpoint
 ```

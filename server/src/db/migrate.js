@@ -71,6 +71,29 @@ function applyColumnMigrations() {
         db.pragma('foreign_keys = ON');
         console.log('[migrate] Rebuilt sessions table for the Phase 8 state machine (no prior data existed to migrate).');
     }
+
+    // Phase 8 (group sessions + formal testing): plain additive columns,
+    // safe as simple ALTER TABLE ADD COLUMN (no CHECK constraints involved).
+    if (tableExists('sessions') && !columnExists('sessions', 'prep_time_ms')) {
+        db.exec("ALTER TABLE sessions ADD COLUMN prep_time_ms INTEGER NOT NULL DEFAULT 5000");
+        db.exec('ALTER TABLE sessions ADD COLUMN answer_time_ms INTEGER');
+        db.exec('ALTER TABLE sessions ADD COLUMN allowed_attempts INTEGER NOT NULL DEFAULT 1');
+        db.exec('ALTER TABLE sessions ADD COLUMN pass_threshold_percent REAL');
+        db.exec('ALTER TABLE sessions ADD COLUMN current_item_index INTEGER NOT NULL DEFAULT 0');
+        console.log('[migrate] Added Phase 8 timing/testing columns to sessions.');
+    }
+    if (tableExists('session_participants') && !columnExists('session_participants', 'is_ready')) {
+        db.exec('ALTER TABLE session_participants ADD COLUMN is_ready INTEGER NOT NULL DEFAULT 0');
+        console.log('[migrate] Added session_participants.is_ready.');
+    }
+    if (tableExists('session_items') && !columnExists('session_items', 'exercise_json')) {
+        db.exec("ALTER TABLE session_items ADD COLUMN exercise_json TEXT NOT NULL DEFAULT '{}'");
+        console.log('[migrate] Added session_items.exercise_json.');
+    }
+    if (tableExists('attempts') && !columnExists('attempts', 'attempt_count')) {
+        db.exec('ALTER TABLE attempts ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0');
+        console.log('[migrate] Added attempts.attempt_count.');
+    }
 }
 
 function migrate() {
@@ -84,7 +107,7 @@ function migrate() {
         'INSERT INTO schema_meta (key, value) VALUES (?, ?) ' +
         'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
     );
-    setMeta.run('schema_version', '5');
+    setMeta.run('schema_version', '6');
     setMeta.run('last_migrated_at', new Date().toISOString());
 
     console.log(`[migrate] Schema applied successfully. DB file: ${db.DB_PATH}`);

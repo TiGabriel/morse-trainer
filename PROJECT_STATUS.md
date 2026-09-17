@@ -38,19 +38,29 @@ Example:
 
 \* Offline at runtime
 
-\* Node.js backend
+\* Node.js (Express) backend
 
-\* React frontend
+\* Plain static HTML/CSS/vanilla JS frontend (NOT React — corrected as of
 
-\* SQLite database
+  the Phase 8 audit; earlier drafts of this document said React, but the
 
-\* WebSockets for realtime communication
+  actual `client/public/` has always been server-rendered static pages,
+
+  no build step, no bundler, no framework)
+
+\* SQLite database (`better-sqlite3`, WAL mode)
+
+\* WebSockets for realtime communication (`ws`, one hub at `/ws`, added in Phase 8)
 
 \* Modular monolith
 
 \* Teacher PC = server + teacher workstation
 
-\* \~20 simultaneous student clients
+\* \~20 simultaneous student clients (smoke-tested with 6 concurrent
+
+  WebSocket+HTTP clients through a full session lifecycle; see the
+
+  Phase 8 checkpoint for why this is representative)
 
 
 
@@ -232,15 +242,11 @@ The project originally had many small development phases.
 
 
 
-The current development point is approximately:
+\*\*PHASE 8 — GROUP SESSIONS + FORMAL TESTING — COMPLETE.\*\*
 
 
 
-\*\*PHASE 8 — GROUP SESSIONS\*\*
-
-
-
-Previous phases were intended to establish:
+Previous phases established:
 
 
 
@@ -252,15 +258,75 @@ Previous phases were intended to establish:
 
 \* individual practice
 
-\* persistence/grading
+\* persistence/grading (schema only, until Phase 8 actually used it)
 
 \* teacher dashboard
 
-\* realtime WebSocket layer
+\* Morse audio playback engine
 
 
 
-These previous features should NOT be rebuilt unless inspection shows that they are missing or broken.
+Phase 8 (this round) implemented, on top of all of the above without
+
+rebuilding any of it:
+
+
+
+\* group session creation, teacher controls (open/start/pause/resume/stop/cancel)
+
+\* an explicit server-authoritative 6-state machine (created/waiting/running/paused/finished/cancelled)
+
+\* a new WebSocket realtime hub (`server/src/realtime/hub.js`) — the
+
+  previous placeholder folder is now implemented
+
+\* scheduled, server-authoritative synchronized playback (future
+
+  timestamp + client-side clock-offset correction — never "message
+
+  arrives, play immediately")
+
+\* student session UI (`group-session.html`), including a waiting room,
+
+  readiness, countdown, synchronized playback, timed submission, and a
+
+  results screen — this didn't exist before Phase 8 at all
+
+\* teacher live monitoring (extended the pre-existing but previously
+
+  unreachable `sessions.html`/`sessions.js`)
+
+\* reconnect/resync (both WS auto-reconnect and a full page-refresh
+
+  recovery path, backed by the hub re-sending current authoritative
+
+  state on every join)
+
+\* server-side authorization throughout (every mutation re-validated
+
+  against the requester's actual role/class/session, never trusted from
+
+  the client)
+
+\* formal testing extended onto the same session machinery: configurable
+
+  prep/answer time, allowed attempts, pass threshold, and deferred score
+
+  reveal until the test ends
+
+\* automated tests (113/113 passing) plus extensive manual/scripted
+
+  end-to-end and concurrency testing — see
+
+  `docs/checkpoints/phase-8-checkpoint.md` for the full detail, honest
+
+  limitations, and exactly what was and wasn't automated
+
+
+
+See `docs/checkpoints/phase-8-checkpoint.md` for the complete record —
+
+this section is intentionally just a summary.
 
 
 
@@ -268,45 +334,13 @@ These previous features should NOT be rebuilt unless inspection shows that they 
 
 
 
-Continue with:
+Phase 8 is complete. Waiting for explicit direction before starting
 
+Phase 9 (Formal Testing was pulled forward into Phase 8 and is already
 
+implemented — Phase 9's actual remaining scope should be re-evaluated
 
-\*\*PHASE 8 — Group Sessions \& Server-Authoritative Synchronization\*\*
-
-
-
-Required functionality:
-
-
-
-\* group session creation
-
-\* teacher controls
-
-\* explicit server-side session state
-
-\* scheduled synchronized start
-
-\* client/server clock offset
-
-\* Morse/audio preloading
-
-\* WebSocket state broadcasts
-
-\* student session UI
-
-\* teacher live monitoring
-
-\* reconnect/resync
-
-\* refresh recovery
-
-\* authorization/security
-
-\* approximately 20 simultaneous clients
-
-\* automated/integration testing
+against what exists now, not assumed from the original roadmap).
 
 
 
@@ -388,11 +422,29 @@ Do not automatically proceed to Phase 9.
 
 
 
-After Phase 8, development continues in larger milestones:
+After Phase 8 (now complete — see `docs/checkpoints/phase-8-checkpoint.md`),
+
+development continues in larger milestones. Formal Testing's core
+
+(configured tests, timed items, attempt limits, pass/fail grading,
+
+deferred reveal, results persistence) was pulled forward and already
+
+built as part of Phase 8, so Phase 9 below should be scoped against
+
+what's actually implemented now, not the original assumption that it
+
+was untouched:
 
 
 
-Phase 9 — Formal Testing System
+Phase 9 — remaining Formal Testing / assessment polish not already covered
+
+by Phase 8 (e.g. participant selection UI, richer grading-rule
+
+configuration beyond a single pass threshold, teacher-side test review
+
+tooling)
 
 
 
