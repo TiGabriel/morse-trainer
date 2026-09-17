@@ -90,7 +90,7 @@ function broadcast(sessionId, message) {
 function broadcastSessionState(sessionId) {
     const session = sessionRepository.findByIdPublic(sessionId);
     if (!session) return;
-    const roster = sessionRepository.listRoster(sessionId, session.classId);
+    const roster = sessionRepository.listRoster(sessionId, session.classId, session.participantIds);
     broadcast(sessionId, { type: 'session_state', session, roster });
 }
 
@@ -103,7 +103,7 @@ function handleMonitorSession(ws, msg) {
     if (!session) return send(ws, { type: 'error', error: 'Session not found.' });
 
     joinRoom(ws, sessionId);
-    const roster = sessionRepository.listRoster(sessionId, session.classId);
+    const roster = sessionRepository.listRoster(sessionId, session.classId, session.participantIds);
     send(ws, { type: 'session_state', session, roster });
 }
 

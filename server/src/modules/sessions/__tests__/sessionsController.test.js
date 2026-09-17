@@ -45,6 +45,9 @@ db.prepare(
 db.prepare(
     "INSERT INTO users (id, username, password_hash, role, class_id, first_name, last_name) VALUES (3, 'stud2', 'x', 'student', 2, 'Zed', 'Other')"
 ).run();
+db.prepare(
+    "INSERT INTO users (id, username, password_hash, role, class_id, first_name, last_name) VALUES (5, 'stud3', 'x', 'student', 1, 'Cara', 'Extra')"
+).run(); // a second student in class 1, for participant-restriction tests
 
 // --- Mocks, wired up BEFORE requiring the controller (see note above) ---
 hub.broadcast = () => {};
@@ -303,4 +306,95 @@ test('cancelSession handler: a second cancel on an already-terminal session is r
 
     assert.equal(res.statusCode, 409);
     assert.deepEqual(runtimeCalls, []);
+});
+
+// ---------------------------------------------------------------------
+// Phase 10: formal-test creation body (instructions/participants/length)
+// ---------------------------------------------------------------------
+
+test('createSession handler: persists instructions, Farnsworth/tone, item length, and a validated participant subset', () => {
+    const req = {
+        body: {
+            type: 'test',
+            classId: 1,
+            exerciseMode: 'audio_to_text',
+            difficulty: 'easy',
+            exerciseCount: 2,
+            farnsworthWpm: 10,
+            toneFrequencyHz: 700,
+            length: 8,
+            instructions: 'Answer in capital letters only.',
+            participantIds: [2, 999], // 999 does not exist / is not in class 1
+            allowedAttempts: 2,
+            passThresholdPercent: 60,
+        },
+        user: { id: 1, username: 'teacher1' },
+    };
+    const res = mockRes();
+    sessionsController.createSession(req, res);
+
+    assert.equal(res.statusCode, 201);
+    const { session } = res.body;
+    assert.equal(session.instructions, 'Answer in capital letters only.');
+    assert.equal(session.toneFrequencyHz, 700);
+    assert.equal(session.farnsworthWpm, 10);
+    assert.equal(session.itemLength, 8);
+    assert.deepEqual(session.participantIds, [2], 'the bogus id 999 must be silently dropped, never trusted from the client');
+
+    const items = sessionRepository.listItems(session.id);
+    items.forEach((item) => assert.equal(item.exercise.text.replace(/\s/g, '').length, 8));
+});
+
+test('createSession handler: rejects when none of the submitted participantIds are real students in that class', () => {
+    const req = {
+        body: {
+            type: 'test',
+            classId: 1,
+            exerciseMode: 'audio_to_text',
+            difficulty: 'easy',
+            exerciseCount: 1,
+            participantIds: [999, 888], // neither exists
+        },
+        user: { id: 1, username: 'teacher1' },
+    };
+    const res = mockRes();
+    sessionsController.createSession(req, res);
+
+    assert.equal(res.statusCode, 400);
+});
+
+test('createSession handler: omitting participantIds still means "everyone in the class" (Phase 8 default preserved)', () => {
+    const req = {
+        body: { type: 'group', classId: 1, exerciseMode: 'audio_to_text', difficulty: 'easy', exerciseCount: 1 },
+        user: { id: 1, username: 'teacher1' },
+    };
+    const res = mockRes();
+    sessionsController.createSession(req, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.session.participantIds, null);
+});
+
+test('submitAttempt: a student excluded from a participant-restricted test is rejected even though they share the class', () => {
+    const createReq = {
+        body: { type: 'test', classId: 1, exerciseMode: 'audio_to_text', difficulty: 'easy', exerciseCount: 1, participantIds: [2] }, // only Ann (id 2)
+        user: { id: 1, username: 'teacher1' },
+    };
+    const createRes = mockRes();
+    sessionsController.createSession(createReq, createRes);
+    const { session } = createRes.body;
+    toRunning(session.id);
+
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+
+    // Ann (id 2) — selected — succeeds.
+    const annRes = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, studentId: 2 }), annRes);
+    assert.equal(annRes.statusCode, 201);
+
+    // Cara (id 5) — same class, NOT selected — must be rejected.
+    const caraRes = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, studentId: 5 }), caraRes);
+    assert.equal(caraRes.statusCode, 403);
 });

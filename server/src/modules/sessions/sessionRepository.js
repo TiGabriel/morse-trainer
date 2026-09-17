@@ -24,6 +24,9 @@ function toPublicSession(row) {
         allowedAttempts: row.allowed_attempts,
         passThresholdPercent: row.pass_threshold_percent,
         currentItemIndex: row.current_item_index,
+        instructions: row.instructions || null,
+        participantIds: row.participant_ids_json ? JSON.parse(row.participant_ids_json) : null,
+        itemLength: row.item_length,
         createdBy: row.created_by,
         openedAt: row.opened_at,
         startedAt: row.started_at,
@@ -65,14 +68,35 @@ function listByCreator(teacherId) {
     return rows.map(toPublicSession);
 }
 
-function listAvailableForClass(classId) {
+/**
+ * Sessions a given student may currently join/see: their class's
+ * waiting/running/paused sessions, narrowed further to only those whose
+ * optional participant restriction (if any) includes this student. A
+ * session with no restriction (the original default) is visible to the
+ * whole class, unchanged from Phase 8.
+ */
+function listAvailableForStudent(studentId, classId) {
     const rows = db
         .prepare(
             `${SESSION_SELECT} WHERE sessions.class_id = ? AND sessions.status IN ('waiting', 'running', 'paused')
              ORDER BY sessions.created_at DESC, sessions.id DESC`
         )
         .all(classId);
-    return rows.map(toPublicSession);
+    return rows
+        .map(toPublicSession)
+        .filter((s) => !s.participantIds || s.participantIds.length === 0 || s.participantIds.includes(studentId));
+}
+
+/** Narrows a teacher-submitted participant list down to real, active students actually in the given class — silently drops anything else rather than trusting client-supplied ids outright. */
+function validateParticipantIds(classId, candidateIds) {
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) return [];
+    const placeholders = candidateIds.map(() => '?').join(', ');
+    const rows = db
+        .prepare(
+            `SELECT id FROM users WHERE class_id = ? AND role = 'student' AND is_active = 1 AND id IN (${placeholders})`
+        )
+        .all(classId, ...candidateIds);
+    return rows.map((r) => r.id);
 }
 
 function createSession(data) {
@@ -80,8 +104,9 @@ function createSession(data) {
         .prepare(
             `INSERT INTO sessions (
                 class_id, type, exercise_mode, difficulty, wpm, farnsworth_wpm, tone_frequency_hz,
-                exercise_count, prep_time_ms, answer_time_ms, allowed_attempts, pass_threshold_percent, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                exercise_count, prep_time_ms, answer_time_ms, allowed_attempts, pass_threshold_percent,
+                instructions, participant_ids_json, item_length, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
             data.classId,
@@ -96,6 +121,9 @@ function createSession(data) {
             data.answerTimeMs === undefined ? null : data.answerTimeMs,
             data.allowedAttempts,
             data.passThresholdPercent === undefined ? null : data.passThresholdPercent,
+            data.instructions || null,
+            data.participantIds && data.participantIds.length > 0 ? JSON.stringify(data.participantIds) : null,
+            data.itemLength === undefined ? null : data.itemLength,
             data.createdBy
         );
     return findByIdPublic(info.lastInsertRowid);
@@ -213,9 +241,13 @@ function setParticipantReady(sessionId, studentId, isReady) {
  * The full roster for a session: every student in the session's class
  * (the eligible roster, derived live from `users` per the schema's
  * design), left-joined with their connection/readiness state if they've
- * ever connected.
+ * ever connected. When `participantIds` is a non-empty array (a
+ * teacher-restricted formal test), the roster narrows to just those
+ * students — the whole point of restricting a test is that it isn't
+ * meant for the rest of the class either.
  */
-function listRoster(sessionId, classId) {
+function listRoster(sessionId, classId, participantIds) {
+    const restrict = Array.isArray(participantIds) && participantIds.length > 0;
     const rows = db
         .prepare(
             `SELECT users.id AS student_id, users.username, users.first_name, users.last_name, users.rank,
@@ -227,9 +259,10 @@ function listRoster(sessionId, classId) {
              LEFT JOIN classes ON classes.id = users.class_id
              LEFT JOIN session_participants sp ON sp.session_id = ? AND sp.student_id = users.id
              WHERE users.class_id = ? AND users.role = 'student' AND users.is_active = 1
+             ${restrict ? `AND users.id IN (${participantIds.map(() => '?').join(', ')})` : ''}
              ORDER BY users.last_name, users.first_name`
         )
-        .all(sessionId, classId);
+        .all(sessionId, classId, ...(restrict ? participantIds : []));
 
     return rows.map((row) => ({
         studentId: row.student_id,
@@ -245,15 +278,28 @@ function listRoster(sessionId, classId) {
     }));
 }
 
+/**
+ * True if `studentId` is both in the session's class AND, when the
+ * session restricts its participants to a specific subset (a formal
+ * test not meant for the whole class), actually one of the selected
+ * students. Every join/submit/results authorization check in this
+ * module goes through this one function, so the restriction is
+ * enforced everywhere consistently rather than needing to be repeated
+ * at each call site.
+ */
 function isStudentInSessionClass(sessionId, studentId) {
     const row = db
         .prepare(
-            `SELECT 1 FROM sessions
+            `SELECT sessions.participant_ids_json AS participant_ids_json
+             FROM sessions
              JOIN users ON users.class_id = sessions.class_id
              WHERE sessions.id = ? AND users.id = ? AND users.role = 'student'`
         )
         .get(sessionId, studentId);
-    return !!row;
+    if (!row) return false;
+    if (!row.participant_ids_json) return true;
+    const participantIds = JSON.parse(row.participant_ids_json);
+    return participantIds.length === 0 || participantIds.includes(studentId);
 }
 
 // ---------------------------------------------------------------------
@@ -306,8 +352,10 @@ function upsertResult({ attemptId, score, errorCount, grade }) {
     ).run(attemptId, score, errorCount, grade);
 }
 
-/** Full per-item/per-student results for a session — teacher-facing. */
+/** Full per-item/per-student results for a session — teacher-facing. Narrowed to selected participants for a restricted formal test, same as the roster. */
 function listResultsForSession(sessionId) {
+    const session = findByIdPublic(sessionId);
+    const restrict = session && Array.isArray(session.participantIds) && session.participantIds.length > 0;
     const rows = db
         .prepare(
             `SELECT session_items.order_index, session_items.id AS session_item_id,
@@ -321,9 +369,10 @@ function listResultsForSession(sessionId) {
              WHERE session_items.session_id = ?
                AND users.class_id = (SELECT class_id FROM sessions WHERE id = ?)
                AND users.role = 'student'
+               ${restrict ? `AND users.id IN (${session.participantIds.map(() => '?').join(', ')})` : ''}
              ORDER BY session_items.order_index, users.last_name, users.first_name`
         )
-        .all(sessionId, sessionId);
+        .all(sessionId, sessionId, ...(restrict ? session.participantIds : []));
 
     return rows.map((row) => ({
         orderIndex: row.order_index,
@@ -353,7 +402,8 @@ module.exports = {
     findById,
     findByIdPublic,
     listByCreator,
-    listAvailableForClass,
+    listAvailableForStudent,
+    validateParticipantIds,
     createSession,
     insertItems,
     listItems,

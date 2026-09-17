@@ -84,6 +84,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     allowed_attempts    INTEGER NOT NULL DEFAULT 1,
     pass_threshold_percent REAL,
     current_item_index  INTEGER NOT NULL DEFAULT 0,
+    -- Phase 10 (formal testing): optional student-facing instructions
+    -- text; an optional JSON array of specific student user ids this
+    -- session is restricted to (NULL/empty = every student in the
+    -- class, the original Phase 8 default — this is additive, not a
+    -- replacement, since most group practice has no need to narrow the
+    -- roster); an optional override of how many characters each
+    -- generated item contains (NULL = the difficulty preset's default
+    -- range, same as before this phase).
+    instructions        TEXT,
+    participant_ids_json TEXT,
+    item_length         INTEGER,
     created_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
     opened_at           TEXT,
     started_at          TEXT,

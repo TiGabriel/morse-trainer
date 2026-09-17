@@ -62,7 +62,7 @@ const ACTIVE_STATUSES_FOR_STUDENTS = ['waiting', 'running', 'paused'];
  * within one session differ, but the whole set is still fully
  * reproducible from `baseSeed` (useful for debugging/tests).
  */
-function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm, toneFrequencyHz, exerciseCount }) {
+function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm, toneFrequencyHz, length, exerciseCount }) {
     if (!Number.isInteger(exerciseCount) || exerciseCount < 1) {
         throw new SessionError('exerciseCount must be a positive integer.');
     }
@@ -77,6 +77,7 @@ function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm,
             wpm,
             farnsworthWpm,
             toneFrequencyHz,
+            length,
             seed,
         });
         items.push({ orderIndex: i, exercise });

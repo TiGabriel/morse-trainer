@@ -59,6 +59,20 @@ function createSession(req, res) {
         body.passThresholdPercent === undefined || body.passThresholdPercent === ''
             ? null
             : clampInt(toNumberOrUndefined(body.passThresholdPercent), 70, 0, 100);
+    const itemLength = body.length === undefined || body.length === '' ? undefined : clampInt(toNumberOrUndefined(body.length), 10, 1, 100);
+    const instructions = typeof body.instructions === 'string' && body.instructions.trim() ? body.instructions.trim().slice(0, 2000) : null;
+
+    // A teacher may restrict a formal test to specific students rather
+    // than the whole class — validated against real, active students in
+    // THIS class (never trusted outright from the client). An empty/
+    // omitted list means "everyone in the class", unchanged from Phase 8.
+    let participantIds;
+    if (Array.isArray(body.participantIds) && body.participantIds.length > 0) {
+        participantIds = sessionRepository.validateParticipantIds(classId, body.participantIds.map(Number));
+        if (participantIds.length === 0) {
+            return res.status(400).json({ error: 'None of the selected participants are active students in that class.' });
+        }
+    }
 
     let generated;
     try {
@@ -68,6 +82,7 @@ function createSession(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            length: itemLength,
             exerciseCount,
         });
     } catch (err) {
@@ -87,6 +102,9 @@ function createSession(req, res) {
         answerTimeMs,
         allowedAttempts: type === 'test' ? allowedAttempts : 1,
         passThresholdPercent: type === 'test' ? passThresholdPercent : null,
+        instructions,
+        participantIds,
+        itemLength,
         createdBy: req.user.id,
     });
 
@@ -103,10 +121,10 @@ function listSessions(req, res) {
     return res.json({ sessions: sessionRepository.listByCreator(req.user.id) });
 }
 
-/** GET /api/sessions/available (student) — open/active sessions for the student's own class. */
+/** GET /api/sessions/available (student) — open/active sessions for the student's own class, narrowed further by any participant restriction. */
 function listAvailable(req, res) {
     if (!req.user.classId) return res.json({ sessions: [] });
-    return res.json({ sessions: sessionRepository.listAvailableForClass(req.user.classId) });
+    return res.json({ sessions: sessionRepository.listAvailableForStudent(req.user.id, req.user.classId) });
 }
 
 /** GET /api/sessions/:id — teacher gets the roster too; a student only their own eligibility view. */
@@ -118,7 +136,7 @@ function getSession(req, res) {
     const itemsTotal = sessionRepository.countItems(id);
 
     if (req.user.role === 'teacher') {
-        const roster = sessionRepository.listRoster(id, session.classId);
+        const roster = sessionRepository.listRoster(id, session.classId, session.participantIds);
         return res.json({ session, roster, itemsTotal });
     }
 

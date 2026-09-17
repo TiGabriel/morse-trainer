@@ -370,13 +370,59 @@ here).
 
 
 
+\*\*PHASE 10 — FORMAL TESTING SYSTEM — COMPLETE.\*\*
+
+
+
+Re-inspected the existing formal-test system (`type: 'test'` sessions,
+
+already built in Phase 8, already timing-hardened in Phase 9) against
+
+the full Phase 10 requirement list line-by-line before writing any
+
+code. Almost everything required was already implemented and already
+
+tested — teacher create/configure/start/monitor/finish/results,
+
+student join/countdown/playback/timed-submit/completion,
+
+server-authoritative timing/grading/persistence, and every listed
+
+security rule. Found and closed exactly four real, concrete gaps: (1)
+
+no way to restrict a test to specific students rather than the whole
+
+class — added an optional participant list, validated server-side,
+
+enforced through every roster/availability/results/join check; (2) no
+
+teacher-authored instructions field or student-facing display for one;
+
+(3)-(4) Farnsworth WPM, tone frequency, and item-length were already
+
+accepted by the backend but never exposed in the `sessions.html`
+
+creation form. All four verified end-to-end with a real browser driving
+
+the real create-session form (not just the API). 11 new/updated
+
+automated tests (153/153 total passing). See
+
+`docs/checkpoints/phase-10-checkpoint.md` for full detail and honest
+
+limitations (no richer grading-rule editor than a pass threshold, no
+
+manual radiogram entry — both pre-existing gaps, not regressions).
+
+
+
 \## Current task
 
 
 
-Phase 9 is complete. Waiting for explicit direction before starting
+Phase 10 is complete. Waiting for explicit direction before starting
 
-Phase 10.
+Phase 11.
 
 
 

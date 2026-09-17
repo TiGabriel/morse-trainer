@@ -94,6 +94,14 @@ function applyColumnMigrations() {
         db.exec('ALTER TABLE attempts ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0');
         console.log('[migrate] Added attempts.attempt_count.');
     }
+
+    // Phase 10 (formal testing): plain additive columns on sessions.
+    if (tableExists('sessions') && !columnExists('sessions', 'instructions')) {
+        db.exec('ALTER TABLE sessions ADD COLUMN instructions TEXT');
+        db.exec('ALTER TABLE sessions ADD COLUMN participant_ids_json TEXT');
+        db.exec('ALTER TABLE sessions ADD COLUMN item_length INTEGER');
+        console.log('[migrate] Added Phase 10 formal-testing columns to sessions.');
+    }
 }
 
 function migrate() {
@@ -107,7 +115,7 @@ function migrate() {
         'INSERT INTO schema_meta (key, value) VALUES (?, ?) ' +
         'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
     );
-    setMeta.run('schema_version', '6');
+    setMeta.run('schema_version', '7');
     setMeta.run('last_migrated_at', new Date().toISOString());
 
     console.log(`[migrate] Schema applied successfully. DB file: ${db.DB_PATH}`);

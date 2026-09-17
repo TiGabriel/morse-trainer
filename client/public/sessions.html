@@ -65,8 +65,35 @@
                                 <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
                             </div>
                             <div class="modal-field">
+                                <label for="new-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                                <input type="number" id="new-farnsworth" min="1" max="60" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-tone">Tone frequency (Hz) <span class="muted">(blank = 600)</span></label>
+                                <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-length">Item length (characters) <span class="muted">(blank = difficulty default)</span></label>
+                                <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
                                 <label for="new-count">Number of exercises</label>
                                 <input type="number" id="new-count" min="1" max="100" value="5" required />
+                            </div>
+                        </div>
+
+                        <div class="modal-field">
+                            <label for="new-instructions">Instructions for students <span class="muted">(optional, shown in the waiting room)</span></label>
+                            <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once."></textarea>
+                        </div>
+
+                        <div class="modal-field">
+                            <div class="participants-header">
+                                <label>Participants <span class="muted">(default: everyone in the class)</span></label>
+                                <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;">Select/deselect all</button>
+                            </div>
+                            <div id="participants-list" class="participants-list">
+                                <span class="muted">Select a class to choose participants&hellip;</span>
                             </div>
                         </div>
 
@@ -127,7 +154,12 @@
                         <dt>WPM</dt><dd id="monitor-wpm">&mdash;</dd>
                         <dt>Exercises</dt><dd id="monitor-count">&mdash;</dd>
                         <dt>Connected</dt><dd id="monitor-connected">&mdash;</dd>
+                        <dt id="monitor-participants-label" hidden>Participants</dt><dd id="monitor-participants" hidden>&mdash;</dd>
                     </dl>
+
+                    <div id="monitor-instructions-box" class="modal-note" hidden>
+                        <strong>Instructions shown to students:</strong> <span id="monitor-instructions"></span>
+                    </div>
 
                     <div class="session-controls">
                         <button id="btn-open" class="btn btn-primary" type="button">Open for Joining</button>

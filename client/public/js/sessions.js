@@ -31,6 +31,7 @@ const MODE_LABELS = {
 };
 
 let classesCache = [];
+let studentsInSelectedClass = [];
 let ws = null;
 let monitoredSessionId = null;
 let currentSessionType = 'group';
@@ -47,6 +48,50 @@ async function loadClasses() {
     classesCache = classes.filter((c) => c.isActive);
     const select = el('new-class');
     select.innerHTML = classesCache.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    await loadParticipantsForSelectedClass();
+}
+
+// ---------------------------------------------------------------------
+// Participant selection (defaults to "everyone in the class")
+// ---------------------------------------------------------------------
+async function loadParticipantsForSelectedClass() {
+    const classId = el('new-class').value;
+    const container = el('participants-list');
+    if (!classId) {
+        container.innerHTML = '<span class="muted">Select a class to choose participants&hellip;</span>';
+        studentsInSelectedClass = [];
+        return;
+    }
+    try {
+        const { users } = await api(`/api/users?role=student&classId=${classId}&status=active`);
+        studentsInSelectedClass = users;
+        if (users.length === 0) {
+            container.innerHTML = '<span class="muted">No active students in this class yet.</span>';
+            return;
+        }
+        container.innerHTML = users
+            .map((u) => {
+                const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username;
+                return `
+                    <label class="participant-checkbox">
+                        <input type="checkbox" class="participant-check" value="${u.id}" checked />
+                        ${escapeHtml(name)}
+                    </label>
+                `;
+            })
+            .join('');
+    } catch (err) {
+        container.innerHTML = `<span class="muted">Could not load students: ${escapeHtml(err.message)}</span>`;
+    }
+}
+
+/** Returns null (meaning "everyone in the class", the default) unless the teacher has explicitly narrowed the selection. */
+function getSelectedParticipantIds() {
+    const checkboxes = Array.from(document.querySelectorAll('.participant-check'));
+    if (checkboxes.length === 0) return undefined;
+    const checked = checkboxes.filter((cb) => cb.checked).map((cb) => Number(cb.value));
+    if (checked.length === checkboxes.length) return undefined; // everyone selected = no restriction
+    return checked;
 }
 
 async function loadSessions() {
@@ -94,7 +139,12 @@ async function createSession(e) {
         exerciseMode: el('new-mode').value,
         difficulty: el('new-difficulty').value,
         wpm: el('new-wpm').value || undefined,
+        farnsworthWpm: el('new-farnsworth').value || undefined,
+        toneFrequencyHz: el('new-tone').value || undefined,
+        length: el('new-length').value || undefined,
         exerciseCount: Number(el('new-count').value),
+        instructions: el('new-instructions').value.trim() || undefined,
+        participantIds: getSelectedParticipantIds(),
     };
     if (type === 'test') {
         body.prepTimeMs = Number(el('new-prep-time').value) * 1000;
@@ -245,6 +295,21 @@ function renderMonitor(session, roster) {
     const connectedCount = roster.filter((r) => r.connectionStatus === 'connected').length;
     el('monitor-connected').textContent = `${connectedCount} / ${roster.length}`;
 
+    const isRestricted = Array.isArray(session.participantIds) && session.participantIds.length > 0;
+    el('monitor-participants-label').hidden = !isRestricted;
+    el('monitor-participants').hidden = !isRestricted;
+    if (isRestricted) {
+        el('monitor-participants').textContent = `${session.participantIds.length} selected student(s) (not the whole class)`;
+    }
+
+    const instructionsBox = el('monitor-instructions-box');
+    if (session.instructions) {
+        instructionsBox.hidden = false;
+        el('monitor-instructions').textContent = session.instructions;
+    } else {
+        instructionsBox.hidden = true;
+    }
+
     const buttonVisibility = {
         created: ['btn-open', 'btn-cancel'],
         waiting: ['btn-start', 'btn-cancel'],
@@ -321,6 +386,14 @@ async function init() {
     el('create-form').addEventListener('submit', createSession);
     el('new-type').addEventListener('change', updateTestSettingsVisibility);
     updateTestSettingsVisibility();
+    el('new-class').addEventListener('change', loadParticipantsForSelectedClass);
+    el('participants-toggle-all').addEventListener('click', () => {
+        const checkboxes = Array.from(document.querySelectorAll('.participant-check'));
+        const allChecked = checkboxes.every((cb) => cb.checked);
+        checkboxes.forEach((cb) => {
+            cb.checked = !allChecked;
+        });
+    });
     el('back-to-list-button').addEventListener('click', closeMonitor);
 
     el('btn-open').addEventListener('click', () => sendTransition('open'));

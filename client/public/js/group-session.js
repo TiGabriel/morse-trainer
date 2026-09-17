@@ -279,7 +279,15 @@ function renderWaitingRoom(session, roster) {
 
     const readyCount = roster.filter((r) => r.isReady).length;
     const connectedCount = roster.filter((r) => r.connectionStatus === 'connected').length;
-    el('waiting-ready-count').textContent = `${readyCount} ready · ${connectedCount} connected of ${roster.length} in class`;
+    el('waiting-ready-count').textContent = `${readyCount} ready · ${connectedCount} connected of ${roster.length}`;
+
+    const instructionsBox = el('waiting-instructions-box');
+    if (session.instructions) {
+        instructionsBox.hidden = false;
+        el('waiting-instructions').textContent = session.instructions;
+    } else {
+        instructionsBox.hidden = true;
+    }
 
     const me = roster.find((r) => r.studentId === currentUser.id);
     const isReady = !!(me && me.isReady);
