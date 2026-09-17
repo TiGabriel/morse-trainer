@@ -1,0 +1,9 @@
+node_modules/
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
+server/data/INITIAL_TEACHER_CREDENTIALS.txt
+server/logs/*.log
+server/.env
+*.log
+.DS_Store

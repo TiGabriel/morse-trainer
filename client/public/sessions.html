@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer — Group Sessions</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/teacher.css" />
+    <link rel="stylesheet" href="/css/sessions.css" />
+</head>
+<body class="dashboard-body">
+    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+
+    <div id="dashboard" hidden>
+        <header class="dash-header">
+            <h1>Group Sessions</h1>
+            <div class="dash-header-right">
+                <span id="teacher-name" class="muted"></span>
+                <a href="/teacher.html" class="btn btn-secondary">Dashboard</a>
+                <a href="/" class="btn btn-secondary">Home</a>
+                <button id="logout-button" class="btn btn-secondary">Log out</button>
+            </div>
+        </header>
+
+        <main class="dash-main">
+            <!-- LIST + CREATE VIEW -->
+            <section id="view-list">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>New Session</h2>
+                    </div>
+                    <form id="create-form" class="session-form">
+                        <div class="preview-params">
+                            <div class="modal-field">
+                                <label for="new-class">Class</label>
+                                <select id="new-class" required></select>
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-mode">Exercise type</label>
+                                <select id="new-mode">
+                                    <option value="audio_to_text">Audio → Text</option>
+                                    <option value="morse_to_text">Morse → Text</option>
+                                    <option value="text_to_morse">Text → Morse</option>
+                                    <option value="character_recognition">Character Recognition</option>
+                                </select>
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-difficulty">Difficulty</label>
+                                <select id="new-difficulty">
+                                    <option value="beginner">Beginner</option>
+                                    <option value="easy" selected>Easy</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-wpm">WPM <span class="muted">(blank = difficulty default)</span></label>
+                                <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-count">Number of exercises</label>
+                                <input type="number" id="new-count" min="1" max="100" value="5" required />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Session</button>
+                    </form>
+                    <div id="create-error" class="modal-error" hidden></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>My Sessions</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Class</th><th>Type</th><th>Difficulty</th><th>WPM</th><th>Exercises</th><th>Status</th><th class="col-actions">Actions</th></tr>
+                            </thead>
+                            <tbody id="sessions-tbody"><tr><td colspan="7" class="muted">Loading&hellip;</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- MONITOR VIEW -->
+            <section id="view-monitor" hidden>
+                <button id="back-to-list-button" class="link-button" type="button" style="text-align:left;">&larr; Back to all sessions</button>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 id="monitor-title">Session</h2>
+                        <span id="monitor-status-badge" class="badge">&mdash;</span>
+                    </div>
+
+                    <dl class="profile-list monitor-config">
+                        <dt>Class</dt><dd id="monitor-class">&mdash;</dd>
+                        <dt>Exercise type</dt><dd id="monitor-mode">&mdash;</dd>
+                        <dt>Difficulty</dt><dd id="monitor-difficulty">&mdash;</dd>
+                        <dt>WPM</dt><dd id="monitor-wpm">&mdash;</dd>
+                        <dt>Exercises</dt><dd id="monitor-count">&mdash;</dd>
+                        <dt>Connected</dt><dd id="monitor-connected">&mdash;</dd>
+                    </dl>
+
+                    <div class="session-controls">
+                        <button id="btn-open" class="btn btn-primary" type="button">Open for Joining</button>
+                        <button id="btn-start" class="btn btn-primary" type="button">Start</button>
+                        <button id="btn-pause" class="btn btn-secondary" type="button">Pause</button>
+                        <button id="btn-resume" class="btn btn-primary" type="button">Continue</button>
+                        <button id="btn-stop" class="btn btn-secondary" type="button">Stop</button>
+                        <button id="btn-cancel" class="btn btn-danger" type="button">Cancel Session</button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Roster</h2>
+                        <span class="muted">Updates live as students join or leave.</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Rank</th><th>Name</th><th>Class</th><th>Connection</th></tr>
+                            </thead>
+                            <tbody id="roster-tbody"><tr><td colspan="4" class="muted">Loading&hellip;</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/js/sessions.js"></script>
+</body>
+</html>

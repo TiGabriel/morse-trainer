@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer — Teacher Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/teacher.css" />
+</head>
+<body class="dashboard-body">
+    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+
+    <div id="dashboard" hidden>
+        <header class="dash-header">
+            <h1>Teacher Dashboard</h1>
+            <div class="dash-header-right">
+                <span id="teacher-name" class="muted"></span>
+                <a href="/" class="btn btn-secondary">Home</a>
+                <button id="logout-button" class="btn btn-secondary">Log out</button>
+            </div>
+        </header>
+
+        <main class="dash-main">
+            <!-- MORSE AUDIO PREVIEW -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Morse Audio Preview</h2>
+                    <span class="muted">Generates and plays audio locally — no network or files involved.</span>
+                </div>
+
+                <div class="preview-grid">
+                    <div class="preview-controls">
+                        <div class="modal-field">
+                            <label for="preview-text">Text</label>
+                            <textarea id="preview-text" rows="3" placeholder="Type text to convert to Morse audio&hellip;">PARIS</textarea>
+                        </div>
+
+                        <div class="preview-random-row">
+                            <select id="preview-difficulty">
+                                <option value="beginner">Beginner</option>
+                                <option value="easy" selected>Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                            <button id="preview-generate-button" class="btn btn-secondary btn-small" type="button">Generate random text</button>
+                        </div>
+
+                        <div class="preview-params">
+                            <div class="modal-field">
+                                <label for="preview-wpm">WPM</label>
+                                <input type="number" id="preview-wpm" min="1" max="60" value="15" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="preview-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                                <input type="number" id="preview-farnsworth" min="1" max="60" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="preview-tone">Tone frequency (Hz)</label>
+                                <input type="number" id="preview-tone" min="200" max="1200" value="600" />
+                            </div>
+                        </div>
+
+                        <div class="modal-field">
+                            <label for="preview-volume">Volume</label>
+                            <input type="range" id="preview-volume" min="0" max="100" value="60" />
+                        </div>
+
+                        <div class="preview-params">
+                            <div class="modal-field">
+                                <label for="preview-replay-policy">Replay policy <span class="muted">(demo of future test restrictions)</span></label>
+                                <select id="preview-replay-policy">
+                                    <option value="">Unlimited (replay allowed)</option>
+                                    <option value="1">Play once</option>
+                                    <option value="0">Disabled (no play)</option>
+                                </select>
+                            </div>
+                            <div class="modal-field">
+                                <label for="preview-autoplay">
+                                    <input type="checkbox" id="preview-autoplay" style="width:auto;vertical-align:middle;" />
+                                    Automatic playback (plays as soon as loaded)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="preview-actions">
+                            <button id="preview-play-button" class="btn btn-primary" type="button">▶ Play</button>
+                            <button id="preview-stop-button" class="btn btn-secondary" type="button">■ Stop</button>
+                        </div>
+                    </div>
+
+                    <div class="preview-output">
+                        <div class="modal-field">
+                            <label>Morse code</label>
+                            <div id="preview-morse" class="preview-morse-display">&mdash;</div>
+                        </div>
+                        <dl class="profile-list">
+                            <dt>Duration</dt><dd id="preview-duration">&mdash;</dd>
+                            <dt>Status</dt><dd id="preview-status">Idle</dd>
+                            <dt>Play count</dt><dd id="preview-play-count">0</dd>
+                        </dl>
+                        <div id="preview-warning" class="modal-error" hidden></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CLASSES -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Classes</h2>
+                    <button id="new-class-button" class="btn btn-primary">+ New Class</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Students</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classes-tbody">
+                            <tr><td colspan="4" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- STUDENTS -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Students</h2>
+                    <button id="new-student-button" class="btn btn-primary">+ New Student</button>
+                </div>
+
+                <div class="filters">
+                    <input type="text" id="search-input" placeholder="Search name, username, rank&hellip;" />
+                    <select id="class-filter">
+                        <option value="">All classes</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Username</th>
+                                <th>Class</th>
+                                <th>Status</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-tbody">
+                            <tr><td colspan="7" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal-backdrop" class="modal-backdrop" hidden>
+        <div class="modal">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-error" class="modal-error" hidden></div>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn btn-secondary" type="button">Cancel</button>
+                <button id="modal-confirm" class="btn btn-primary" type="button">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/teacher.js"></script>
+    <script src="/js/morse-preview.js"></script>
+</body>
+</html>

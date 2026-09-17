@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+    <main>
+        <h1>Morse Trainer — Server Online</h1>
+        <p class="subtitle">Phase 4 foundation. Full training/testing features arrive in later phases.</p>
+
+        <div id="status">Checking server status&hellip;</div>
+
+        <div id="share-box" class="share-box" hidden>
+            <h2>Share this address with students</h2>
+            <div id="share-url" class="share-url">&hellip;</div>
+            <p class="share-hint">Students on the same classroom network open this URL in any web browser.</p>
+        </div>
+
+        <div id="auth-box" class="auth-box">
+            <div id="logged-out-view">
+                <h2>Log in</h2>
+                <form id="login-form">
+                    <input type="text" id="login-username" placeholder="Username" autocomplete="username" required />
+                    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required />
+                    <button type="submit">Log in</button>
+                </form>
+                <div id="login-error" class="err" hidden></div>
+            </div>
+
+            <div id="logged-in-view" hidden>
+                <h2>Logged in</h2>
+                <p>Signed in as <strong id="current-user-name">&hellip;</strong> (<span id="current-user-role">&hellip;</span>)</p>
+
+                <div id="teacher-link-box" hidden>
+                    <a href="/teacher.html" class="btn-link">Open Teacher Dashboard &rarr;</a>
+                </div>
+
+                <div id="student-training-link-box" hidden>
+                    <a href="/practice.html" class="btn-link">Start Individual Training &rarr;</a>
+                </div>
+
+                <div id="student-profile-box" class="profile-box" hidden>
+                    <h3>My Profile</h3>
+                    <dl class="profile-list">
+                        <dt>Rank</dt><dd id="profile-rank">&mdash;</dd>
+                        <dt>Name</dt><dd id="profile-name">&mdash;</dd>
+                        <dt>Class</dt><dd id="profile-class">&mdash;</dd>
+                        <dt>Status</dt><dd id="profile-status">&mdash;</dd>
+                    </dl>
+                    <p class="modal-note">Only your teacher can edit this information or reset your password.</p>
+                </div>
+
+                <button id="logout-button">Log out</button>
+            </div>
+        </div>
+
+        <p class="subtitle" style="margin-top:1.5rem;">
+            Health check: <code>/api/health</code> &middot; Network info: <code>/api/network-info</code>
+        </p>
+    </main>
+    <script src="/js/app.js"></script>
+</body>
+</html>

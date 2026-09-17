@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer — Individual Training</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/practice.css" />
+</head>
+<body class="practice-body">
+    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+
+    <div id="app" hidden>
+        <header class="practice-header">
+            <a href="/" class="practice-home-link">&larr; Home</a>
+            <span id="user-name" class="muted"></span>
+        </header>
+
+        <main class="practice-main">
+            <!-- SETTINGS SCREEN -->
+            <section id="screen-settings" class="practice-screen">
+                <h1>Individual Training</h1>
+                <p class="subtitle">Practice at your own pace. This never affects official test results.</p>
+
+                <div class="modal-field">
+                    <label for="setting-mode">Exercise type</label>
+                    <select id="setting-mode">
+                        <option value="audio_to_text">Audio &rarr; Text (listen and type what you hear)</option>
+                        <option value="morse_to_text">Morse &rarr; Text (read Morse, type the text)</option>
+                        <option value="text_to_morse">Text &rarr; Morse (read text, type the Morse code)</option>
+                        <option value="character_recognition">Character Recognition (single-character drill)</option>
+                    </select>
+                </div>
+
+                <div class="modal-field">
+                    <label for="setting-difficulty">Difficulty</label>
+                    <select id="setting-difficulty">
+                        <option value="beginner">Beginner</option>
+                        <option value="easy" selected>Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div class="settings-row">
+                    <div class="modal-field">
+                        <label for="setting-wpm">WPM <span class="muted">(blank = use difficulty default)</span></label>
+                        <input type="number" id="setting-wpm" min="1" max="60" placeholder="&mdash;" />
+                    </div>
+                    <div class="modal-field" id="setting-length-wrap">
+                        <label for="setting-length">Length <span class="muted">(blank = use difficulty default)</span></label>
+                        <input type="number" id="setting-length" min="1" max="100" placeholder="&mdash;" />
+                    </div>
+                </div>
+
+                <div class="modal-field" id="setting-volume-wrap">
+                    <label for="setting-volume">Volume</label>
+                    <input type="range" id="setting-volume" min="0" max="100" value="60" />
+                </div>
+
+                <button id="start-button" class="btn btn-primary btn-large" type="button">Start Exercise</button>
+
+                <button id="history-toggle" class="link-button" type="button">Show my practice history</button>
+                <div id="history-panel" class="history-panel" hidden>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Date</th><th>Type</th><th>Difficulty</th><th>WPM</th><th>Accuracy</th></tr>
+                            </thead>
+                            <tbody id="history-tbody"><tr><td colspan="5" class="muted">Loading&hellip;</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EXERCISE SCREEN (minimal, distraction-free) -->
+            <section id="screen-exercise" class="practice-screen" hidden>
+                <div class="exercise-prompt">
+                    <div id="exercise-audio-controls" class="exercise-audio-controls" hidden>
+                        <button id="exercise-play-button" class="btn btn-primary btn-large" type="button">▶ Play</button>
+                        <button id="exercise-replay-button" class="btn btn-secondary" type="button" hidden>&#8635; Replay</button>
+                    </div>
+                    <div id="exercise-text-prompt" class="exercise-text-prompt" hidden></div>
+                </div>
+
+                <div class="modal-field">
+                    <label for="exercise-answer" id="exercise-answer-label">Your answer</label>
+                    <input type="text" id="exercise-answer" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="exercise-submit-button" class="btn btn-primary btn-large" type="button">Submit</button>
+                    <button id="exercise-cancel-button" class="link-button" type="button">Cancel &amp; change settings</button>
+                </div>
+            </section>
+
+            <!-- RESULTS SCREEN -->
+            <section id="screen-results" class="practice-screen" hidden>
+                <h1>Result</h1>
+                <div class="result-accuracy" id="result-accuracy">&mdash;</div>
+
+                <dl class="profile-list result-counts">
+                    <dt>Correct</dt><dd id="result-correct" class="count-correct">0</dd>
+                    <dt>Incorrect</dt><dd id="result-incorrect" class="count-incorrect">0</dd>
+                    <dt>Missing</dt><dd id="result-missing" class="count-missing">0</dd>
+                    <dt>Extra</dt><dd id="result-extra" class="count-extra">0</dd>
+                </dl>
+
+                <div class="modal-field">
+                    <label>Your answer vs. correct answer</label>
+                    <div id="result-diff" class="result-diff"></div>
+                </div>
+
+                <div class="modal-field">
+                    <label>Full correct answer</label>
+                    <div id="result-expected" class="preview-morse-display"></div>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="result-retry-button" class="btn btn-primary btn-large" type="button">Try Another</button>
+                    <button id="result-settings-button" class="link-button" type="button">Change settings</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/practice.js"></script>
+</body>
+</html>
