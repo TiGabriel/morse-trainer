@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse Trainer — Statistics</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/teacher.css" />
+    <link rel="stylesheet" href="/css/sessions.css" />
+</head>
+<body class="dashboard-body">
+    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+
+    <div id="dashboard" hidden>
+        <header class="dash-header">
+            <h1>Statistics</h1>
+            <div class="dash-header-right">
+                <span id="teacher-name" class="muted"></span>
+                <a href="/sessions.html" class="btn btn-secondary">Group Sessions</a>
+                <a href="/teacher.html" class="btn btn-secondary">Dashboard</a>
+                <a href="/" class="btn btn-secondary">Home</a>
+                <button id="logout-button" class="btn btn-secondary">Log out</button>
+            </div>
+        </header>
+
+        <main class="dash-main">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Class Summary</h2>
+                </div>
+                <div class="modal-field" style="max-width: 320px;">
+                    <label for="stats-class-select">Class</label>
+                    <select id="stats-class-select"></select>
+                </div>
+
+                <div id="stats-empty-notice" class="modal-note" hidden>
+                    No data yet — statistics appear once students complete practice exercises or formal tests.
+                </div>
+
+                <dl class="profile-list monitor-config" id="stats-summary-grid">
+                    <dt>Students</dt><dd id="stats-student-count">&mdash;</dd>
+                    <dt>Practice attempts</dt><dd id="stats-practice-count">&mdash;</dd>
+                    <dt>Practice avg. accuracy</dt><dd id="stats-practice-accuracy">&mdash;</dd>
+                    <dt>Formal tests completed</dt><dd id="stats-test-count">&mdash;</dd>
+                    <dt>Formal test avg. score</dt><dd id="stats-test-score">&mdash;</dd>
+                    <dt>Formal test pass rate</dt><dd id="stats-test-pass-rate">&mdash;</dd>
+                    <dt>Group sessions completed</dt><dd id="stats-group-count">&mdash;</dd>
+                    <dt>Group session avg. score</dt><dd id="stats-group-score">&mdash;</dd>
+                </dl>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Student Breakdown</h2>
+                    <span class="muted">Click a student to see their individual progress.</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th><th>Name</th>
+                                <th>Practice Attempts</th><th>Practice Avg.</th>
+                                <th>Tests Taken</th><th>Test Avg.</th><th>Pass Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-students-tbody"><tr><td colspan="7" class="muted">Select a class above.</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel" id="student-detail-panel" hidden>
+                <div class="panel-header">
+                    <h2 id="student-detail-title">Student Progress</h2>
+                    <button id="student-detail-close" class="link-button" type="button" style="width:auto;padding:0;">Close</button>
+                </div>
+                <dl class="profile-list monitor-config">
+                    <dt>Practice attempts</dt><dd id="detail-practice-count">&mdash;</dd>
+                    <dt>Practice avg. accuracy</dt><dd id="detail-practice-accuracy">&mdash;</dd>
+                    <dt>Recent trend (last 5)</dt><dd id="detail-trend">&mdash;</dd>
+                </dl>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Date</th><th>Attempts</th><th>Avg. Accuracy</th></tr></thead>
+                        <tbody id="detail-by-day-tbody"><tr><td colspan="3" class="muted">No recent activity.</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/js/stats.js"></script>
+</body>
+</html>

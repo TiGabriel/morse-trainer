@@ -2,6 +2,9 @@ async function api(path, options = {}) {
     const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+        if (res.status === 401) {
+            window.location.href = '/';
+        }
         const err = new Error(data.error || `Request failed (${res.status})`);
         err.status = res.status;
         throw err;
@@ -189,6 +192,7 @@ function closeMonitor() {
         ws = null;
     }
     monitoredSessionId = null;
+    el('monitor-connection-banner').hidden = true;
     showView('list');
     loadSessions();
 }
@@ -237,6 +241,7 @@ function connectWebSocket(sessionId) {
     ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
     ws.addEventListener('open', () => {
+        el('monitor-connection-banner').hidden = true;
         ws.send(JSON.stringify({ type: 'monitor_session', sessionId }));
     });
 
@@ -271,8 +276,11 @@ function connectWebSocket(sessionId) {
 
     ws.addEventListener('close', () => {
         // Simple auto-reconnect for flaky Wi-Fi: try again shortly if
-        // we're still supposed to be monitoring this session.
+        // we're still supposed to be monitoring this session. Visible so
+        // the teacher doesn't mistake a stale roster/progress view for
+        // "nothing is happening" during the drop.
         if (monitoredSessionId === sessionId) {
+            el('monitor-connection-banner').hidden = false;
             setTimeout(() => {
                 if (monitoredSessionId === sessionId) connectWebSocket(sessionId);
             }, 2000);

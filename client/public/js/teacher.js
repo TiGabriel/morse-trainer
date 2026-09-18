@@ -8,6 +8,14 @@ async function api(path, options = {}) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+        if (res.status === 401) {
+            // Session expired or was revoked mid-use (e.g. a teacher
+            // deactivated this account, or the sliding TTL ran out) —
+            // every further request would fail the same way, so send the
+            // user back to log in again rather than leaving them looking
+            // at a page full of "Not authenticated" errors.
+            window.location.href = '/';
+        }
         const err = new Error(data.error || `Request failed (${res.status})`);
         err.status = res.status;
         throw err;

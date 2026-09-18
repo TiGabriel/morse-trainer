@@ -152,6 +152,25 @@ function insertItems(sessionId, teacherId, items) {
     insertItemsTxn(sessionId, teacherId, items);
 }
 
+/**
+ * Creates the session row AND its items as one atomic unit. Without
+ * this, a crash (or a DB error) between the two separate inserts would
+ * leave an orphaned session with zero items sitting in `created` status
+ * forever — visible in the teacher's list but unusable. better-sqlite3
+ * supports nesting `db.transaction()` calls via savepoints, so this can
+ * safely call the already-transactional `insertItemsTxn` from inside
+ * this outer transaction.
+ */
+const createSessionWithItemsTxn = db.transaction((data, items) => {
+    const session = createSession(data);
+    insertItemsTxn(session.id, data.createdBy, items);
+    return session;
+});
+
+function createSessionWithItems(data, items) {
+    return createSessionWithItemsTxn(data, items);
+}
+
 function listItems(sessionId) {
     const rows = db
         .prepare('SELECT * FROM session_items WHERE session_id = ? ORDER BY order_index ASC')
@@ -406,6 +425,7 @@ module.exports = {
     validateParticipantIds,
     createSession,
     insertItems,
+    createSessionWithItems,
     listItems,
     getItemByIndex,
     getItemById,

@@ -1,6 +1,7 @@
 const sessionRepository = require('./sessionRepository');
 const sessionEngine = require('./sessionEngine');
 const sessionRuntime = require('./sessionRuntime');
+const classRepository = require('../classes/classRepository');
 const { VALID_MODES } = require('../practice/practiceEngine');
 const { findDifficultyPreset } = require('../morse-engine/difficultyPresets');
 const hub = require('../../realtime/hub');
@@ -44,6 +45,9 @@ function createSession(req, res) {
     }
     if (!classId) {
         return res.status(400).json({ error: 'classId is required.' });
+    }
+    if (!classRepository.findById(classId)) {
+        return res.status(400).json({ error: 'classId does not refer to an existing class.' });
     }
     if (!VALID_MODES.includes(exerciseMode)) {
         return res.status(400).json({ error: `exerciseMode must be one of: ${VALID_MODES.join(', ')}` });
@@ -89,26 +93,30 @@ function createSession(req, res) {
         return res.status(400).json({ error: err.message });
     }
 
-    const session = sessionRepository.createSession({
-        classId,
-        type,
-        exerciseMode,
-        difficulty,
-        wpm: toNumberOrUndefined(body.wpm),
-        farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
-        toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
-        exerciseCount,
-        prepTimeMs,
-        answerTimeMs,
-        allowedAttempts: type === 'test' ? allowedAttempts : 1,
-        passThresholdPercent: type === 'test' ? passThresholdPercent : null,
-        instructions,
-        participantIds,
-        itemLength,
-        createdBy: req.user.id,
-    });
-
-    sessionRepository.insertItems(session.id, req.user.id, generated.items);
+    // Created atomically with its items — a crash or DB error between two
+    // separate inserts would otherwise leave an orphaned, item-less
+    // session sitting in the teacher's list forever.
+    const session = sessionRepository.createSessionWithItems(
+        {
+            classId,
+            type,
+            exerciseMode,
+            difficulty,
+            wpm: toNumberOrUndefined(body.wpm),
+            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
+            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            exerciseCount,
+            prepTimeMs,
+            answerTimeMs,
+            allowedAttempts: type === 'test' ? allowedAttempts : 1,
+            passThresholdPercent: type === 'test' ? passThresholdPercent : null,
+            instructions,
+            participantIds,
+            itemLength,
+            createdBy: req.user.id,
+        },
+        generated.items
+    );
 
     logger.info(
         `Session created: id=${session.id} type=${type} class=${classId} by teacher "${req.user.username}" (${exerciseCount} items)`

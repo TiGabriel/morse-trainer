@@ -363,6 +363,24 @@ test('createSession handler: rejects when none of the submitted participantIds a
     assert.equal(res.statusCode, 400);
 });
 
+test('createSession handler: rejects a classId that does not refer to any existing class', () => {
+    const req = {
+        body: { type: 'group', classId: 9999, exerciseMode: 'audio_to_text', difficulty: 'easy', exerciseCount: 1 },
+        user: { id: 1, username: 'teacher1' },
+    };
+    const res = mockRes();
+    sessionsController.createSession(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /class/i);
+
+    const countBefore = db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+    // Calling it again must not have left an orphaned session row behind either.
+    sessionsController.createSession(req, mockRes());
+    const countAfter = db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+    assert.equal(countAfter, countBefore, 'rejecting an invalid classId must never create a session row');
+});
+
 test('createSession handler: omitting participantIds still means "everyone in the class" (Phase 8 default preserved)', () => {
     const req = {
         body: { type: 'group', classId: 1, exerciseMode: 'audio_to_text', difficulty: 'easy', exerciseCount: 1 },

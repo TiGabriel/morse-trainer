@@ -2,6 +2,13 @@ async function api(path, options = {}) {
     const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+        if (res.status === 401) {
+            // Classroom PCs are often shared between students — clear the
+            // "which session am I in" marker so the next person to log in
+            // here doesn't get auto-rejoined into somebody else's session.
+            sessionStorage.removeItem('gs_joined_session_id');
+            window.location.href = '/';
+        }
         const err = new Error(data.error || `Request failed (${res.status})`);
         err.status = res.status;
         throw err;
@@ -161,6 +168,7 @@ function connectWs(onOpenCb) {
     ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
     ws.addEventListener('open', () => {
+        el('connection-banner').hidden = true;
         offsetSamples = [];
         sendPingBurst();
         if (onOpenCb) onOpenCb();
@@ -170,7 +178,10 @@ function connectWs(onOpenCb) {
         // Auto-reconnect for a dropped/flaky LAN link, as long as we're
         // still supposed to be in a session — resyncs from server state
         // once reconnected rather than trusting anything cached locally.
+        // Visible so a student isn't left staring at a frozen countdown
+        // with no idea their connection actually dropped.
         if (joinedSessionId) {
+            el('connection-banner').hidden = false;
             setTimeout(() => {
                 if (joinedSessionId) connectWs(() => sendJoin(joinedSessionId));
             }, 2000);
@@ -232,6 +243,7 @@ function leaveSession() {
     joinedSessionId = null;
     sessionStorage.removeItem('gs_joined_session_id');
     clearInterval(countdownTimer);
+    el('connection-banner').hidden = true;
     if (ws) {
         ws.onclose = null;
         ws.close();

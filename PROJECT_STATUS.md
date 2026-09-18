@@ -416,13 +416,93 @@ manual radiogram entry — both pre-existing gaps, not regressions).
 
 
 
+\*\*PHASE 11 — COMPLETE APPLICATION, SECURITY \& STATISTICS — COMPLETE.\*\*
+
+
+
+A focused audit of the whole application (not a rebuild) looking for
+
+what was actually incomplete or inconsistent before classroom
+
+deployment. Found and fixed real, concrete issues rather than
+
+re-touching working functionality: (1) async route handlers could hang
+
+a request forever on a rejected promise (bcrypt/DB errors) — added a
+
+global `asyncHandler` wrapper plus a global JSON error middleware and
+
+an `/api` 404 catch-all, so every failure now returns a clean JSON
+
+error instead of a stack trace or a hang; (2) login had no
+
+brute-force protection — added a per-username in-memory rate limiter
+
+(429 after repeated failures, reset on success); (3) session creation
+
+could leave an orphaned session row if item generation failed midway,
+
+and never checked that the submitted `classId` actually existed —
+
+both fixed with a real `classId` existence check and a single atomic
+
+`createSessionWithItems` transaction; (4) an expired/revoked session
+
+cookie left the teacher and student dashboards silently broken
+
+instead of sending the user back to log in — added consistent 401
+
+handling across every client page; (5) a dropped WebSocket connection
+
+gave no visible indication to either a monitoring teacher or a
+
+mid-session student — added a reconnecting banner on both. Built a
+
+new statistics module from scratch (`server/src/modules/stats/`) —
+
+deliberately limited to what the schema can actually support
+
+honestly: practice accuracy/attempt counts, a 10-attempts-minimum
+
+"recent trend," per-day accuracy, and finished-session pass rates —
+
+with every "no data yet" case returning `null`/an empty list rather
+
+than a fabricated `0%`, and a "most commonly confused characters"
+
+metric explicitly *not* built because no code path persists
+
+per-character diff detail. Also fixed a real bug caught by the new
+
+tests themselves: `asyncHandler` only caught promise rejections, not
+
+a synchronous throw from the wrapped handler. 22 new automated tests
+
+(175/175 total passing), plus a full real-browser (Playwright)
+
+end-to-end pass covering the entire teacher/student group-session
+
+workflow, unauthorized-action checks, invalid input, and
+
+cleared-session recovery (36/36 checks passing). See
+
+`docs/checkpoints/phase-11-checkpoint.md` for full detail and honest
+
+limitations (formal-test flow re-verified only via existing automated
+
+tests this phase, not re-driven through a real browser; no live
+
+LAN-disconnect simulation of the new reconnect banners).
+
+
+
 \## Current task
 
 
 
-Phase 10 is complete. Waiting for explicit direction before starting
+Phase 11 is complete. Waiting for explicit direction before starting
 
-Phase 11.
+Phase 12 (Windows Deployment \& Final LAN QA).
 
 
 

@@ -51,3 +51,15 @@
     color: #fbbf24;
     padding: 1.5rem 0;
 }
+
+.connection-banner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    text-align: center;
+    padding: 0.6rem 1rem;
+    background: #7c2d12;
+    color: #fed7aa;
+    font-size: 0.9rem;
+    font-weight: 600;
+}

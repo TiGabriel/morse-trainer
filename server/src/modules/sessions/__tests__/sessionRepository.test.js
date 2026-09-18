@@ -247,3 +247,56 @@ test('generateItems: an explicit length override produces items of exactly that 
         assert.equal(item.exercise.text.replace(/\s/g, '').length, 9);
     });
 });
+
+// ---------------------------------------------------------------------
+// Phase 11: createSessionWithItems atomicity
+// ---------------------------------------------------------------------
+
+test('createSessionWithItems: creates the session and inserts all items in one atomic transaction', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'audio_to_text', difficulty: 'easy', exerciseCount: 3 });
+    const session = sessionRepository.createSessionWithItems(
+        {
+            classId: 1,
+            type: 'test',
+            exerciseMode: 'audio_to_text',
+            difficulty: 'easy',
+            exerciseCount: 3,
+            prepTimeMs: 5000,
+            answerTimeMs: 20000,
+            allowedAttempts: 1,
+            passThresholdPercent: 70,
+            createdBy: 1,
+        },
+        items
+    );
+    const persisted = sessionRepository.listItems(session.id);
+    assert.equal(persisted.length, 3);
+});
+
+test('createSessionWithItems: if item insertion fails, the session row is rolled back too (nothing half-created)', () => {
+    const countBefore = db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+
+    // A malformed item (missing the fields insertItemsTxn requires) forces insertion to throw
+    // partway through, which must roll back the whole transaction — including the session row
+    // created earlier in the same call — not leave an orphaned session with zero items.
+    assert.throws(() => {
+        sessionRepository.createSessionWithItems(
+            {
+                classId: 1,
+                type: 'test',
+                exerciseMode: 'audio_to_text',
+                difficulty: 'easy',
+                exerciseCount: 1,
+                prepTimeMs: 5000,
+                answerTimeMs: 20000,
+                allowedAttempts: 1,
+                passThresholdPercent: 70,
+                createdBy: 1,
+            },
+            [{ /* deliberately malformed: no exercise/plan data */ }]
+        );
+    });
+
+    const countAfter = db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+    assert.equal(countAfter, countBefore, 'a failed item-insert must roll back the session row created in the same transaction');
+});

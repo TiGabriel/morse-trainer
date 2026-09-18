@@ -17,6 +17,7 @@ const classesRoutes = require('./modules/classes/classesRoutes');
 const morseRoutes = require('./modules/morse-engine/morseRoutes');
 const practiceRoutes = require('./modules/practice/practiceRoutes');
 const sessionsRoutes = require('./modules/sessions/sessionsRoutes');
+const statsRoutes = require('./modules/stats/statsRoutes');
 const realtimeHub = require('./realtime/hub');
 
 async function main() {
@@ -91,9 +92,36 @@ async function main() {
     // ---- Phase 8: group sessions & formal testing ---------------------------
     app.use('/api/sessions', sessionsRoutes);
 
+    // ---- Phase 11: statistics (teacher class-wide; self-or-teacher per student) -
+    app.use('/api/stats', statsRoutes);
+
+    // Any /api/* path that didn't match a route above gets a clean JSON 404
+    // instead of falling through to Express's default HTML error page.
+    app.use('/api', (req, res) => {
+        res.status(404).json({ error: 'Not found.' });
+    });
+
     // ---- Static client ------------------------------------------------------
     const clientPublicDir = path.join(__dirname, '..', '..', 'client', 'public');
     app.use(express.static(clientPublicDir));
+
+    // ---- Global error handler -------------------------------------------------
+    // Catches: malformed JSON bodies (express.json()'s own thrown error),
+    // any synchronous throw in a route handler (Express catches these
+    // automatically and forwards here), and any async handler wrapped in
+    // asyncHandler(). Never leaks an internal error message or stack trace
+    // to the client — only the generic message below goes out; the real
+    // detail is logged server-side.
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+        if (err && err.type === 'entity.parse.failed') {
+            return res.status(400).json({ error: 'Malformed JSON in request body.' });
+        }
+        logger.error(`Unhandled error on ${req.method} ${req.originalUrl}: ${err && err.message}`);
+        if (err && err.stack) logger.error(err.stack);
+        if (res.headersSent) return next(err);
+        res.status(500).json({ error: 'Internal server error.' });
+    });
 
     const server = app.listen(config.port, config.host, () => {
         logger.info(`Morse Trainer server started (env=${config.nodeEnv})`);
@@ -138,6 +166,25 @@ async function main() {
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
+
+// Last-resort safety net. Route handlers should never reach these (async
+// ones go through asyncHandler -> the global error middleware above), but
+// a classroom server staying up in a degraded state beats it crashing
+// mid-lesson over something outside a request/response cycle (e.g. a
+// stray WebSocket callback). A rejection is logged and swallowed; a truly
+// uncaught synchronous exception is treated as unsafe to continue from
+// (Node's own guidance) and triggers the same graceful shutdown as
+// SIGTERM/SIGINT rather than leaving the process in an unknown state.
+process.on('unhandledRejection', (reason) => {
+    logger.error(`Unhandled promise rejection: ${reason && reason.message ? reason.message : reason}`);
+    if (reason && reason.stack) logger.error(reason.stack);
+});
+
+process.on('uncaughtException', (err) => {
+    logger.error(`Uncaught exception: ${err.message}`);
+    if (err.stack) logger.error(err.stack);
+    process.exit(1);
+});
 
 main().catch((err) => {
     logger.error('Fatal error during server startup:', err.message);

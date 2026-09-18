@@ -5,6 +5,9 @@ async function api(path, options = {}) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+        if (res.status === 401) {
+            window.location.href = '/';
+        }
         const err = new Error(data.error || `Request failed (${res.status})`);
         err.status = res.status;
         throw err;
@@ -144,6 +147,7 @@ async function submitAnswer() {
     }
 
     if (player) player.stop();
+    loadProgressSummary();
     renderResultsScreen(result);
     showScreen('results');
 }
@@ -226,10 +230,34 @@ async function loadHistory() {
 // ---------------------------------------------------------------------
 // Bootstrapping / auth gate
 // ---------------------------------------------------------------------
+let currentUserId = null;
+
+/** A brief, honest summary — hidden entirely rather than showing a misleading "0%" when there's no history yet. */
+async function loadProgressSummary() {
+    if (!currentUserId) return;
+    try {
+        const stats = await api(`/api/stats/students/${currentUserId}`);
+        if (stats.practice.attemptCount === 0) {
+            el('progress-summary-box').hidden = true;
+            return;
+        }
+        const trend = stats.practice.recentTrend
+            ? ` (last 5: ${stats.practice.recentTrend.recentAvgAccuracy}%)`
+            : '';
+        el('progress-summary-text').textContent =
+            `${stats.practice.attemptCount} attempt(s), ${stats.practice.avgAccuracy}% average accuracy${trend}.`;
+        el('progress-summary-box').hidden = false;
+    } catch {
+        // Non-essential — quietly skip rather than showing an error for a summary line.
+        el('progress-summary-box').hidden = true;
+    }
+}
+
 async function init() {
     try {
         const { user } = await api('/api/auth/me');
         el('user-name').textContent = `${user.firstName || ''} ${user.lastName || ''} (${user.username})`.trim();
+        currentUserId = user.id;
     } catch {
         window.location.href = '/';
         return;
@@ -237,6 +265,7 @@ async function init() {
 
     el('auth-gate').hidden = true;
     el('app').hidden = false;
+    loadProgressSummary();
 
     el('start-button').addEventListener('click', startExercise);
     el('exercise-play-button').addEventListener('click', playCurrentAudio);

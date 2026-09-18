@@ -59,3 +59,24 @@
 .participant-checkbox input {
     width: auto;
 }
+
+.clickable-row {
+    cursor: pointer;
+}
+.clickable-row:hover {
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.connection-banner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    text-align: center;
+    padding: 0.6rem 1rem;
+    background: #7c2d12;
+    color: #fed7aa;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    border-radius: 6px;
+}
