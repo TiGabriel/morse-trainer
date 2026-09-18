@@ -3,6 +3,7 @@ const logger = require('../../logger');
 const userRepository = require('../users/userRepository');
 const passwordService = require('./passwordService');
 const sessionService = require('./sessionService');
+const loginRateLimiter = require('./loginRateLimiter');
 
 const cookieOptions = {
     httpOnly: true,
@@ -21,18 +22,25 @@ async function login(req, res) {
         return res.status(400).json({ error: 'Username and password are required.' });
     }
 
+    if (loginRateLimiter.isRateLimited(username)) {
+        logger.warn(`Login blocked (too many recent failures): "${username}"`);
+        return res.status(429).json({ error: 'Too many failed login attempts. Please try again in a few minutes.' });
+    }
+
     const userRow = userRepository.findByUsername(username);
 
     // Deliberately generic message for both "unknown username" and "wrong
     // password" — this avoids revealing which usernames exist on the
     // system (standard login-security practice).
     if (!userRow) {
+        loginRateLimiter.recordFailure(username);
         logger.info(`Login failed (unknown username): "${username}"`);
         return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
     const passwordOk = await passwordService.verifyPassword(password, userRow.password_hash);
     if (!passwordOk) {
+        loginRateLimiter.recordFailure(username);
         logger.info(`Login failed (wrong password): "${username}"`);
         return res.status(401).json({ error: 'Invalid username or password.' });
     }
@@ -41,6 +49,8 @@ async function login(req, res) {
         logger.info(`Login rejected (inactive account): "${username}"`);
         return res.status(403).json({ error: 'This account has been deactivated. Contact your teacher.' });
     }
+
+    loginRateLimiter.clearFailures(username);
 
     const { rawToken, expiresAt } = sessionService.createSession(userRow.id, {
         userAgent: req.headers['user-agent'],

@@ -38,19 +38,29 @@ Example:
 
 \* Offline at runtime
 
-\* Node.js backend
+\* Node.js (Express) backend
 
-\* React frontend
+\* Plain static HTML/CSS/vanilla JS frontend (NOT React — corrected as of
 
-\* SQLite database
+  the Phase 8 audit; earlier drafts of this document said React, but the
 
-\* WebSockets for realtime communication
+  actual `client/public/` has always been server-rendered static pages,
+
+  no build step, no bundler, no framework)
+
+\* SQLite database (`better-sqlite3`, WAL mode)
+
+\* WebSockets for realtime communication (`ws`, one hub at `/ws`, added in Phase 8)
 
 \* Modular monolith
 
 \* Teacher PC = server + teacher workstation
 
-\* \~20 simultaneous student clients
+\* \~20 simultaneous student clients (smoke-tested with 6 concurrent
+
+  WebSocket+HTTP clients through a full session lifecycle; see the
+
+  Phase 8 checkpoint for why this is representative)
 
 
 
@@ -232,15 +242,11 @@ The project originally had many small development phases.
 
 
 
-The current development point is approximately:
+\*\*PHASE 8 — GROUP SESSIONS + FORMAL TESTING — COMPLETE.\*\*
 
 
 
-\*\*PHASE 8 — GROUP SESSIONS\*\*
-
-
-
-Previous phases were intended to establish:
+Previous phases established:
 
 
 
@@ -252,15 +258,323 @@ Previous phases were intended to establish:
 
 \* individual practice
 
-\* persistence/grading
+\* persistence/grading (schema only, until Phase 8 actually used it)
 
 \* teacher dashboard
 
-\* realtime WebSocket layer
+\* Morse audio playback engine
 
 
 
-These previous features should NOT be rebuilt unless inspection shows that they are missing or broken.
+Phase 8 (this round) implemented, on top of all of the above without
+
+rebuilding any of it:
+
+
+
+\* group session creation, teacher controls (open/start/pause/resume/stop/cancel)
+
+\* an explicit server-authoritative 6-state machine (created/waiting/running/paused/finished/cancelled)
+
+\* a new WebSocket realtime hub (`server/src/realtime/hub.js`) — the
+
+  previous placeholder folder is now implemented
+
+\* scheduled, server-authoritative synchronized playback (future
+
+  timestamp + client-side clock-offset correction — never "message
+
+  arrives, play immediately")
+
+\* student session UI (`group-session.html`), including a waiting room,
+
+  readiness, countdown, synchronized playback, timed submission, and a
+
+  results screen — this didn't exist before Phase 8 at all
+
+\* teacher live monitoring (extended the pre-existing but previously
+
+  unreachable `sessions.html`/`sessions.js`)
+
+\* reconnect/resync (both WS auto-reconnect and a full page-refresh
+
+  recovery path, backed by the hub re-sending current authoritative
+
+  state on every join)
+
+\* server-side authorization throughout (every mutation re-validated
+
+  against the requester's actual role/class/session, never trusted from
+
+  the client)
+
+\* formal testing extended onto the same session machinery: configurable
+
+  prep/answer time, allowed attempts, pass threshold, and deferred score
+
+  reveal until the test ends
+
+\* automated tests (113/113 passing) plus extensive manual/scripted
+
+  end-to-end and concurrency testing — see
+
+  `docs/checkpoints/phase-8-checkpoint.md` for the full detail, honest
+
+  limitations, and exactly what was and wasn't automated
+
+
+
+See `docs/checkpoints/phase-8-checkpoint.md` for the complete record —
+
+this section is intentionally just a summary.
+
+
+
+\*\*PHASE 9 — SYNCHRONIZED MORSE PLAYBACK — COMPLETE.\*\*
+
+
+
+A narrowly-scoped hardening pass on exactly the Phase 8 playback
+
+mechanism (no formal-testing/statistics/UI/deployment work, per that
+
+phase's explicit scope limit). Found and fixed a real, previously
+
+unverified bug: the scheduled-playback trigger could silently never
+
+fire at all on a fast LAN, because the server's `item_active` broadcast
+
+raced against — and could suppress — the client's own countdown-based
+
+play() trigger. This was only caught by actually driving real browser
+
+instances through the flow (Playwright, multiple simultaneous browser
+
+contexts), which Phase 8 had not done. Also: multi-sample
+
+(median-of-3) clock-offset estimation replacing a single ping/pong
+
+sample, and a fix so a student reconnecting mid-item always gets a
+
+clear, working way to start audio (previously the control stayed
+
+hidden). 29 new automated tests added (142/142 total passing). See
+
+`docs/checkpoints/phase-9-checkpoint.md` for full detail, including the
+
+honest limitation that real multi-machine LAN timing still hasn't been
+
+measured (only same-machine multi-browser-context testing was possible
+
+here).
+
+
+
+\*\*PHASE 10 — FORMAL TESTING SYSTEM — COMPLETE.\*\*
+
+
+
+Re-inspected the existing formal-test system (`type: 'test'` sessions,
+
+already built in Phase 8, already timing-hardened in Phase 9) against
+
+the full Phase 10 requirement list line-by-line before writing any
+
+code. Almost everything required was already implemented and already
+
+tested — teacher create/configure/start/monitor/finish/results,
+
+student join/countdown/playback/timed-submit/completion,
+
+server-authoritative timing/grading/persistence, and every listed
+
+security rule. Found and closed exactly four real, concrete gaps: (1)
+
+no way to restrict a test to specific students rather than the whole
+
+class — added an optional participant list, validated server-side,
+
+enforced through every roster/availability/results/join check; (2) no
+
+teacher-authored instructions field or student-facing display for one;
+
+(3)-(4) Farnsworth WPM, tone frequency, and item-length were already
+
+accepted by the backend but never exposed in the `sessions.html`
+
+creation form. All four verified end-to-end with a real browser driving
+
+the real create-session form (not just the API). 11 new/updated
+
+automated tests (153/153 total passing). See
+
+`docs/checkpoints/phase-10-checkpoint.md` for full detail and honest
+
+limitations (no richer grading-rule editor than a pass threshold, no
+
+manual radiogram entry — both pre-existing gaps, not regressions).
+
+
+
+\*\*PHASE 11 — COMPLETE APPLICATION, SECURITY \& STATISTICS — COMPLETE.\*\*
+
+
+
+A focused audit of the whole application (not a rebuild) looking for
+
+what was actually incomplete or inconsistent before classroom
+
+deployment. Found and fixed real, concrete issues rather than
+
+re-touching working functionality: (1) async route handlers could hang
+
+a request forever on a rejected promise (bcrypt/DB errors) — added a
+
+global `asyncHandler` wrapper plus a global JSON error middleware and
+
+an `/api` 404 catch-all, so every failure now returns a clean JSON
+
+error instead of a stack trace or a hang; (2) login had no
+
+brute-force protection — added a per-username in-memory rate limiter
+
+(429 after repeated failures, reset on success); (3) session creation
+
+could leave an orphaned session row if item generation failed midway,
+
+and never checked that the submitted `classId` actually existed —
+
+both fixed with a real `classId` existence check and a single atomic
+
+`createSessionWithItems` transaction; (4) an expired/revoked session
+
+cookie left the teacher and student dashboards silently broken
+
+instead of sending the user back to log in — added consistent 401
+
+handling across every client page; (5) a dropped WebSocket connection
+
+gave no visible indication to either a monitoring teacher or a
+
+mid-session student — added a reconnecting banner on both. Built a
+
+new statistics module from scratch (`server/src/modules/stats/`) —
+
+deliberately limited to what the schema can actually support
+
+honestly: practice accuracy/attempt counts, a 10-attempts-minimum
+
+"recent trend," per-day accuracy, and finished-session pass rates —
+
+with every "no data yet" case returning `null`/an empty list rather
+
+than a fabricated `0%`, and a "most commonly confused characters"
+
+metric explicitly *not* built because no code path persists
+
+per-character diff detail. Also fixed a real bug caught by the new
+
+tests themselves: `asyncHandler` only caught promise rejections, not
+
+a synchronous throw from the wrapped handler. 22 new automated tests
+
+(175/175 total passing), plus a full real-browser (Playwright)
+
+end-to-end pass covering the entire teacher/student group-session
+
+workflow, unauthorized-action checks, invalid input, and
+
+cleared-session recovery (36/36 checks passing). See
+
+`docs/checkpoints/phase-11-checkpoint.md` for full detail and honest
+
+limitations (formal-test flow re-verified only via existing automated
+
+tests this phase, not re-driven through a real browser; no live
+
+LAN-disconnect simulation of the new reconnect banners).
+
+
+
+\*\*PHASE 12 — WINDOWS DEPLOYMENT \& FINAL LAN QA — COMPLETE (FINAL PHASE).\*\*
+
+
+
+Verification and targeted bug-fixing for real classroom deployment — no
+
+new features. Added a root-level `START SERVER.bat` (Node.js check,
+
+one-time `npm install`, production start, LAN URL printed), `STOP
+
+SERVER.bat`, `BACKUP DATABASE.bat`/`RESTORE DATABASE.bat`, and `OPEN
+
+FIREWALL PORT.bat` (a single `netsh advfirewall` rule, private networks
+
+only, never disables the firewall). Audited the entire client and
+
+server for external runtime dependencies (CDNs, fonts, analytics,
+
+cloud services) and found none — the app was already fully offline at
+
+runtime. Ran a clean-deployment test from a genuinely empty database
+
+(teacher login, class/student creation, a full group session, a full
+
+formal test with real pass/fail grading, then a server restart proving
+
+persistence) — 14/14 checks. Simulated an actual 20-student classroom
+
+with real concurrent browser contexts — 7/7 checks, all 20 joining,
+
+readying, receiving synchronized playback, answering, and completing
+
+together. Tested failure recovery (page refresh mid-item, a forced
+
+WebSocket drop and reconnect, the teacher staying connected throughout)
+
+— 15/16 checks, the one non-pass being an honestly-documented
+
+limitation of simulating a LAN drop inside a single-VM sandbox, not a
+
+product failure. Found and fixed two real, concrete bugs during this
+
+QA: (1) the teacher's configurable "Tone frequency (Hz)" setting was
+
+stored and transmitted correctly but never actually applied to the
+
+audio player in either practice or group/test sessions — always played
+
+600Hz regardless of configuration; (2) the server's graceful shutdown
+
+never checkpointed the database's write-ahead log, so a backup taken
+
+right after stopping the server could have silently missed recent
+
+writes — both fixed and re-verified. Actually tested the full
+
+backup/restore round trip (create data, back up, add more data, stop,
+
+restore, confirm the extra data is gone and the backup's data is
+
+intact) rather than just documenting it. Re-confirmed the Phase 11
+
+security posture holds, and found/fixed one real gap: `.gitignore`
+
+only covered specific filenames under `server/data/` and missed the
+
+new backups directory. See `docs/checkpoints/phase-12-checkpoint.md`
+
+for the full record, including the honest limitations (session state
+
+lost on a mid-session crash/restart — unchanged since Phase 8 and not
+
+addressed, since fixing it is feature work outside this phase's scope;
+
+only Chromium-based browsers tested; the `.bat` files were reviewed for
+
+correct syntax but not run on an actual Windows machine, since this
+
+work happened in a Linux sandbox).
 
 
 
@@ -268,45 +582,9 @@ These previous features should NOT be rebuilt unless inspection shows that they 
 
 
 
-Continue with:
+Phase 12 is complete. This was the final planned phase — no further
 
-
-
-\*\*PHASE 8 — Group Sessions \& Server-Authoritative Synchronization\*\*
-
-
-
-Required functionality:
-
-
-
-\* group session creation
-
-\* teacher controls
-
-\* explicit server-side session state
-
-\* scheduled synchronized start
-
-\* client/server clock offset
-
-\* Morse/audio preloading
-
-\* WebSocket state broadcasts
-
-\* student session UI
-
-\* teacher live monitoring
-
-\* reconnect/resync
-
-\* refresh recovery
-
-\* authorization/security
-
-\* approximately 20 simultaneous clients
-
-\* automated/integration testing
+development phase begins without new, explicit direction.
 
 
 
@@ -388,11 +666,29 @@ Do not automatically proceed to Phase 9.
 
 
 
-After Phase 8, development continues in larger milestones:
+After Phase 8 (now complete — see `docs/checkpoints/phase-8-checkpoint.md`),
+
+development continues in larger milestones. Formal Testing's core
+
+(configured tests, timed items, attempt limits, pass/fail grading,
+
+deferred reveal, results persistence) was pulled forward and already
+
+built as part of Phase 8, so Phase 9 below should be scoped against
+
+what's actually implemented now, not the original assumption that it
+
+was untouched:
 
 
 
-Phase 9 — Formal Testing System
+Phase 9 — remaining Formal Testing / assessment polish not already covered
+
+by Phase 8 (e.g. participant selection UI, richer grading-rule
+
+configuration beyond a single pass threshold, teacher-side test review
+
+tooling)
 
 
 

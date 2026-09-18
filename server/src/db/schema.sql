@@ -72,6 +72,29 @@ CREATE TABLE IF NOT EXISTS sessions (
     farnsworth_wpm      INTEGER,
     tone_frequency_hz   INTEGER,
     exercise_count      INTEGER NOT NULL DEFAULT 5,
+    -- Phase 8: server-authoritative timing/testing configuration.
+    -- prep_time_ms is the countdown/preload buffer before each item's
+    -- scheduled start broadcast; answer_time_ms is the submission window
+    -- after an item finishes playing (NULL = untimed group practice, still
+    -- resolved to a default by the application layer so sessions always
+    -- auto-advance). allowed_attempts/pass_threshold_percent only matter
+    -- for type='test'; harmless/unused for type='group'.
+    prep_time_ms        INTEGER NOT NULL DEFAULT 5000,
+    answer_time_ms      INTEGER,
+    allowed_attempts    INTEGER NOT NULL DEFAULT 1,
+    pass_threshold_percent REAL,
+    current_item_index  INTEGER NOT NULL DEFAULT 0,
+    -- Phase 10 (formal testing): optional student-facing instructions
+    -- text; an optional JSON array of specific student user ids this
+    -- session is restricted to (NULL/empty = every student in the
+    -- class, the original Phase 8 default — this is additive, not a
+    -- replacement, since most group practice has no need to narrow the
+    -- roster); an optional override of how many characters each
+    -- generated item contains (NULL = the difficulty preset's default
+    -- range, same as before this phase).
+    instructions        TEXT,
+    participant_ids_json TEXT,
+    item_length         INTEGER,
     created_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
     opened_at           TEXT,
     started_at          TEXT,
@@ -95,6 +118,10 @@ CREATE TABLE IF NOT EXISTS session_participants (
     session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     student_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     connection_status   TEXT NOT NULL DEFAULT 'disconnected' CHECK (connection_status IN ('connected', 'disconnected')),
+    -- Phase 8: readiness is a persisted attribute (not socket-only state)
+    -- so a brief LAN drop/reconnect does not silently un-ready a student
+    -- the teacher already saw as ready.
+    is_ready            INTEGER NOT NULL DEFAULT 0,
     joined_at           TEXT,
     last_seen_at        TEXT,
     UNIQUE (session_id, student_id)
@@ -106,7 +133,13 @@ CREATE TABLE IF NOT EXISTS session_items (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     radiogram_id    INTEGER NOT NULL REFERENCES radiograms(id) ON DELETE RESTRICT,
-    order_index     INTEGER NOT NULL DEFAULT 0
+    order_index     INTEGER NOT NULL DEFAULT 0,
+    -- Phase 8: the fully pre-generated exercise (mode, promptText/Morse,
+    -- playback plan, timing, expectedAnswer) as JSON, generated ONCE at
+    -- session-creation time so every student in the group receives byte-
+    -- identical content — unlike individual practice, this cannot be
+    -- regenerated per-student from a seed on demand.
+    exercise_json   TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_items_session_id ON session_items(session_id);
@@ -118,6 +151,10 @@ CREATE TABLE IF NOT EXISTS attempts (
     submitted_text      TEXT,
     submitted_at        TEXT,
     duration_ms         INTEGER,
+    -- Phase 8: how many submissions this student has made for this item so
+    -- far, so allowed_attempts can be enforced server-side even though the
+    -- row itself only ever holds the latest submission.
+    attempt_count       INTEGER NOT NULL DEFAULT 0,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (session_item_id, student_id)
 );

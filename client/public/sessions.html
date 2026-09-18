@@ -17,6 +17,7 @@
             <div class="dash-header-right">
                 <span id="teacher-name" class="muted"></span>
                 <a href="/teacher.html" class="btn btn-secondary">Dashboard</a>
+                <a href="/stats.html" class="btn btn-secondary">Statistics</a>
                 <a href="/" class="btn btn-secondary">Home</a>
                 <button id="logout-button" class="btn btn-secondary">Log out</button>
             </div>
@@ -31,6 +32,13 @@
                     </div>
                     <form id="create-form" class="session-form">
                         <div class="preview-params">
+                            <div class="modal-field">
+                                <label for="new-type">Session type</label>
+                                <select id="new-type">
+                                    <option value="group" selected>Group Practice</option>
+                                    <option value="test">Formal Test</option>
+                                </select>
+                            </div>
                             <div class="modal-field">
                                 <label for="new-class">Class</label>
                                 <select id="new-class" required></select>
@@ -58,10 +66,58 @@
                                 <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
                             </div>
                             <div class="modal-field">
+                                <label for="new-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                                <input type="number" id="new-farnsworth" min="1" max="60" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-tone">Tone frequency (Hz) <span class="muted">(blank = 600)</span></label>
+                                <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-length">Item length (characters) <span class="muted">(blank = difficulty default)</span></label>
+                                <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
+                            </div>
+                            <div class="modal-field">
                                 <label for="new-count">Number of exercises</label>
                                 <input type="number" id="new-count" min="1" max="100" value="5" required />
                             </div>
                         </div>
+
+                        <div class="modal-field">
+                            <label for="new-instructions">Instructions for students <span class="muted">(optional, shown in the waiting room)</span></label>
+                            <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once."></textarea>
+                        </div>
+
+                        <div class="modal-field">
+                            <div class="participants-header">
+                                <label>Participants <span class="muted">(default: everyone in the class)</span></label>
+                                <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;">Select/deselect all</button>
+                            </div>
+                            <div id="participants-list" class="participants-list">
+                                <span class="muted">Select a class to choose participants&hellip;</span>
+                            </div>
+                        </div>
+
+                        <fieldset id="test-settings" class="preview-params" hidden>
+                            <legend>Formal Test Settings</legend>
+                            <div class="modal-field">
+                                <label for="new-prep-time">Preparation time before each item (seconds)</label>
+                                <input type="number" id="new-prep-time" min="1" max="30" value="5" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-answer-time">Answer time per item (seconds)</label>
+                                <input type="number" id="new-answer-time" min="3" max="180" value="20" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-allowed-attempts">Allowed attempts per item</label>
+                                <input type="number" id="new-allowed-attempts" min="1" max="5" value="1" />
+                            </div>
+                            <div class="modal-field">
+                                <label for="new-pass-threshold">Pass threshold (% accuracy, blank = ungraded)</label>
+                                <input type="number" id="new-pass-threshold" min="0" max="100" placeholder="&mdash;" />
+                            </div>
+                        </fieldset>
+
                         <button type="submit" class="btn btn-primary">Create Session</button>
                     </form>
                     <div id="create-error" class="modal-error" hidden></div>
@@ -85,6 +141,7 @@
             <!-- MONITOR VIEW -->
             <section id="view-monitor" hidden>
                 <button id="back-to-list-button" class="link-button" type="button" style="text-align:left;">&larr; Back to all sessions</button>
+                <div id="monitor-connection-banner" class="connection-banner" hidden>&#9888; Live connection lost — reconnecting&hellip; (roster/progress may be stale)</div>
 
                 <section class="panel">
                     <div class="panel-header">
@@ -99,7 +156,12 @@
                         <dt>WPM</dt><dd id="monitor-wpm">&mdash;</dd>
                         <dt>Exercises</dt><dd id="monitor-count">&mdash;</dd>
                         <dt>Connected</dt><dd id="monitor-connected">&mdash;</dd>
+                        <dt id="monitor-participants-label" hidden>Participants</dt><dd id="monitor-participants" hidden>&mdash;</dd>
                     </dl>
+
+                    <div id="monitor-instructions-box" class="modal-note" hidden>
+                        <strong>Instructions shown to students:</strong> <span id="monitor-instructions"></span>
+                    </div>
 
                     <div class="session-controls">
                         <button id="btn-open" class="btn btn-primary" type="button">Open for Joining</button>
@@ -111,17 +173,38 @@
                     </div>
                 </section>
 
+                <section class="panel" id="progress-panel" hidden>
+                    <div class="panel-header">
+                        <h2>Live Progress</h2>
+                        <span id="progress-summary" class="muted">&mdash;</span>
+                    </div>
+                </section>
+
                 <section class="panel">
                     <div class="panel-header">
                         <h2>Roster</h2>
-                        <span class="muted">Updates live as students join or leave.</span>
+                        <span class="muted">Updates live as students join, ready up, or leave.</span>
                     </div>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
-                                <tr><th>Rank</th><th>Name</th><th>Class</th><th>Connection</th></tr>
+                                <tr><th>Rank</th><th>Name</th><th>Class</th><th>Connection</th><th>Ready</th></tr>
                             </thead>
-                            <tbody id="roster-tbody"><tr><td colspan="4" class="muted">Loading&hellip;</td></tr></tbody>
+                            <tbody id="roster-tbody"><tr><td colspan="5" class="muted">Loading&hellip;</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel" id="results-panel" hidden>
+                    <div class="panel-header">
+                        <h2>Results</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Item</th><th>Student</th><th>Answer</th><th>Attempts</th><th>Score</th><th>Grade</th></tr>
+                            </thead>
+                            <tbody id="results-tbody"><tr><td colspan="6" class="muted">Not finished yet.</td></tr></tbody>
                         </table>
                     </div>
                 </section>

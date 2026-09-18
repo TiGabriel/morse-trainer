@@ -3,6 +3,20 @@
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
+/*
+ * The `hidden` attribute must always win, full stop. Without this, any
+ * element that also carries a class setting its own `display` (e.g.
+ * `.modal-backdrop { display: flex }`, `.preview-params { display: grid }`)
+ * silently overrides the browser's default `[hidden] { display: none }`
+ * rule, because same-specificity author CSS beats the user-agent
+ * stylesheet regardless of source order. Found live: the dashboard's
+ * modal backdrop and a newly-added fieldset were both rendering visible
+ * despite `hidden` being set.
+ */
+[hidden] {
+    display: none !important;
+}
+
 body {
     margin: 0;
     min-height: 100vh;

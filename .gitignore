@@ -1,8 +1,9 @@
 node_modules/
-server/data/*.db
-server/data/*.db-shm
-server/data/*.db-wal
-server/data/INITIAL_TEACHER_CREDENTIALS.txt
+# Everything here is runtime/generated data: the live database (and its
+# -wal/-shm files), the one-time initial-teacher-credentials file, and any
+# local backups/restores created by scripts/backup.bat and restore.bat.
+# None of it should ever be committed.
+server/data/
 server/logs/*.log
 server/.env
 *.log

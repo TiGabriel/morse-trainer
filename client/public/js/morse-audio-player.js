@@ -228,6 +228,18 @@ class MorseAudioPlayer {
         this.setVolume(this._preMuteVolume ?? 0.5);
     }
 
+    /**
+     * Explicitly creates/resumes the AudioContext from a user gesture
+     * without playing anything. Needed for a synchronized group session:
+     * the actual play() call happens later from a `setTimeout` at a
+     * server-scheduled instant, not from a click, so the AudioContext
+     * must already be unlocked by an earlier gesture (e.g. the student's
+     * "Ready" button) to satisfy browser autoplay restrictions.
+     */
+    unlock() {
+        return this._ensureAudioContext();
+    }
+
     /** Releases the AudioContext. Call when the player is no longer needed (e.g. leaving a page). */
     destroy() {
         this.stop();

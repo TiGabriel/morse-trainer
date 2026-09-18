@@ -1,6 +1,7 @@
 const express = require('express');
 const usersController = require('./usersController');
 const { requireAuth, requireRole, requireSelfOrTeacher } = require('../../middleware/auth');
+const asyncHandler = require('../../middleware/asyncHandler');
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 // Teacher-only: create a new account (teacher or student).
-router.post('/', requireRole('teacher'), usersController.createUser);
+router.post('/', requireRole('teacher'), asyncHandler(usersController.createUser));
 
 // Teacher-only: list/search/filter every account.
 router.get('/', requireRole('teacher'), usersController.listUsers);
@@ -26,6 +27,6 @@ router.patch('/:id', requireRole('teacher'), usersController.updateUser);
 router.patch('/:id/status', requireRole('teacher'), usersController.setActiveStatus);
 
 // Teacher-only: reset a student's (or teacher's) password.
-router.post('/:id/reset-password', requireRole('teacher'), usersController.resetPassword);
+router.post('/:id/reset-password', requireRole('teacher'), asyncHandler(usersController.resetPassword));
 
 module.exports = router;
