@@ -496,13 +496,95 @@ LAN-disconnect simulation of the new reconnect banners).
 
 
 
+\*\*PHASE 12 — WINDOWS DEPLOYMENT \& FINAL LAN QA — COMPLETE (FINAL PHASE).\*\*
+
+
+
+Verification and targeted bug-fixing for real classroom deployment — no
+
+new features. Added a root-level `START SERVER.bat` (Node.js check,
+
+one-time `npm install`, production start, LAN URL printed), `STOP
+
+SERVER.bat`, `BACKUP DATABASE.bat`/`RESTORE DATABASE.bat`, and `OPEN
+
+FIREWALL PORT.bat` (a single `netsh advfirewall` rule, private networks
+
+only, never disables the firewall). Audited the entire client and
+
+server for external runtime dependencies (CDNs, fonts, analytics,
+
+cloud services) and found none — the app was already fully offline at
+
+runtime. Ran a clean-deployment test from a genuinely empty database
+
+(teacher login, class/student creation, a full group session, a full
+
+formal test with real pass/fail grading, then a server restart proving
+
+persistence) — 14/14 checks. Simulated an actual 20-student classroom
+
+with real concurrent browser contexts — 7/7 checks, all 20 joining,
+
+readying, receiving synchronized playback, answering, and completing
+
+together. Tested failure recovery (page refresh mid-item, a forced
+
+WebSocket drop and reconnect, the teacher staying connected throughout)
+
+— 15/16 checks, the one non-pass being an honestly-documented
+
+limitation of simulating a LAN drop inside a single-VM sandbox, not a
+
+product failure. Found and fixed two real, concrete bugs during this
+
+QA: (1) the teacher's configurable "Tone frequency (Hz)" setting was
+
+stored and transmitted correctly but never actually applied to the
+
+audio player in either practice or group/test sessions — always played
+
+600Hz regardless of configuration; (2) the server's graceful shutdown
+
+never checkpointed the database's write-ahead log, so a backup taken
+
+right after stopping the server could have silently missed recent
+
+writes — both fixed and re-verified. Actually tested the full
+
+backup/restore round trip (create data, back up, add more data, stop,
+
+restore, confirm the extra data is gone and the backup's data is
+
+intact) rather than just documenting it. Re-confirmed the Phase 11
+
+security posture holds, and found/fixed one real gap: `.gitignore`
+
+only covered specific filenames under `server/data/` and missed the
+
+new backups directory. See `docs/checkpoints/phase-12-checkpoint.md`
+
+for the full record, including the honest limitations (session state
+
+lost on a mid-session crash/restart — unchanged since Phase 8 and not
+
+addressed, since fixing it is feature work outside this phase's scope;
+
+only Chromium-based browsers tested; the `.bat` files were reviewed for
+
+correct syntax but not run on an actual Windows machine, since this
+
+work happened in a Linux sandbox).
+
+
+
 \## Current task
 
 
 
-Phase 11 is complete. Waiting for explicit direction before starting
+Phase 12 is complete. This was the final planned phase — no further
 
-Phase 12 (Windows Deployment \& Final LAN QA).
+development phase begins without new, explicit direction.
 
 
 

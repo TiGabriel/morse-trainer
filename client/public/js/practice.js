@@ -92,6 +92,7 @@ function renderExerciseScreen(exercise) {
 
     if (needsAudio) {
         const p = ensurePlayer();
+        if (exercise.toneFrequencyHz) p.toneFrequencyHz = exercise.toneFrequencyHz;
         p.loadPlan(exercise.plan, { durationMs: exercise.durationMs });
     } else if (exercise.mode === 'morse_to_text') {
         textPrompt.textContent = exercise.promptMorse;

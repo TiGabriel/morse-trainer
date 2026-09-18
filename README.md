@@ -1,5 +1,149 @@
 # Morse Trainer — Offline LAN Classroom Platform
 
+**Status: feature-complete (Phase 12, final).** This section is everything
+a teacher needs to actually run a class. Everything below "Development
+History" documents how the app was built, phase by phase, for anyone
+extending it later — it's historical, not a setup guide.
+
+## Classroom Deployment
+
+### Requirements
+- One Windows PC for the teacher, to run the server (Node.js 18+, needed
+  once for first-time setup)
+- ~20 student PCs on the same private LAN, each with a modern browser
+  (Chrome or Edge — the only browsers this deployment was tested with)
+- No internet access needed for actual class use — the *only* moment
+  that ever needs it is the one-time dependency install the very first
+  time the server is set up on a machine
+
+### Teacher: starting the server
+1. Double-click **`START SERVER.bat`** in the project's root folder.
+2. First run only: it installs dependencies automatically (needs
+   internet briefly for this one step). Every run after that is fully
+   offline.
+3. Leave the window open for the whole class — closing it stops the
+   server. To stop it deliberately, just close the window (or press
+   Ctrl+C inside it); `STOP SERVER.bat` is also available if that
+   window gets lost or closed accidentally.
+4. The window prints what you need:
+   ```
+   Local (this machine):  http://localhost:8080
+   Share with students:   http://192.168.1.42:8080
+   ```
+   The first line is for testing on the teacher PC itself. Give the
+   **second line's address** to the class.
+
+On the very first run ever, the server also creates the initial teacher
+login and writes it to `server/data/INITIAL_TEACHER_CREDENTIALS.txt` —
+open that file, log in once, then delete it.
+
+### Students: connecting
+Every student just opens a normal browser (Chrome or Edge) and types in
+the address the teacher gave them:
+
+```
+http://<TEACHER-LAN-IP>:<PORT>
+```
+
+For example: `http://192.168.1.42:8080`. That's the whole procedure —
+no installation, no Node.js, no npm, no SQLite, no downloading or
+copying any project files onto student machines. If the page doesn't
+load, see "Windows Firewall" below, and confirm both computers are
+actually on the same network (check `GET /api/network-info` on the
+teacher PC if there's more than one network adapter).
+
+### Windows Firewall
+The first time the server starts, Windows may show "Windows Defender
+Firewall has blocked some features of this app" — click **Allow
+access**, with the **Private networks** box checked (leave Public
+unchecked). That's usually all that's needed.
+
+If that prompt was dismissed, or the port needs to be opened manually,
+three ways to do the same thing — none of them disable the firewall or
+touch any rule other than this one port:
+
+- **Easiest**: right-click **`OPEN FIREWALL PORT.bat`** in the project
+  root and choose **"Run as administrator."** It adds a rule allowing
+  inbound connections on port 8080 for **private networks only**.
+- **Manual (GUI)**: Windows Defender Firewall → Advanced Settings →
+  Inbound Rules → New Rule → Port → TCP → Specific local port `8080` →
+  Allow the connection → check **Private** only (leave Domain/Public
+  unchecked) → name it "Morse Trainer".
+- **Manual (Command Prompt, as Administrator)**:
+  ```
+  netsh advfirewall firewall add rule name="Morse Trainer" dir=in action=allow protocol=TCP localport=8080 profile=private
+  ```
+
+Also confirm the classroom network is set to **Private** in Windows
+(Settings → Network & Internet → your network → Network profile type).
+Windows Firewall treats Public and Private networks differently, and
+this app is designed to be reachable only on a private/trusted network
+— it was never meant to be exposed to a Public-profile network or the
+open internet.
+
+### Backup and restore
+The entire database is one file: `server/data/morse_trainer.db`.
+
+**To back up**: stop the server first (close the `START SERVER.bat`
+window), then double-click **`BACKUP DATABASE.bat`**. It copies the
+database into `server/data/backups/` with a timestamp in the filename
+(e.g. `morse_trainer_20260101_120000.db`). Copy that file somewhere off
+this computer too (a USB drive, a network share) — a backup that only
+ever lives on the same machine isn't a real backup.
+
+**To restore**: stop the server, then run `RESTORE DATABASE.bat` with
+the backup file as an argument, e.g. from a Command Prompt in the
+project folder:
+```
+"RESTORE DATABASE.bat" server\data\backups\morse_trainer_20260101_120000.db
+```
+It saves the current database as `morse_trainer.db.before-restore`
+first (in case the wrong file was picked), then restores the chosen
+backup. Start the server normally afterward.
+
+This exact procedure was tested end-to-end while building this phase:
+data was created, backed up, more data was added on top, the server was
+stopped, the backup was restored, and the extra data was confirmed gone
+while everything from the backup point was confirmed fully intact.
+
+Why the server must be stopped first: on a clean shutdown, the database
+merges its write-ahead log back into the single `.db` file (a
+"checkpoint"), so that one file alone is a complete, consistent
+snapshot — copying it while the server is still running risks copying
+data that's still sitting in a separate, in-progress `-wal` file.
+
+### Verifying offline operation
+No CDN, no Google Fonts, no external `<script>`/`<link>` tags, no
+third-party analytics or telemetry, no cloud database, no cloud
+authentication — every asset and API call this app needs at runtime is
+served from this same machine (verified by inspecting every HTML/CSS/JS
+file in the client and every outbound call on the server — there are
+none). To confirm this yourself: after the one-time `npm install`,
+disconnect the classroom LAN's internet uplink entirely (the LAN
+between the teacher and student PCs can stay up) and confirm the app
+still works exactly the same.
+
+### Known limitations (read before a real class)
+- **A server crash or teacher-PC restart during a live session loses
+  that session's live progress** — its scheduling timers are in-memory
+  and don't survive a restart. Students would need to be re-invited to
+  a new session. Anything already graded and saved (finished sessions,
+  practice history) is completely unaffected — that's in the database,
+  not memory.
+- **Only Chrome and Edge (Chromium-based browsers) were tested.**
+  Firefox and Safari were not part of this deployment's target audience
+  and have not been verified — they are likely to work (nothing here is
+  Chromium-specific by design) but were not checked.
+- **The login rate limiter (10 failed attempts / 15 minutes per
+  username) resets on a server restart** — an acceptable best-effort
+  classroom control, not a hardened production one.
+- See `docs/checkpoints/phase-12-checkpoint.md` for the full deployment
+  QA record (classroom-scale test, failure/recovery testing, audio QA,
+  security review) and every other checkpoint for how each part of the
+  app was built and tested.
+
+## Development History
+
 ## Phase 2: LAN Server Foundation
 
 The server now runs as a real LAN service:

@@ -428,7 +428,9 @@ function prepareItemDisplay(item, { reveal }) {
     el('exercise-replay-button').hidden = true;
 
     if (needsAudio) {
-        ensurePlayer().loadPlan(item.plan, { durationMs: item.durationMs });
+        const p = ensurePlayer();
+        if (item.toneFrequencyHz) p.toneFrequencyHz = item.toneFrequencyHz;
+        p.loadPlan(item.plan, { durationMs: item.durationMs });
     } else if (item.mode === 'morse_to_text') {
         textPrompt.textContent = reveal ? item.promptMorse : '•••';
     } else if (item.mode === 'text_to_morse') {

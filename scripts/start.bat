@@ -1,24 +1,7 @@
 @echo off
-REM Starts the Morse Trainer server (production mode).
-REM Double-click this file, or run it from a Command Prompt.
-
+REM Kept for backwards compatibility / scripted use. Teachers should
+REM normally use "START SERVER.bat" in the project's root folder instead --
+REM this just delegates to it.
 setlocal
-cd /d "%~dp0..\server"
-
-if not exist node_modules (
-    echo Dependencies not installed yet. Running "npm install" first...
-    call npm install
-    if errorlevel 1 (
-        echo.
-        echo Failed to install dependencies. Check your internet connection
-        echo for this one-time setup step, then try again.
-        pause
-        exit /b 1
-    )
-)
-
-set NODE_ENV=production
-echo Starting Morse Trainer server...
-call npm start
-
+call "%~dp0..\START SERVER.bat"
 endlocal

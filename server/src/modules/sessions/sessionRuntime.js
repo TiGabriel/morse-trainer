@@ -61,6 +61,7 @@ function publicItemPayload(item) {
         mode: ex.mode,
         durationMs: ex.durationMs,
         wpm: ex.wpm,
+        toneFrequencyHz: ex.toneFrequencyHz,
     };
     if (ex.mode === 'audio_to_text' || ex.mode === 'character_recognition') {
         payload.plan = ex.plan;

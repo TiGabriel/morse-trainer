@@ -9,6 +9,7 @@ const requestLogger = require('./middleware/requestLogger');
 const { getLanAddresses, getPrimaryLanAddress } = require('./utils/network');
 const migrate = require('./db/migrate');
 const seed = require('./db/seed');
+const db = require('./db/client');
 const sessionService = require('./modules/auth/sessionService');
 
 const authRoutes = require('./modules/auth/authRoutes');
@@ -156,6 +157,24 @@ async function main() {
     function shutdown(signal) {
         logger.info(`Received ${signal}, shutting down server...`);
         server.close(() => {
+            // Closing the DB connection lets SQLite run its automatic WAL
+            // checkpoint (the last connection to close a WAL-mode database
+            // merges the -wal file back into the main file) — this is what
+            // makes "stop the server, then copy the .db file" a safe,
+            // complete backup procedure, without needing to also copy the
+            // -wal/-shm files or checkpoint manually.
+            try {
+                // Explicit TRUNCATE checkpoint, rather than relying on
+                // close() to do this implicitly — merges every committed
+                // write back into the main .db file and truncates the -wal
+                // file to zero bytes, so a plain file copy of the .db file
+                // alone (no -wal/-shm needed) is a complete, consistent
+                // backup.
+                db.pragma('wal_checkpoint(TRUNCATE)');
+                db.close();
+            } catch (err) {
+                logger.error(`Error closing database during shutdown: ${err.message}`);
+            }
             logger.info('Server closed cleanly.');
             process.exit(0);
         });
