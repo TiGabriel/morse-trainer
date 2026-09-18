@@ -48,6 +48,18 @@ const modalError = document.getElementById('modal-error');
 const modalConfirmBtn = document.getElementById('modal-confirm');
 const modalCancelBtn = document.getElementById('modal-cancel');
 
+// Defense-in-depth: the `hidden` attribute alone depends on styles.css's
+// global `[hidden] { display: none !important; }` rule to beat
+// `.modal-backdrop { display: flex }` (same-specificity author CSS
+// otherwise overrides the browser's default `[hidden]` behavior — see
+// that rule's own comment for the prior incident this already caused).
+// If that stylesheet is ever missing or stale on the client, the modal
+// renders visible with nothing in it and both buttons appear inert
+// (no onSubmit was ever registered). Setting `display` directly here
+// makes this modal's visibility self-contained in JS, independent of
+// any CSS file being present or up to date.
+modalBackdrop.style.display = 'none';
+
 let activeModalSubmit = null;
 
 /**
@@ -122,10 +134,12 @@ function openModal({ title, fields, note, confirmLabel = 'Save', onSubmit }) {
     };
 
     modalBackdrop.hidden = false;
+    modalBackdrop.style.display = 'flex';
 }
 
 function closeModal() {
     modalBackdrop.hidden = true;
+    modalBackdrop.style.display = 'none';
     activeModalSubmit = null;
 }
 
