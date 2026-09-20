@@ -1,5 +1,7 @@
 const engine = require('../morse-engine');
 const { buildExercise } = require('./practiceEngine');
+const { buildRadiogram } = require('./radiogramEngine');
+const { buildCharacterTrainingSession } = require('./characterTrainingEngine');
 const practiceRepository = require('./practiceRepository');
 const logger = require('../../logger');
 
@@ -144,4 +146,77 @@ function listHistory(req, res) {
     return res.json({ attempts, total, limit, offset });
 }
 
-module.exports = { generateExercise, submitAttempt, listHistory };
+/**
+ * GET /api/practice/charsets
+ * Exposes the engine's base character categories (letters/numbers/
+ * punctuation) so the client can build a character-pool picker without
+ * duplicating the canonical Morse character map.
+ */
+function getCharsets(req, res) {
+    return res.json({
+        letters: engine.CHARSETS.letters,
+        numbers: engine.CHARSETS.numbers,
+        punctuation: engine.CHARSETS.punctuation,
+    });
+}
+
+/**
+ * POST /api/practice/radiograms
+ * Generates a full 3x10x4 radiogram from a caller-chosen character pool.
+ * No answer is withheld — Part 1 of the redesigned Individual Training
+ * flow is generate -> display -> play only, with no scoring yet.
+ */
+function generateRadiogram(req, res) {
+    const body = req.body || {};
+
+    let radiogram;
+    try {
+        radiogram = buildRadiogram({
+            characters: body.characters,
+            wpm: toNumberOrUndefined(body.wpm),
+            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
+            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            seed: body.seed,
+        });
+    } catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    return res.json(radiogram);
+}
+
+/**
+ * POST /api/practice/character-training/sessions
+ * Generates a full Character Training session: a flat sequence of
+ * single-character Morse rounds, each with its own playback plan, drawn
+ * only from the caller-chosen character pool. No answer is withheld —
+ * gameplay reveals the correct character right after each keypress.
+ */
+function generateCharacterTrainingSession(req, res) {
+    const body = req.body || {};
+
+    let session;
+    try {
+        session = buildCharacterTrainingSession({
+            characters: body.characters,
+            length: toNumberOrUndefined(body.length),
+            wpm: toNumberOrUndefined(body.wpm),
+            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
+            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            seed: body.seed,
+        });
+    } catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    return res.json(session);
+}
+
+module.exports = {
+    generateExercise,
+    submitAttempt,
+    listHistory,
+    getCharsets,
+    generateRadiogram,
+    generateCharacterTrainingSession,
+};

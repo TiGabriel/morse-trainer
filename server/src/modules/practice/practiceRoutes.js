@@ -10,4 +10,8 @@ router.post('/exercises', practiceController.generateExercise);
 router.post('/attempts', practiceController.submitAttempt);
 router.get('/history', practiceController.listHistory);
 
+router.get('/charsets', practiceController.getCharsets);
+router.post('/radiograms', practiceController.generateRadiogram);
+router.post('/character-training/sessions', practiceController.generateCharacterTrainingSession);
+
 module.exports = router;
