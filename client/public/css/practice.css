@@ -16,20 +16,22 @@
     --pt-surface-alt: #faf9f6;
 
     /* Borders */
-    --pt-border: #e7e4dc;
-    --pt-border-strong: #d9d5c9;
+    --pt-border: #ddd8c8;
+    --pt-border-strong: #c7c0aa;
 
     /* Text */
     --pt-text: #2b2a27;
     --pt-text-muted: #726e65;
     --pt-text-faint: #a39d90;
 
-    /* Accent — muted indigo, used sparingly */
-    --pt-accent: #5b57c9;
-    --pt-accent-hover: #4a47a8;
-    --pt-accent-soft: rgba(91, 87, 201, 0.08);
-    --pt-accent-soft-strong: rgba(91, 87, 201, 0.15);
-    --pt-accent-border: rgba(91, 87, 201, 0.35);
+    /* Accent — muted military olive-green, matching the rest of the
+       app's light-theme primary accent (see styles.css :root[data-theme="light"]),
+       used sparingly */
+    --pt-accent: #5c6b45;
+    --pt-accent-hover: #4a5a32;
+    --pt-accent-soft: rgba(92, 107, 69, 0.08);
+    --pt-accent-soft-strong: rgba(92, 107, 69, 0.16);
+    --pt-accent-border: rgba(92, 107, 69, 0.4);
     --pt-on-accent: #ffffff;
 
     /* Semantic */
@@ -57,16 +59,62 @@
     --pt-transition: 150ms ease;
 }
 
+/*
+ * Dark variant of this page's own token set (see the file header — this
+ * page intentionally has its own warm/paper palette, independent of the
+ * rest of the app's slate-blue dark theme in styles.css). Only applied
+ * once <html data-theme="dark"> is set by the shared theme toggle.
+ */
+:root[data-theme="dark"] {
+    --pt-bg: #211f1c;
+    --pt-surface: #2c2a26;
+    --pt-surface-alt: #262420;
+
+    --pt-border: #3d3a34;
+    --pt-border-strong: #4d4a42;
+
+    --pt-text: #f0eee8;
+    --pt-text-muted: #b0aca2;
+    --pt-text-faint: #7d786d;
+
+    /* Naval blue, matching the rest of the app's dark-theme primary accent */
+    --pt-accent: #4f93c9;
+    --pt-accent-hover: #6ba7d6;
+    --pt-accent-soft: rgba(79, 147, 201, 0.14);
+    --pt-accent-soft-strong: rgba(79, 147, 201, 0.24);
+    --pt-accent-border: rgba(79, 147, 201, 0.45);
+    --pt-on-accent: #0f1f2e;
+
+    --pt-success: #4ade80;
+    --pt-success-soft: rgba(74, 222, 128, 0.15);
+    --pt-error: #f2867a;
+    --pt-error-soft: rgba(242, 134, 122, 0.15);
+    --pt-warning: #e0ac53;
+    --pt-warning-soft: rgba(224, 172, 83, 0.15);
+    --pt-extra: #b09ee0;
+    --pt-extra-soft: rgba(176, 158, 224, 0.15);
+
+    --pt-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --pt-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --pt-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
 /* ===================== Shell ===================== */
 .practice-body {
     display: block;
     align-items: unset;
     justify-content: unset;
     padding: 0;
-    background: var(--pt-bg);
+    background-color: var(--pt-bg);
+    background-image: var(--camo-bg-image);
+    background-attachment: fixed;
     color: var(--pt-text);
     color-scheme: light;
     -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] .practice-body {
+    color-scheme: dark;
 }
 
 .auth-gate {

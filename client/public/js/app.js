@@ -25,6 +25,8 @@ async function checkHealth() {
 }
 
 function showLoggedIn(user) {
+    document.getElementById('app-nav-links').hidden = false;
+    document.getElementById('app-nav-right').hidden = false;
     document.getElementById('logged-out-view').hidden = true;
     document.getElementById('logged-in-view').hidden = false;
     const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
@@ -51,6 +53,8 @@ function showLoggedIn(user) {
 }
 
 function showLoggedOut() {
+    document.getElementById('app-nav-links').hidden = true;
+    document.getElementById('app-nav-right').hidden = true;
     document.getElementById('logged-out-view').hidden = false;
     document.getElementById('logged-in-view').hidden = true;
     document.getElementById('login-error').hidden = true;

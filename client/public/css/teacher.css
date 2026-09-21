@@ -22,6 +22,7 @@
     max-width: 420px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: var(--shadow-md);
 }
 
 .modal h3 {
@@ -74,6 +75,15 @@
     font-size: 0.9rem;
     resize: vertical;
     box-sizing: border-box;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.preview-controls textarea:focus,
+.preview-random-row select:focus,
+.preview-controls input:focus,
+.preview-controls select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .preview-random-row {

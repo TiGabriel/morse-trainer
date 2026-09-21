@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('morseTrainerTheme');
+                document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
+            } catch (e) {
+                document.documentElement.dataset.theme = 'dark';
+            }
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Morse Trainer</title>
     <link rel="stylesheet" href="/css/styles.css" />
@@ -9,13 +19,14 @@
 <body>
     <nav class="app-nav" aria-label="Main">
         <a href="/" class="app-nav-brand">Morse Trainer</a>
-        <div class="app-nav-links">
+        <div class="app-nav-links" id="app-nav-links" hidden>
             <a href="/" class="app-nav-link active">Home</a>
             <a href="/teacher.html" class="app-nav-link">Dashboard</a>
             <a href="/sessions.html" class="app-nav-link">Group Sessions</a>
             <a href="/stats.html" class="app-nav-link">Statistics</a>
         </div>
-        <div class="app-nav-right">
+        <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+        <div class="app-nav-right" id="app-nav-right" hidden>
             <button class="app-nav-logout" id="logout-button" type="button">Log out</button>
         </div>
     </nav>

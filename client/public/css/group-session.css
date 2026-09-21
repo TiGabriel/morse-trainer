@@ -10,11 +10,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem;
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
     text-align: left;
     gap: 1rem;
+    box-shadow: var(--shadow-sm);
 }
 
 .gs-session-card-info strong {
@@ -41,14 +42,14 @@
 .gs-countdown {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-weight: 700;
-    color: #60a5fa;
+    color: var(--info);
 }
 
 .gs-countdown-banner {
     text-align: center;
     font-size: 1.8rem;
     font-weight: 700;
-    color: #fbbf24;
+    color: var(--warning);
     padding: 1.5rem 0;
 }
 
@@ -58,8 +59,8 @@
     z-index: 100;
     text-align: center;
     padding: 0.6rem 1rem;
-    background: #7c2d12;
-    color: #fed7aa;
+    background: var(--alert-strong-bg);
+    color: var(--alert-strong-text);
     font-size: 0.9rem;
     font-weight: 600;
 }

@@ -7,34 +7,69 @@
    ========================================================================= */
 
 :root {
-    color-scheme: light dark;
+    color-scheme: dark;
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
-    /* Surfaces */
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --surface-alt: #16213a;
-    --border: #334155;
-    --border-strong: #475569;
+    /*
+     * Dark theme: a naval console — several layered navy tones (not flat
+     * black, not one flat blue) so page / section / card / input read as
+     * distinct depths. Primary accent is a naval blue; --info doubles as
+     * the restrained secondary military-green accent (status-waiting
+     * badges, gs-countdown, etc. already key off --info).
+     */
+
+    /* Surfaces, darkest to lightest: bg (page) < surface-alt (secondary
+       section) < surface (card/panel) */
+    --bg: #0a1220;
+    --surface-alt: #101d33;
+    --surface: #16233d;
+    --border: #263650;
+    --border-strong: #3c4f6d;
 
     /* Text */
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --text-faint: #64748b;
+    --text: #e7ecf4;
+    --text-muted: #a4b1c7;
+    --text-faint: #71809b;
 
-    /* Accent */
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-deep: #1e40af;
-    --accent-soft: rgba(37, 99, 235, 0.14);
+    /* Accent — naval blue */
+    --accent: #3d7ab8;
+    --accent-hover: #4f91d1;
+    --accent-deep: #2c5c8c;
+    --accent-soft: rgba(61, 122, 184, 0.16);
+    --accent-rgb: 61, 122, 184;
 
     /* Semantic */
-    --success: #4ade80;
-    --success-soft: rgba(74, 222, 128, 0.15);
-    --error: #f87171;
-    --error-soft: rgba(248, 113, 113, 0.15);
-    --warning: #fbbf24;
-    --warning-soft: rgba(251, 191, 36, 0.15);
+    --success: #6fbf73;
+    --success-soft: rgba(111, 191, 115, 0.16);
+    --error: #e2726a;
+    --error-soft: rgba(226, 114, 106, 0.16);
+    --warning: #d9a441;
+    --warning-soft: rgba(217, 164, 65, 0.16);
+    --neutral: #8a97ab;
+    --neutral-soft: rgba(138, 151, 171, 0.16);
+    --info: #7fae6f;
+    --info-soft: rgba(127, 174, 111, 0.16);
+    --alert-strong-bg: #6b3a1a;
+    --alert-strong-text: #ffdcb0;
+
+    /* Elevation — soft depth, not heavy drop-shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+    /*
+     * Very subtle naval "blue camouflage": a handful of large, soft,
+     * irregular radial blotches in nearby blue tones, faded to
+     * transparent, fixed to the viewport behind all content. Kept to
+     * low single-digit % alpha on purpose — this must read as a faint
+     * textured console background, never as a literal camo pattern, and
+     * must never affect text/control contrast (see body/.practice-body).
+     */
+    --camo-bg-image:
+        radial-gradient(ellipse 42% 32% at 8% 12%, rgba(63, 143, 209, 0.05), transparent 70%),
+        radial-gradient(ellipse 38% 45% at 92% 8%, rgba(45, 108, 168, 0.06), transparent 70%),
+        radial-gradient(ellipse 50% 40% at 85% 78%, rgba(58, 130, 145, 0.05), transparent 70%),
+        radial-gradient(ellipse 45% 38% at 10% 85%, rgba(63, 143, 209, 0.045), transparent 70%),
+        radial-gradient(ellipse 60% 50% at 50% 45%, rgba(90, 163, 222, 0.03), transparent 75%);
 
     /* Shape */
     --r-sm: 8px;
@@ -50,6 +85,66 @@
     --fs-helper: 0.8rem;
 
     --transition: 160ms ease;
+}
+
+/*
+ * Light theme override. The app defaults to the dark palette above (every
+ * value here is only ever applied once nav.js sets data-theme="light" on
+ * <html> — the inline pre-paint script at the top of each page's <head>
+ * avoids a flash of the wrong theme). Only re-declares tokens whose
+ * *value* actually needs to change for light backgrounds; anything not
+ * listed here (radii, type scale, etc.) already works on both.
+ *
+ * Warm, slightly olive off-white rather than white-on-white — bg <
+ * surface-alt < surface is the same ascending-elevation order as dark
+ * mode, just inverted in brightness instead of literal darkness, so a
+ * card always visibly "sits above" the page. Primary accent is a muted
+ * military olive/green; --info doubles as the secondary subdued-navy
+ * accent (mirrors dark mode's blue-primary/green-secondary pairing).
+ */
+:root[data-theme="light"] {
+    color-scheme: light;
+
+    --bg: #eeece2;
+    --surface-alt: #f2f0e6;
+    --surface: #faf9f3;
+    --border: #d9d4c0;
+    --border-strong: #c2bc9f;
+
+    --text: #262a22;
+    --text-muted: #5b5f4f;
+    --text-faint: #8b8b77;
+
+    --accent: #5c6b45;
+    --accent-hover: #4a5a32;
+    --accent-deep: #3a4726;
+    --accent-soft: rgba(92, 107, 69, 0.12);
+    --accent-rgb: 92, 107, 69;
+
+    --success: #3f8a4f;
+    --success-soft: rgba(63, 138, 79, 0.14);
+    --error: #b3453a;
+    --error-soft: rgba(179, 69, 58, 0.14);
+    --warning: #a8752a;
+    --warning-soft: rgba(168, 117, 42, 0.14);
+    --neutral: #6b6b5c;
+    --neutral-soft: rgba(107, 107, 92, 0.14);
+    --info: #35506e;
+    --info-soft: rgba(53, 80, 110, 0.12);
+    --alert-strong-bg: #f3e6c4;
+    --alert-strong-text: #6b4a12;
+
+    --shadow-sm: 0 1px 2px rgba(38, 42, 34, 0.05), 0 1px 3px rgba(38, 42, 34, 0.06);
+    --shadow-md: 0 6px 20px rgba(38, 42, 34, 0.09);
+
+    /* Faint olive/military-green "camouflage" — same technique as dark
+       mode's blue version, just retinted. See the dark :root's comment. */
+    --camo-bg-image:
+        radial-gradient(ellipse 42% 32% at 8% 12%, rgba(92, 107, 69, 0.055), transparent 70%),
+        radial-gradient(ellipse 38% 45% at 92% 8%, rgba(74, 90, 50, 0.05), transparent 70%),
+        radial-gradient(ellipse 50% 40% at 85% 78%, rgba(107, 122, 84, 0.06), transparent 70%),
+        radial-gradient(ellipse 45% 38% at 10% 85%, rgba(90, 105, 65, 0.05), transparent 70%),
+        radial-gradient(ellipse 60% 50% at 50% 45%, rgba(130, 140, 105, 0.035), transparent 75%);
 }
 
 /*
@@ -73,7 +168,9 @@
 body {
     margin: 0;
     min-height: 100vh;
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image: var(--camo-bg-image);
+    background-attachment: fixed;
     color: var(--text);
     font-size: var(--fs-body);
     line-height: 1.55;
@@ -259,6 +356,36 @@ code {
     color: var(--text);
 }
 
+/*
+ * Sits on its own margin-left: auto so it's pinned to the nav's right
+ * edge whether or not the flex:1 .app-nav-links / .app-nav-right
+ * siblings are present and visible (index.html hides both while logged
+ * out — see app.js showLoggedOut/showLoggedIn — so this can't rely on
+ * them to push it into place).
+ */
+.app-nav-theme-toggle {
+    margin-left: auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color var(--transition), color var(--transition), transform var(--transition);
+}
+.app-nav-theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    transform: rotate(-12deg);
+}
+
 @media (max-width: 640px) {
     .app-nav {
         flex-wrap: wrap;
@@ -322,7 +449,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
 .btn-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.3);
 }
 .btn-primary:active {
     transform: translateY(0) scale(1);
@@ -421,6 +548,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
 .filters select:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .modal-note {
@@ -478,6 +606,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     padding: 1.4rem;
+    box-shadow: var(--shadow-sm);
 }
 
 .panel-header {
@@ -529,13 +658,13 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     vertical-align: middle;
 }
 .data-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-alt);
 }
 .data-table tbody tr.clickable-row {
     cursor: pointer;
 }
 .data-table tbody tr.clickable-row:hover {
-    background: rgba(148, 163, 184, 0.08);
+    background: var(--neutral-soft);
 }
 
 .col-actions {
@@ -559,11 +688,11 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
 .badge-active { background: var(--success-soft); color: var(--success); }
 .badge-inactive { background: var(--error-soft); color: var(--error); }
 
-.status-created { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-.status-waiting { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.status-created { background: var(--neutral-soft); color: var(--neutral); }
+.status-waiting { background: var(--info-soft); color: var(--info); }
 .status-running { background: var(--success-soft); color: var(--success); }
 .status-paused { background: var(--warning-soft); color: var(--warning); }
-.status-finished { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+.status-finished { background: var(--neutral-soft); color: var(--neutral); }
 .status-cancelled { background: var(--error-soft); color: var(--error); }
 
 .connection-connected { color: var(--success); font-weight: 600; }
@@ -575,8 +704,8 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     z-index: 15;
     text-align: center;
     padding: 0.6rem 1rem;
-    background: #7c2d12;
-    color: #fed7aa;
+    background: var(--alert-strong-bg);
+    color: var(--alert-strong-text);
     font-size: 0.9rem;
     font-weight: 600;
     border-radius: var(--r-sm);
@@ -593,6 +722,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
 }
 .share-box h2 {
     margin: 0 0 0.5rem 0;
@@ -619,6 +749,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
 }
 .auth-box h2 {
     margin: 0 0 0.85rem 0;
@@ -642,6 +773,7 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
 #login-form input:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 #login-error {
@@ -694,10 +826,10 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .toast.toast-error {
-    border-color: #7f1d1d;
-    color: #fca5a5;
+    border-color: var(--error);
+    color: var(--error);
 }
 .toast.toast-success {
-    border-color: #14532d;
-    color: #86efac;
+    border-color: var(--success);
+    color: var(--success);
 }
