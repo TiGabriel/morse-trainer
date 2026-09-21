@@ -11,20 +11,160 @@
     <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
 
     <div id="dashboard" hidden>
-        <header class="dash-header">
-            <h1>Teacher Dashboard</h1>
-            <div class="dash-header-right">
-                <span id="teacher-name" class="muted"></span>
-                <a href="/sessions.html" class="btn btn-secondary">Group Sessions</a>
-                <a href="/stats.html" class="btn btn-secondary">Statistics</a>
-                <a href="/" class="btn btn-secondary">Home</a>
-                <button id="logout-button" class="btn btn-secondary">Log out</button>
+        <nav class="app-nav" aria-label="Main">
+            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <div class="app-nav-links">
+                <a href="/" class="app-nav-link">Home</a>
+                <a href="/teacher.html" class="app-nav-link active">Dashboard</a>
+                <a href="/sessions.html" class="app-nav-link">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link">Statistics</a>
             </div>
-        </header>
+            <div class="app-nav-right">
+                <span id="teacher-name" class="app-nav-user"></span>
+                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+            </div>
+        </nav>
 
         <main class="dash-main">
+            <h1>Teacher <span class="accent">Dashboard</span></h1>
+            <p class="subtitle">Manage classes, students, group sessions, and grades.</p>
+
+            <!-- GROUP SESSIONS (primary) -->
+            <section class="panel reveal-on-scroll">
+                <div class="panel-header">
+                    <h2>Group Sessions</h2>
+                    <a href="/sessions.html" class="btn btn-primary btn-small">Open Group Sessions &rarr;</a>
+                </div>
+                <div class="filters">
+                    <input type="text" id="dash-sessions-search" placeholder="Search by class&hellip;" />
+                    <select id="dash-sessions-status-filter">
+                        <option value="">All statuses</option>
+                        <option value="created">Created</option>
+                        <option value="waiting">Waiting</option>
+                        <option value="running">Running</option>
+                        <option value="paused">Paused</option>
+                        <option value="finished">Finished</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Type</th>
+                                <th>Difficulty</th>
+                                <th>WPM</th>
+                                <th>Exercises</th>
+                                <th>Status</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-sessions-tbody">
+                            <tr><td colspan="7" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- STUDENT GRADES (primary, new) -->
+            <section class="panel reveal-on-scroll">
+                <div class="panel-header">
+                    <h2>Student Grades</h2>
+                    <span class="muted">Practice + test performance, from the same data as Statistics.</span>
+                </div>
+                <div class="filters">
+                    <input type="text" id="grades-search" placeholder="Search name, username&hellip;" />
+                    <select id="grades-class-filter">
+                        <option value="">All classes</option>
+                    </select>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Class</th>
+                                <th>Practice Attempts</th>
+                                <th>Practice Accuracy</th>
+                                <th>Test Sessions</th>
+                                <th>Test Avg Score</th>
+                                <th>Test Pass Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grades-tbody">
+                            <tr><td colspan="9" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- CLASSES (secondary) -->
+            <section class="panel panel-secondary reveal-on-scroll">
+                <div class="panel-header">
+                    <h2>Classes</h2>
+                    <button id="new-class-button" class="btn btn-secondary btn-small">+ New Class</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Students</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classes-tbody">
+                            <tr><td colspan="4" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- STUDENTS (secondary) -->
+            <section class="panel panel-secondary reveal-on-scroll">
+                <div class="panel-header">
+                    <h2>Students</h2>
+                    <button id="new-student-button" class="btn btn-secondary btn-small">+ New Student</button>
+                </div>
+
+                <div class="filters">
+                    <input type="text" id="search-input" placeholder="Search name, username, rank&hellip;" />
+                    <select id="class-filter">
+                        <option value="">All classes</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Username</th>
+                                <th>Class</th>
+                                <th>Status</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-tbody">
+                            <tr><td colspan="7" class="muted">Loading&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <!-- MORSE AUDIO PREVIEW -->
-            <section class="panel">
+            <section class="panel panel-secondary reveal-on-scroll">
                 <div class="panel-header">
                     <h2>Morse Audio Preview</h2>
                     <span class="muted">Generates and plays audio locally — no network or files involved.</span>
@@ -104,68 +244,6 @@
                     </div>
                 </div>
             </section>
-
-            <!-- CLASSES -->
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Classes</h2>
-                    <button id="new-class-button" class="btn btn-primary">+ New Class</button>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>Students</th>
-                                <th class="col-actions">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="classes-tbody">
-                            <tr><td colspan="4" class="muted">Loading&hellip;</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- STUDENTS -->
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Students</h2>
-                    <button id="new-student-button" class="btn btn-primary">+ New Student</button>
-                </div>
-
-                <div class="filters">
-                    <input type="text" id="search-input" placeholder="Search name, username, rank&hellip;" />
-                    <select id="class-filter">
-                        <option value="">All classes</option>
-                    </select>
-                    <select id="status-filter">
-                        <option value="active" selected>Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="all">All</option>
-                    </select>
-                </div>
-
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Rank</th>
-                                <th>Last Name</th>
-                                <th>First Name</th>
-                                <th>Username</th>
-                                <th>Class</th>
-                                <th>Status</th>
-                                <th class="col-actions">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="students-tbody">
-                            <tr><td colspan="7" class="muted">Loading&hellip;</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
         </main>
     </div>
 
@@ -184,6 +262,7 @@
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/nav.js"></script>
     <script src="/js/morse-audio-player.js"></script>
     <script src="/js/teacher.js"></script>
     <script src="/js/morse-preview.js"></script>

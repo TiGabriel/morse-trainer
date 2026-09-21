@@ -186,6 +186,58 @@ function generateRadiogram(req, res) {
 }
 
 /**
+ * POST /api/practice/radiograms/analyze
+ * Regenerates the exact radiogram from the echoed seed/params (the same
+ * "never trust the client's copy of the answer" pattern submitAttempt
+ * uses) and scores the student's transcription against it with the same
+ * alignment-based scoreAnswer used everywhere else in the app. Group
+ * spacing is stripped from both sides first so formatting differences
+ * (extra/missing spaces between groups) are never counted as character
+ * errors — only the 120-character sequence itself is compared.
+ *
+ * Stateless: unlike submitAttempt, this does not persist to practice
+ * history (radiogram_training/character_training have no DB-backed
+ * "attempt" type — see the CHECK constraint on practice_attempts).
+ */
+function analyzeRadiogram(req, res) {
+    const body = req.body || {};
+
+    if (typeof body.submittedAnswer !== 'string') {
+        return res.status(400).json({ error: 'submittedAnswer is required.' });
+    }
+    if (body.seed === undefined || body.seed === null || body.seed === '') {
+        return res.status(400).json({ error: 'seed is required (use the value returned by /api/practice/radiograms).' });
+    }
+
+    let radiogram;
+    try {
+        radiogram = buildRadiogram({
+            characters: body.characters,
+            wpm: toNumberOrUndefined(body.wpm),
+            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
+            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            seed: body.seed,
+        });
+    } catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    const reference = radiogram.text.replace(/\s+/g, '');
+    const submitted = body.submittedAnswer.replace(/\s+/g, '');
+    const score = engine.scoreAnswer(reference, submitted);
+
+    return res.json({
+        seed: radiogram.seed,
+        reference,
+        referenceGroups: radiogram.groups,
+        referenceRows: radiogram.rows,
+        groupSize: radiogram.groupSize,
+        submittedAnswer: body.submittedAnswer,
+        score,
+    });
+}
+
+/**
  * POST /api/practice/character-training/sessions
  * Generates a full Character Training session: a flat sequence of
  * single-character Morse rounds, each with its own playback plan, drawn
@@ -218,5 +270,6 @@ module.exports = {
     listHistory,
     getCharsets,
     generateRadiogram,
+    analyzeRadiogram,
     generateCharacterTrainingSession,
 };

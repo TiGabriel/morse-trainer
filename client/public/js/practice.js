@@ -20,6 +20,7 @@ const SCREENS = [
     'hub',
     'radiogram-settings',
     'radiogram-play',
+    'radiogram-results',
     'character-training-settings',
     'character-training-session',
     'character-training-results',
@@ -42,6 +43,7 @@ let currentScreen = null;
 const SCREEN_LEAVE_HOOKS = {
     'radiogram-play': () => {
         if (radiogramPlayer) radiogramPlayer.stop();
+        clearRadiogramRevealTimeouts();
     },
     'character-training-session': () => abortCharacterTrainingRound(),
 };
@@ -194,13 +196,28 @@ async function loadCharsets() {
 // Radiograms
 // =======================================================================
 let radiogramPlayer = null;
-let currentRadiogram = null;
+let currentRadiogram = null; // full server response incl. text/charReveal — kept in memory, but never rendered up front
+let radiogramCharSlots = []; // flat array of the 120 per-character DOM spans, same order as currentRadiogram.charReveal
+let radiogramRevealTimeouts = [];
+let radiogramMasked = false; // "Hide Radiogram" toggle — display-only, never touches playback or the answer field
+
+// Matches MorseAudioPlayer.play()'s own small lead-in before the first
+// tone starts (see morse-audio-player.js), so reveal timers — which are
+// scheduled independently via setTimeout rather than the player's
+// AudioContext clock — line up with what's actually audible instead of
+// firing ~50ms early.
+const RADIOGRAM_REVEAL_LEAD_IN_MS = 50;
 
 function ensureRadiogramPlayer(volume) {
     if (radiogramPlayer) return radiogramPlayer;
     radiogramPlayer = new MorseAudioPlayer({
         volume,
         maxPlays: null, // radiogram copy practice: unlimited replay
+        onEnd: () => {
+            clearRadiogramRevealTimeouts();
+            el('radiogram-status').textContent = 'Playback complete. Finish your transcription, then analyze.';
+            el('radiogram-analyze-button').disabled = false;
+        },
     });
     return radiogramPlayer;
 }
@@ -252,26 +269,85 @@ async function generateRadiogram() {
     showScreen('radiogram-play');
 }
 
-function renderRadiogram(radiogram) {
+/**
+ * Builds the reference display as one hidden "slot" span per character
+ * (never the real text up front) and records them in radiogramCharSlots,
+ * in exactly the order radiogram.charReveal expects — so revealCharAt(i)
+ * can address them directly by index.
+ */
+function buildRadiogramSlots(radiogram) {
     const display = el('radiogram-display');
     display.innerHTML = '';
+    radiogramCharSlots = [];
 
-    radiogram.rows.forEach((row, i) => {
+    for (let r = 0; r < radiogram.rowCount; r += 1) {
         const rowEl = document.createElement('div');
         rowEl.className = 'radiogram-row';
 
         const rowLabel = document.createElement('span');
         rowLabel.className = 'radiogram-row-label';
-        rowLabel.textContent = String(i + 1).padStart(2, '0');
-
-        const rowText = document.createElement('span');
-        rowText.className = 'radiogram-row-text';
-        rowText.textContent = row;
-
+        rowLabel.textContent = String(r + 1).padStart(2, '0');
         rowEl.appendChild(rowLabel);
-        rowEl.appendChild(rowText);
+
+        const rowGroups = radiogram.groups.slice(r * radiogram.groupsPerRow, (r + 1) * radiogram.groupsPerRow);
+        rowGroups.forEach((group) => {
+            const groupEl = document.createElement('span');
+            groupEl.className = 'rg-group';
+            [...group].forEach((ch) => {
+                const charEl = document.createElement('span');
+                charEl.className = 'rg-char pending';
+                charEl.textContent = '·'; // placeholder dot — never the real character until revealed
+                groupEl.appendChild(charEl);
+                radiogramCharSlots.push(charEl);
+            });
+            rowEl.appendChild(groupEl);
+        });
+
         display.appendChild(rowEl);
+    }
+}
+
+function resetRadiogramReveal() {
+    radiogramCharSlots.forEach((slot) => {
+        slot.textContent = '·';
+        slot.classList.remove('revealed');
+        slot.classList.add('pending');
     });
+}
+
+function clearRadiogramRevealTimeouts() {
+    radiogramRevealTimeouts.forEach((id) => clearTimeout(id));
+    radiogramRevealTimeouts = [];
+}
+
+function revealRadiogramCharAt(index, char) {
+    const slot = radiogramCharSlots[index];
+    if (!slot) return;
+    slot.textContent = char;
+    slot.classList.remove('pending');
+    slot.classList.add('revealed');
+    el('radiogram-status').textContent = `Transmitting… ${index + 1} / ${radiogramCharSlots.length}`;
+}
+
+/** (Re)schedules the live reveal against the exact same charReveal sequence used to build the audio plan, from scratch — used by both the first Play and every Replay. */
+function scheduleRadiogramReveal(radiogram) {
+    clearRadiogramRevealTimeouts();
+    resetRadiogramReveal();
+    radiogram.charReveal.forEach((entry, index) => {
+        const id = setTimeout(() => revealRadiogramCharAt(index, entry.char), RADIOGRAM_REVEAL_LEAD_IN_MS + entry.atMs);
+        radiogramRevealTimeouts.push(id);
+    });
+}
+
+function setRadiogramMasked(masked) {
+    radiogramMasked = masked;
+    el('radiogram-display').classList.toggle('reference-masked', masked);
+    el('radiogram-hide-button').textContent = masked ? 'Show Radiogram' : 'Hide Radiogram';
+}
+
+function renderRadiogram(radiogram) {
+    buildRadiogramSlots(radiogram);
+    setRadiogramMasked(false);
 
     const farnsworthNote =
         radiogram.timing.farnsworthWpm !== radiogram.timing.wpm ? ` (Farnsworth ${radiogram.timing.farnsworthWpm} WPM)` : '';
@@ -281,6 +357,9 @@ function renderRadiogram(radiogram) {
 
     el('radiogram-replay-button').hidden = true;
     el('radiogram-stop-button').hidden = true;
+    el('radiogram-status').textContent = 'Not started yet.';
+    el('radiogram-answer').value = '';
+    el('radiogram-analyze-button').disabled = true;
 
     const volume = Number(el('radiogram-play-volume').value) / 100;
     const p = ensureRadiogramPlayer(volume);
@@ -289,12 +368,157 @@ function renderRadiogram(radiogram) {
 }
 
 function playRadiogram() {
+    if (!currentRadiogram) return;
     const volume = Number(el('radiogram-play-volume').value) / 100;
     const p = ensureRadiogramPlayer(volume);
     p.setVolume(volume);
     p.play();
     el('radiogram-replay-button').hidden = false;
     el('radiogram-stop-button').hidden = false;
+    el('radiogram-analyze-button').disabled = true;
+    el('radiogram-status').textContent = 'Transmitting…';
+    scheduleRadiogramReveal(currentRadiogram);
+}
+
+function stopRadiogram() {
+    if (radiogramPlayer) radiogramPlayer.stop();
+    clearRadiogramRevealTimeouts();
+    el('radiogram-status').textContent = 'Stopped. You can replay, or analyze what you have so far.';
+    el('radiogram-analyze-button').disabled = false;
+}
+
+/** Strips whitespace/group separators only — the exact characters the student typed are otherwise left untouched (never auto-corrected). Uppercasing/space-stripping here is comparison normalization only, per the same convention scoreAnswer already uses. */
+function normalizeRadiogramAnswer(raw) {
+    return raw.replace(/\s+/g, '').toUpperCase();
+}
+
+async function analyzeRadiogram() {
+    if (!currentRadiogram) return;
+    if (radiogramPlayer) radiogramPlayer.stop();
+    clearRadiogramRevealTimeouts();
+
+    const submittedAnswer = el('radiogram-answer').value;
+    const payload = {
+        characters: currentRadiogram.characters,
+        wpm: currentRadiogram.timing.wpm,
+        farnsworthWpm: currentRadiogram.timing.farnsworthWpm,
+        toneFrequencyHz: currentRadiogram.timing.toneFrequencyHz,
+        seed: currentRadiogram.seed,
+        submittedAnswer: normalizeRadiogramAnswer(submittedAnswer),
+    };
+
+    let result;
+    try {
+        result = await api('/api/practice/radiograms/analyze', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (err) {
+        showRadiogramError(err.message);
+        return;
+    }
+
+    renderRadiogramResults(result);
+    showScreen('radiogram-results');
+}
+
+function renderRadiogramResults(result) {
+    const { score } = result;
+    const timing = currentRadiogram.timing;
+
+    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? ` (Farnsworth ${timing.farnsworthWpm} WPM)` : '';
+    el('rgr-subtitle').textContent = `${score.totalExpected} characters · ${timing.wpm} WPM${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
+
+    const accuracyEl = el('rgr-accuracy');
+    accuracyEl.textContent = `${score.accuracyPercent}%`;
+    accuracyEl.className = 'result-accuracy' + (score.accuracyPercent >= 90 ? '' : score.accuracyPercent >= 60 ? ' mid' : ' low');
+
+    el('rgr-total').textContent = String(score.totalExpected);
+    el('rgr-correct').textContent = String(score.correctCount);
+    el('rgr-incorrect').textContent = String(score.incorrectCount);
+    el('rgr-missing').textContent = String(score.missingCount);
+    el('rgr-extra').textContent = String(score.extraCount);
+    el('rgr-errors').textContent = String(score.errorCount);
+
+    renderRadiogramComparison(score.ops, result.groupSize || 4);
+}
+
+/**
+ * Renders the aligned reference/answer comparison as two rows built
+ * directly from scoreAnswer's ops (one column per op, so a missing or
+ * extra character shifts neither row out of alignment with the other —
+ * see scoring.js for why alignment beats index-by-index comparison).
+ */
+function renderRadiogramComparison(ops, groupSize) {
+    const container = el('rgr-compare');
+    container.innerHTML = '';
+
+    const refRow = document.createElement('div');
+    refRow.className = 'rg-compare-row';
+    const refLabel = document.createElement('span');
+    refLabel.className = 'rg-compare-row-label';
+    refLabel.textContent = 'REFERENCE';
+    const refCells = document.createElement('span');
+    refRow.appendChild(refLabel);
+    refRow.appendChild(refCells);
+
+    const subRow = document.createElement('div');
+    subRow.className = 'rg-compare-row';
+    const subLabel = document.createElement('span');
+    subLabel.className = 'rg-compare-row-label';
+    subLabel.textContent = 'YOUR ANSWER';
+    const subCells = document.createElement('span');
+    subRow.appendChild(subLabel);
+    subRow.appendChild(subCells);
+
+    let expectedSeen = 0;
+    ops.forEach((op) => {
+        const refCell = document.createElement('span');
+        refCell.className = 'rg-compare-cell';
+        const subCell = document.createElement('span');
+        subCell.className = 'rg-compare-cell';
+
+        if (op.type === 'match') {
+            refCell.textContent = op.expectedChar;
+            subCell.textContent = op.submittedChar;
+            refCell.classList.add('rg-op-match');
+            subCell.classList.add('rg-op-match');
+        } else if (op.type === 'substitution') {
+            refCell.textContent = op.expectedChar;
+            subCell.textContent = op.submittedChar;
+            refCell.classList.add('rg-op-substitution');
+            subCell.classList.add('rg-op-substitution');
+        } else if (op.type === 'missing') {
+            refCell.textContent = op.expectedChar;
+            subCell.textContent = '_';
+            refCell.classList.add('rg-op-missing');
+            subCell.classList.add('rg-op-missing');
+        } else if (op.type === 'extra') {
+            refCell.textContent = '_';
+            subCell.textContent = op.submittedChar;
+            refCell.classList.add('rg-op-extra');
+            subCell.classList.add('rg-op-extra');
+        }
+
+        refCells.appendChild(refCell);
+        subCells.appendChild(subCell);
+
+        // Extra characters have no counterpart in the reference sequence,
+        // so only expected-side-consuming ops advance the group counter —
+        // this keeps the visual grouping lined up with the original 4-char
+        // groups instead of drifting after the first insertion.
+        if (op.type !== 'extra') {
+            expectedSeen += 1;
+            if (expectedSeen % groupSize === 0) {
+                const refGap = document.createElement('span');
+                refGap.className = 'rg-compare-gap';
+                const subGap = document.createElement('span');
+                subGap.className = 'rg-compare-gap';
+                refCells.appendChild(refGap);
+                subCells.appendChild(subGap);
+            }
+        }
+    });
+
+    container.appendChild(refRow);
+    container.appendChild(subRow);
 }
 
 // =======================================================================
@@ -438,7 +662,7 @@ function updateCtLiveStats() {
 
 function triggerCtConfetti() {
     const layer = el('ct-confetti-layer');
-    const colors = ['#4ade80', '#60a5fa', '#fbbf24', '#f472b6', '#a78bfa'];
+    const colors = ['#2f8f5b', '#5b57c9', '#b3822e', '#8868b3', '#7a9e8e'];
     const pieceCount = 18;
     for (let i = 0; i < pieceCount; i += 1) {
         const piece = document.createElement('span');
@@ -728,13 +952,22 @@ async function init() {
     // Radiogram playback
     el('radiogram-play-button').addEventListener('click', playRadiogram);
     el('radiogram-replay-button').addEventListener('click', playRadiogram);
-    el('radiogram-stop-button').addEventListener('click', () => {
-        if (radiogramPlayer) radiogramPlayer.stop();
-    });
+    el('radiogram-stop-button').addEventListener('click', stopRadiogram);
     el('radiogram-play-volume').addEventListener('input', () => {
         if (radiogramPlayer) radiogramPlayer.setVolume(Number(el('radiogram-play-volume').value) / 100);
     });
     el('radiogram-generate-another-button').addEventListener('click', generateRadiogram);
+
+    // Radiogram live reveal / transcription / analysis
+    el('radiogram-hide-button').addEventListener('click', () => setRadiogramMasked(!radiogramMasked));
+    el('radiogram-analyze-button').addEventListener('click', analyzeRadiogram);
+
+    // Radiogram results
+    el('rgr-replay-button').addEventListener('click', () => {
+        showScreen('radiogram-play');
+        playRadiogram();
+    });
+    el('rgr-generate-another-button').addEventListener('click', generateRadiogram);
 
     // Character Training settings
     document.querySelectorAll('#ct-length-quick-actions .chip-button').forEach((btn) => {

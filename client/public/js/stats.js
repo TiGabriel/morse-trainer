@@ -159,11 +159,7 @@ async function init() {
     el('auth-gate').hidden = true;
     el('dashboard').hidden = false;
     el('teacher-name').textContent = `${user.firstName || ''} ${user.lastName || ''} (${user.username})`.trim();
-
-    el('logout-button').addEventListener('click', async () => {
-        await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        window.location.href = '/';
-    });
+    if (window.ScrollReveal) window.ScrollReveal.observe('.reveal-on-scroll');
 
     el('stats-class-select').addEventListener('change', () => {
         el('student-detail-panel').hidden = true;

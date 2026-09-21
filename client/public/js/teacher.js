@@ -165,6 +165,7 @@ async function loadClasses() {
     classesCache = classes;
     renderClasses(classes);
     populateClassFilter(classes);
+    populateGradesClassFilter(classes);
     return classes;
 }
 
@@ -454,6 +455,135 @@ function confirmResetPassword(student) {
     });
 }
 
+// ---------------------------------------------------------------------
+// Dashboard: Group Sessions (primary) — reuses GET /api/sessions, already
+// scoped server-side to sessions this teacher created.
+// ---------------------------------------------------------------------
+let dashSessionsCache = [];
+
+async function loadDashboardSessions() {
+    const { sessions } = await api('/api/sessions');
+    dashSessionsCache = sessions;
+    renderDashboardSessions();
+}
+
+function renderDashboardSessions() {
+    const tbody = document.getElementById('dash-sessions-tbody');
+    const search = document.getElementById('dash-sessions-search').value.trim().toLowerCase();
+    const status = document.getElementById('dash-sessions-status-filter').value;
+
+    const filtered = dashSessionsCache.filter((s) => {
+        if (status && s.status !== status) return false;
+        if (search && !(s.className || '').toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">No group sessions match the current filters.</td></tr>';
+        return;
+    }
+
+    filtered.forEach((s) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHtml(s.className || '—')}</td>
+            <td>${escapeHtml(s.type)}</td>
+            <td>${escapeHtml(s.difficulty || '—')}</td>
+            <td>${s.wpm}</td>
+            <td>${s.exerciseCount}</td>
+            <td><span class="badge status-${s.status}">${escapeHtml(s.status)}</span></td>
+            <td class="col-actions"><div class="row-actions"></div></td>
+        `;
+        const actions = tr.querySelector('.row-actions');
+        actions.appendChild(
+            makeButton(
+                'Open',
+                'btn-secondary',
+                () => {
+                    window.location.href = `/sessions.html?open=${s.id}`;
+                },
+                true
+            )
+        );
+        tbody.appendChild(tr);
+    });
+}
+
+// ---------------------------------------------------------------------
+// Dashboard: Student Grades (primary, new) — built only from GET
+// /api/classes (already used for the class filter above) and GET
+// /api/stats/classes/:id, merged across classes. No new backend endpoint.
+// ---------------------------------------------------------------------
+let gradesCache = [];
+
+async function loadGrades() {
+    const classId = document.getElementById('grades-class-filter').value;
+    const targetClasses = classId ? classesCache.filter((c) => String(c.id) === classId) : classesCache;
+
+    const perClass = await Promise.all(
+        targetClasses.map((cls) =>
+            api(`/api/stats/classes/${cls.id}`).then((data) => data.students.map((s) => ({ ...s, className: cls.name })))
+        )
+    );
+    gradesCache = perClass.flat();
+    renderGrades();
+}
+
+function populateGradesClassFilter(classes) {
+    const select = document.getElementById('grades-class-filter');
+    const previousValue = select.value;
+    select.innerHTML = '<option value="">All classes</option>';
+    classes.forEach((cls) => {
+        const opt = document.createElement('option');
+        opt.value = String(cls.id);
+        opt.textContent = cls.name;
+        select.appendChild(opt);
+    });
+    select.value = previousValue;
+}
+
+/** Renders a stat as "—" only for missing data (null) — a real 0 stays "0", never inflated to "0%" when there's simply no data yet. */
+function formatCount(v) {
+    return v === null || v === undefined ? '—' : String(v);
+}
+function formatPercent(v) {
+    return v === null || v === undefined ? '—' : `${v}%`;
+}
+
+function renderGrades() {
+    const tbody = document.getElementById('grades-tbody');
+    const search = document.getElementById('grades-search').value.trim().toLowerCase();
+
+    const filtered = gradesCache.filter((s) => {
+        if (!search) return true;
+        const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.username}`.toLowerCase();
+        return haystack.includes(search);
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">No students match the current filters.</td></tr>';
+        return;
+    }
+
+    filtered.forEach((s) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHtml(s.rank || '—')}</td>
+            <td>${escapeHtml(`${s.firstName || ''} ${s.lastName || ''}`.trim() || '—')}</td>
+            <td>${escapeHtml(s.username)}</td>
+            <td>${escapeHtml(s.className || '—')}</td>
+            <td>${formatCount(s.practiceAttemptCount)}</td>
+            <td>${formatPercent(s.practiceAvgAccuracy)}</td>
+            <td>${formatCount(s.testSessionCount)}</td>
+            <td>${formatPercent(s.testAvgScore)}</td>
+            <td>${formatPercent(s.testPassRatePercent)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str === undefined || str === null ? '' : String(str);
@@ -489,11 +619,7 @@ async function init() {
     document.getElementById('dashboard').hidden = false;
     document.getElementById('teacher-name').textContent =
         `${currentUser.firstName || ''} ${currentUser.lastName || ''} (${currentUser.username})`.trim();
-
-    document.getElementById('logout-button').addEventListener('click', async () => {
-        await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        window.location.href = '/';
-    });
+    if (window.ScrollReveal) window.ScrollReveal.observe('.reveal-on-scroll');
 
     document.getElementById('new-class-button').addEventListener('click', openNewClassModal);
     document.getElementById('new-student-button').addEventListener('click', openNewStudentModal);
@@ -507,8 +633,20 @@ async function init() {
         searchDebounce = setTimeout(loadStudents, 300);
     });
 
+    document.getElementById('dash-sessions-search').addEventListener('input', renderDashboardSessions);
+    document.getElementById('dash-sessions-status-filter').addEventListener('change', renderDashboardSessions);
+
+    document.getElementById('grades-class-filter').addEventListener('change', loadGrades);
+    let gradesSearchDebounce;
+    document.getElementById('grades-search').addEventListener('input', () => {
+        clearTimeout(gradesSearchDebounce);
+        gradesSearchDebounce = setTimeout(renderGrades, 200);
+    });
+
     await loadClasses();
     await loadStudents();
+    await loadDashboardSessions();
+    await loadGrades();
 }
 
 init();

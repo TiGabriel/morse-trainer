@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Morse Trainer — Group Session</title>
     <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="stylesheet" href="/css/teacher.css" />
-    <link rel="stylesheet" href="/css/practice.css" />
     <link rel="stylesheet" href="/css/group-session.css" />
 </head>
 <body class="practice-body">
@@ -14,15 +12,24 @@
 
     <div id="app" hidden>
         <div id="connection-banner" class="connection-banner" hidden>&#9888; Connection lost — reconnecting&hellip;</div>
-        <header class="practice-header">
-            <a href="/" class="practice-home-link">&larr; Home</a>
-            <span id="user-name" class="muted"></span>
-        </header>
+        <nav class="app-nav" aria-label="Main">
+            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <div class="app-nav-links">
+                <a href="/" class="app-nav-link">Home</a>
+                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
+                <a href="/group-session.html" class="app-nav-link active">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link">Statistics</a>
+            </div>
+            <div class="app-nav-right">
+                <span id="user-name" class="app-nav-user"></span>
+                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+            </div>
+        </nav>
 
         <main class="practice-main">
             <!-- LIST: available sessions for this student's class -->
             <section id="screen-list" class="practice-screen">
-                <h1>Group Sessions</h1>
+                <h1><span class="accent">Group</span> Sessions</h1>
                 <p class="subtitle">Sessions your teacher has opened for your class.</p>
                 <div id="no-class-notice" class="modal-error" hidden>
                     You are not assigned to a class yet — ask your teacher to assign you one.
@@ -100,6 +107,7 @@
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/nav.js"></script>
     <script src="/js/morse-audio-player.js"></script>
     <script src="/js/clock-sync.js"></script>
     <script src="/js/group-session.js"></script>

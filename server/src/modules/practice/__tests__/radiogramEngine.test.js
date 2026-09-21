@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildRadiogram, ROWS, GROUPS_PER_ROW, GROUP_SIZE, TOTAL_LENGTH } = require('../radiogramEngine');
+const { buildRadiogram, buildCharacterReveal, ROWS, GROUPS_PER_ROW, GROUP_SIZE, TOTAL_LENGTH } = require('../radiogramEngine');
 const { MorseEngineError } = require('../../morse-engine/errors');
+const engine = require('../../morse-engine');
 
 test('buildRadiogram: shape is fixed at 3 rows x 10 groups x 4 characters', () => {
     const result = buildRadiogram({ characters: 'letters', wpm: 15, seed: 1 });
@@ -46,4 +47,34 @@ test('buildRadiogram: requires wpm', () => {
 
 test('buildRadiogram: requires a non-empty character pool', () => {
     assert.throws(() => buildRadiogram({ characters: [], wpm: 15 }), MorseEngineError);
+});
+
+test('buildRadiogram: charReveal has one entry per character, in transmission order, matching the text', () => {
+    const result = buildRadiogram({ characters: 'letters', wpm: 15, seed: 42 });
+    const flatChars = result.text.replace(/ /g, '').split('');
+    assert.equal(result.charReveal.length, 120);
+    assert.deepEqual(result.charReveal.map((r) => r.char), flatChars);
+});
+
+test('buildRadiogram: charReveal offsets are strictly increasing and the last one lands exactly on durationMs', () => {
+    const result = buildRadiogram({ characters: 'numbers', wpm: 18, seed: 7 });
+    for (let i = 1; i < result.charReveal.length; i += 1) {
+        assert.ok(
+            result.charReveal[i].atMs > result.charReveal[i - 1].atMs,
+            `offset ${i} should be strictly after offset ${i - 1}`
+        );
+    }
+    const last = result.charReveal[result.charReveal.length - 1];
+    assert.equal(last.atMs, result.durationMs);
+});
+
+test('buildCharacterReveal: a single short word reveals each character at the end of its own tones', () => {
+    const timing = engine.computeTiming({ wpm: 20 });
+    const reveal = buildCharacterReveal('EI', timing);
+    // E = "." , I = ".."
+    assert.equal(reveal.length, 2);
+    assert.equal(reveal[0].char, 'E');
+    assert.equal(reveal[0].atMs, timing.dotMs);
+    assert.equal(reveal[1].char, 'I');
+    assert.equal(reveal[1].atMs, timing.dotMs + timing.interCharGapMs + timing.dotMs + timing.intraCharGapMs + timing.dotMs);
 });

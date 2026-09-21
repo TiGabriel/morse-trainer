@@ -11,10 +11,19 @@
     <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
 
     <div id="app" hidden>
-        <header class="practice-header">
-            <a href="/" class="practice-home-link">&larr; Home</a>
-            <span id="user-name" class="muted"></span>
-        </header>
+        <nav class="app-nav" aria-label="Main">
+            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <div class="app-nav-links">
+                <a href="/" class="app-nav-link">Home</a>
+                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
+                <a href="/group-session.html" class="app-nav-link">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link">Statistics</a>
+            </div>
+            <div class="app-nav-right">
+                <span id="user-name" class="app-nav-user"></span>
+                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+            </div>
+        </nav>
 
         <main class="practice-main">
             <!-- ================= HUB ================= -->
@@ -24,15 +33,35 @@
 
                 <div class="hub-cards">
                     <button type="button" class="hub-card" id="hub-card-radiogram">
-                        <span class="hub-card-icon" aria-hidden="true">&#9835;</span>
-                        <span class="hub-card-title">Radiograms</span>
-                        <span class="hub-card-desc">Generate a full radiogram — 3 rows of 10 four-character groups — from a character pool you choose, then copy it by ear.</span>
+                        <span class="hub-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 17h4l3 3 3-8 2 5h4" />
+                                <path d="M2 12a10 10 0 0 1 20 0" stroke-dasharray="2 3" opacity="0.5" />
+                            </svg>
+                        </span>
+                        <span class="hub-card-body">
+                            <span class="hub-card-title">Radiogram Training</span>
+                            <span class="hub-card-desc">Generate a full radiogram — 3 rows of 10 four-character groups — and copy it by ear as it's transmitted.</span>
+                        </span>
+                        <span class="hub-card-arrow" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                        </span>
                     </button>
 
                     <button type="button" class="hub-card" id="hub-card-character-training">
-                        <span class="hub-card-icon" aria-hidden="true">&#9670;</span>
-                        <span class="hub-card-title">Character Training</span>
-                        <span class="hub-card-desc">Single-character recognition drills with live feedback.</span>
+                        <span class="hub-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                                <path d="M7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h6" />
+                            </svg>
+                        </span>
+                        <span class="hub-card-body">
+                            <span class="hub-card-title">Character Training</span>
+                            <span class="hub-card-desc">Single-character recognition drills with live feedback after every answer.</span>
+                        </span>
+                        <span class="hub-card-arrow" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                        </span>
                     </button>
                 </div>
             </section>
@@ -295,15 +324,9 @@
                         </div>
                     </div>
 
-                    <div class="settings-row">
-                        <div class="modal-field">
-                            <label for="setting-tone">Tone frequency (Hz)</label>
-                            <input type="number" id="setting-tone" min="200" max="1200" value="600" />
-                        </div>
-                        <div class="modal-field">
-                            <label for="setting-volume">Volume</label>
-                            <input type="range" id="setting-volume" min="0" max="100" value="60" />
-                        </div>
+                    <div class="modal-field">
+                        <label for="setting-tone">Tone frequency (Hz)</label>
+                        <input type="number" id="setting-tone" min="200" max="1200" value="600" />
                     </div>
                 </div>
 
@@ -318,12 +341,27 @@
                 <h1>Radiogram</h1>
                 <p class="subtitle" id="radiogram-meta"></p>
 
+                <div class="radiogram-panel-header">
+                    <h2 class="settings-group-title">Live reference</h2>
+                    <button id="radiogram-hide-button" class="link-button" type="button">Hide Radiogram</button>
+                </div>
+                <p class="radiogram-hint">Characters appear here as they're transmitted — nothing is shown in advance.</p>
+
                 <div class="radiogram-display" id="radiogram-display"></div>
 
                 <div class="radiogram-playback-controls">
-                    <button id="radiogram-play-button" class="btn btn-primary btn-large" type="button">&#9658; Play</button>
-                    <button id="radiogram-replay-button" class="btn btn-secondary" type="button" hidden>&#8635; Replay</button>
-                    <button id="radiogram-stop-button" class="btn btn-secondary" type="button" hidden>&#9632; Stop</button>
+                    <button id="radiogram-play-button" class="btn btn-primary btn-large" type="button">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7V5z" /></svg>
+                        Play
+                    </button>
+                    <button id="radiogram-replay-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
+                        Replay
+                    </button>
+                    <button id="radiogram-stop-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5" /></svg>
+                        Stop
+                    </button>
                 </div>
 
                 <div class="modal-field radiogram-volume-field">
@@ -331,13 +369,87 @@
                     <input type="range" id="radiogram-play-volume" min="0" max="100" value="60" />
                 </div>
 
+                <p class="radiogram-status" id="radiogram-status">Not started yet.</p>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title">Your transcription</h2>
+                    <p class="radiogram-hint">Type what you hear. This is your own answer, kept separate from the reference above.</p>
+                    <textarea
+                        id="radiogram-answer"
+                        class="radiogram-answer-input"
+                        rows="5"
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocapitalize="characters"
+                        placeholder="Your transcription will appear here as you type&hellip;"
+                    ></textarea>
+                </div>
+
                 <div class="exercise-actions">
+                    <button id="radiogram-analyze-button" class="btn btn-primary btn-large" type="button" disabled>Analyze Answer</button>
                     <button id="radiogram-generate-another-button" class="btn btn-secondary btn-large" type="button">Generate Another</button>
+                </div>
+            </section>
+
+            <!-- ================= RADIOGRAM RESULTS ================= -->
+            <section id="screen-radiogram-results" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="radiogram-settings">&larr; Back to Individual Training</button>
+                <h1>Radiogram Results</h1>
+                <p class="subtitle" id="rgr-subtitle"></p>
+
+                <div class="result-accuracy" id="rgr-accuracy">&mdash;</div>
+
+                <div class="stat-grid" id="rgr-summary-grid">
+                    <div class="stat-tile">
+                        <span class="stat-label">Total</span>
+                        <span class="stat-value" id="rgr-total">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Correct</span>
+                        <span class="stat-value count-correct" id="rgr-correct">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Incorrect</span>
+                        <span class="stat-value count-incorrect" id="rgr-incorrect">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Missing</span>
+                        <span class="stat-value count-incorrect" id="rgr-missing">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Extra</span>
+                        <span class="stat-value count-incorrect" id="rgr-extra">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Total errors</span>
+                        <span class="stat-value count-incorrect" id="rgr-errors">0</span>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title">Comparison</h2>
+                    <p class="radiogram-hint">
+                        <span class="rg-legend-swatch rg-op-match"></span> correct &middot;
+                        <span class="rg-legend-swatch rg-op-substitution"></span> wrong &middot;
+                        <span class="rg-legend-swatch rg-op-missing"></span> missing &middot;
+                        <span class="rg-legend-swatch rg-op-extra"></span> extra
+                    </p>
+                    <div class="radiogram-compare" id="rgr-compare"></div>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="rgr-replay-button" class="btn btn-secondary btn-large" type="button">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
+                        Replay Radiogram
+                    </button>
+                    <button id="rgr-generate-another-button" class="btn btn-primary btn-large" type="button">Generate Another</button>
+                    <button type="button" class="link-button back-link" data-back-to="radiogram-settings">Change settings</button>
                 </div>
             </section>
         </main>
     </div>
 
+    <script src="/js/nav.js"></script>
     <script src="/js/morse-audio-player.js"></script>
     <script src="/js/practice.js"></script>
 </body>

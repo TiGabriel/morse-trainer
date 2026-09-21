@@ -12,19 +12,25 @@
     <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
 
     <div id="dashboard" hidden>
-        <header class="dash-header">
-            <h1>Statistics</h1>
-            <div class="dash-header-right">
-                <span id="teacher-name" class="muted"></span>
-                <a href="/sessions.html" class="btn btn-secondary">Group Sessions</a>
-                <a href="/teacher.html" class="btn btn-secondary">Dashboard</a>
-                <a href="/" class="btn btn-secondary">Home</a>
-                <button id="logout-button" class="btn btn-secondary">Log out</button>
+        <nav class="app-nav" aria-label="Main">
+            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <div class="app-nav-links">
+                <a href="/" class="app-nav-link">Home</a>
+                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
+                <a href="/sessions.html" class="app-nav-link">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link active">Statistics</a>
             </div>
-        </header>
+            <div class="app-nav-right">
+                <span id="teacher-name" class="app-nav-user"></span>
+                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+            </div>
+        </nav>
 
         <main class="dash-main">
-            <section class="panel">
+            <h1><span class="accent">Statistics</span></h1>
+            <p class="subtitle">Class-wide and per-student practice/test performance.</p>
+
+            <section class="panel reveal-on-scroll">
                 <div class="panel-header">
                     <h2>Class Summary</h2>
                 </div>
@@ -49,7 +55,7 @@
                 </dl>
             </section>
 
-            <section class="panel">
+            <section class="panel reveal-on-scroll">
                 <div class="panel-header">
                     <h2>Student Breakdown</h2>
                     <span class="muted">Click a student to see their individual progress.</span>
@@ -90,6 +96,7 @@
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/nav.js"></script>
     <script src="/js/stats.js"></script>
 </body>
 </html>

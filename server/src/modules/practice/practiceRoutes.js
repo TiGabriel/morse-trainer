@@ -12,6 +12,7 @@ router.get('/history', practiceController.listHistory);
 
 router.get('/charsets', practiceController.getCharsets);
 router.post('/radiograms', practiceController.generateRadiogram);
+router.post('/radiograms/analyze', practiceController.analyzeRadiogram);
 router.post('/character-training/sessions', practiceController.generateCharacterTrainingSession);
 
 module.exports = router;

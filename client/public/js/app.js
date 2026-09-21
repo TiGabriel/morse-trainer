@@ -104,17 +104,6 @@ function wireLoginForm() {
     });
 }
 
-function wireLogoutButton() {
-    document.getElementById('logout-button').addEventListener('click', async () => {
-        try {
-            await fetch('/api/auth/logout', { method: 'POST' });
-        } finally {
-            showLoggedOut();
-        }
-    });
-}
-
 checkHealth();
 wireLoginForm();
-wireLogoutButton();
 refreshAuthState();

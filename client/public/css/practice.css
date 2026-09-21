@@ -1,57 +1,113 @@
+/* =========================================================================
+   Individual Training — visual system
+   =========================================================================
+   Scoped entirely to this stylesheet (only practice.html loads it), so
+   every token and rule here is isolated from the rest of the app — the
+   dashboard/teacher screens keep their own dark, denser look untouched.
+   Soft, warm-neutral, light theme: restrained accent color, quiet
+   shadows, generous whitespace. See the design tokens below for the
+   whole palette in one place.
+   ========================================================================= */
+
+:root {
+    /* Surfaces */
+    --pt-bg: #f6f5f2;
+    --pt-surface: #ffffff;
+    --pt-surface-alt: #faf9f6;
+
+    /* Borders */
+    --pt-border: #e7e4dc;
+    --pt-border-strong: #d9d5c9;
+
+    /* Text */
+    --pt-text: #2b2a27;
+    --pt-text-muted: #726e65;
+    --pt-text-faint: #a39d90;
+
+    /* Accent — muted indigo, used sparingly */
+    --pt-accent: #5b57c9;
+    --pt-accent-hover: #4a47a8;
+    --pt-accent-soft: rgba(91, 87, 201, 0.08);
+    --pt-accent-soft-strong: rgba(91, 87, 201, 0.15);
+    --pt-accent-border: rgba(91, 87, 201, 0.35);
+    --pt-on-accent: #ffffff;
+
+    /* Semantic */
+    --pt-success: #2f8f5b;
+    --pt-success-soft: rgba(47, 143, 91, 0.1);
+    --pt-error: #c1584a;
+    --pt-error-soft: rgba(193, 88, 74, 0.1);
+    --pt-warning: #b3822e;
+    --pt-warning-soft: rgba(179, 130, 46, 0.12);
+    --pt-extra: #8868b3;
+    --pt-extra-soft: rgba(136, 104, 179, 0.12);
+
+    /* Shape */
+    --pt-r-sm: 8px;
+    --pt-r-md: 12px;
+    --pt-r-lg: 18px;
+    --pt-r-pill: 999px;
+
+    /* Elevation — intentionally very light */
+    --pt-shadow-xs: 0 1px 2px rgba(35, 31, 20, 0.04);
+    --pt-shadow-sm: 0 1px 3px rgba(35, 31, 20, 0.05), 0 1px 2px rgba(35, 31, 20, 0.04);
+    --pt-shadow-md: 0 6px 20px rgba(35, 31, 20, 0.07);
+
+    --pt-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    --pt-transition: 150ms ease;
+}
+
+/* ===================== Shell ===================== */
 .practice-body {
     display: block;
     align-items: unset;
     justify-content: unset;
     padding: 0;
+    background: var(--pt-bg);
+    color: var(--pt-text);
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
 }
 
 .auth-gate {
-    padding: 3rem;
+    padding: 4rem 2rem;
     text-align: center;
-    color: #94a3b8;
+    color: var(--pt-text-muted);
+    font-size: 0.95rem;
 }
 
-.practice-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid #1e293b;
-}
-
-.practice-home-link {
-    color: #60a5fa;
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-.practice-home-link:hover {
-    text-decoration: underline;
-}
-
-.practice-main {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 2.5rem 1.5rem;
+.muted {
+    color: var(--pt-text-faint);
+    font-size: 0.82rem;
 }
 
 .practice-screen h1 {
-    font-size: 1.4rem;
-    margin: 0 0 0.4rem 0;
+    font-size: 1.55rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.35rem 0;
+    color: var(--pt-text);
 }
 
 .practice-screen .subtitle {
-    color: #94a3b8;
-    font-size: 0.9rem;
-    margin: 0 0 1.5rem 0;
+    color: var(--pt-text-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin: 0 0 2rem 0;
 }
 
-/* Buttons — this page has no other stylesheet defining these, so the
-   base button styles live here rather than being pulled in from the
-   unrelated teacher dashboard stylesheet. */
+/* Screen fade/rise-in on [hidden] toggle is shared (see styles.css). */
+@media (prefers-reduced-motion: reduce) {
+    .practice-screen:not([hidden]) {
+        animation: none;
+    }
+}
+
+/* ===================== Buttons & links ===================== */
 .btn {
-    padding: 0.6rem 1rem;
-    border-radius: 6px;
-    border: none;
+    padding: 0.65rem 1.1rem;
+    border-radius: var(--pt-r-sm);
+    border: 1px solid transparent;
     font-size: 0.9rem;
     cursor: pointer;
     font-weight: 500;
@@ -59,29 +115,35 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.4rem;
     white-space: nowrap;
+    transition: background var(--pt-transition), border-color var(--pt-transition), transform var(--pt-transition), box-shadow var(--pt-transition);
 }
 .btn-primary {
-    background: #2563eb;
-    color: #fff;
+    background: var(--pt-accent);
+    color: var(--pt-on-accent);
+    box-shadow: var(--pt-shadow-xs);
 }
 .btn-primary:hover {
-    background: #1d4ed8;
+    background: var(--pt-accent-hover);
 }
 .btn-secondary {
-    background: #334155;
-    color: #e2e8f0;
+    background: var(--pt-surface);
+    color: var(--pt-text);
+    border-color: var(--pt-border-strong);
 }
 .btn-secondary:hover {
-    background: #475569;
+    border-color: var(--pt-accent);
+    color: var(--pt-accent);
+}
+.btn:active {
+    transform: translateY(1px);
 }
 .btn:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
+    transform: none;
 }
-/* .btn sets its own `display`, which otherwise ties with (and, being
-   later in the cascade, beats) the UA stylesheet's `[hidden]` rule at
-   equal specificity — without this, a hidden .btn still renders. */
 .btn[hidden] {
     display: none;
 }
@@ -89,7 +151,7 @@
 .btn-large {
     width: 100%;
     padding: 0.8rem;
-    font-size: 1rem;
+    font-size: 0.95rem;
     margin-top: 0.5rem;
 }
 
@@ -99,30 +161,39 @@
     text-align: center;
     background: none;
     border: none;
-    color: #60a5fa;
+    color: var(--pt-accent);
     font-size: 0.85rem;
+    font-weight: 500;
     padding: 0.7rem 0;
     cursor: pointer;
+    transition: opacity var(--pt-transition);
 }
 .link-button:hover {
-    text-decoration: underline;
+    opacity: 0.75;
 }
 
 .back-link {
     text-align: left;
-    padding: 0 0 1rem 0;
+    padding: 0 0 1.5rem 0;
     width: auto;
+    color: var(--pt-text-muted);
+}
+.back-link:hover {
+    color: var(--pt-accent);
+    opacity: 1;
 }
 
+/* ===================== Form controls ===================== */
 .modal-field {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    margin-bottom: 0.85rem;
+    gap: 0.35rem;
+    margin-bottom: 0.9rem;
 }
 .modal-field label {
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: var(--pt-text-muted);
+    font-weight: 500;
 }
 
 .settings-row {
@@ -136,121 +207,164 @@
 .practice-screen input[type="text"] {
     width: 100%;
     box-sizing: border-box;
-    padding: 0.6rem 0.7rem;
-    border-radius: 6px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: #e2e8f0;
-    font-size: 1rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--pt-r-sm);
+    border: 1px solid var(--pt-border-strong);
+    background: var(--pt-surface);
+    color: var(--pt-text);
+    font-size: 0.95rem;
+    transition: border-color var(--pt-transition), box-shadow var(--pt-transition);
+}
+.practice-screen select:focus,
+.practice-screen input[type="number"]:focus,
+.practice-screen input[type="text"]:focus {
+    outline: none;
+    border-color: var(--pt-accent);
+    box-shadow: 0 0 0 3px var(--pt-accent-soft-strong);
 }
 
 .practice-screen input[type="range"] {
     width: 100%;
-}
-
-.history-panel {
-    margin-top: 1rem;
+    accent-color: var(--pt-accent);
 }
 
 .form-error {
-    color: #f87171;
+    color: var(--pt-error);
+    background: var(--pt-error-soft);
+    border-radius: var(--pt-r-sm);
+    padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
-    margin: -0.5rem 0 1rem 0;
+    margin: -0.5rem 0 1.25rem 0;
 }
 
 /* ===================== Individual Training Hub ===================== */
 .hub-cards {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.85rem;
 }
 
 .hub-card {
     position: relative;
     display: flex;
-    flex-direction: column;
     align-items: flex-start;
-    gap: 0.35rem;
+    gap: 1rem;
     text-align: left;
-    padding: 1.25rem 1.4rem;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    color: #e2e8f0;
+    padding: 1.4rem 1.5rem;
+    background: var(--pt-surface);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-lg);
+    color: var(--pt-text);
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    box-shadow: var(--pt-shadow-xs);
+    transition: border-color var(--pt-transition), box-shadow var(--pt-transition), transform var(--pt-transition);
 }
 .hub-card:hover {
-    border-color: #2563eb;
-    background: #223047;
+    border-color: var(--pt-accent-border);
+    box-shadow: var(--pt-shadow-md);
+    transform: translateY(-1px);
 }
 
 .hub-card-icon {
-    font-size: 1.4rem;
-    color: #60a5fa;
+    flex: none;
+    width: 2.6rem;
+    height: 2.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--pt-r-md);
+    background: var(--pt-accent-soft);
+    color: var(--pt-accent);
+}
+.hub-card-icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.hub-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
 }
 
 .hub-card-title {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
 }
 
 .hub-card-desc {
-    color: #94a3b8;
+    color: var(--pt-text-muted);
     font-size: 0.85rem;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
-/* ===================== Radiogram settings ===================== */
+.hub-card-arrow {
+    flex: none;
+    align-self: center;
+    color: var(--pt-text-faint);
+    transition: transform var(--pt-transition), color var(--pt-transition);
+}
+.hub-card:hover .hub-card-arrow {
+    color: var(--pt-accent);
+    transform: translateX(2px);
+}
+
+/* ===================== Settings groups / pool picker ===================== */
 .settings-group {
-    margin-bottom: 1.75rem;
+    margin-bottom: 2rem;
 }
 
 .settings-group-title {
-    font-size: 0.95rem;
-    margin: 0 0 0.85rem 0;
-    color: #e2e8f0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin: 0 0 0.9rem 0;
+    color: var(--pt-text);
 }
 
 .pool-quick-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.1rem;
 }
 
 .chip-button {
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: #93c5fd;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--pt-r-pill);
+    border: 1px solid var(--pt-border-strong);
+    background: var(--pt-surface);
+    color: var(--pt-text-muted);
     font-size: 0.78rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: border-color var(--pt-transition), color var(--pt-transition), background var(--pt-transition);
 }
 .chip-button:hover {
-    border-color: #2563eb;
-    background: #16233b;
+    border-color: var(--pt-accent);
+    color: var(--pt-accent);
+    background: var(--pt-accent-soft);
 }
 .chip-button-clear {
-    color: #fca5a5;
+    color: var(--pt-error);
 }
 .chip-button-clear:hover {
-    border-color: #ef4444;
-    background: #2a1414;
+    border-color: var(--pt-error);
+    background: var(--pt-error-soft);
+    color: var(--pt-error);
 }
 
 .char-category {
-    margin-bottom: 1rem;
-    padding: 0.85rem 1rem;
-    background: #0f172a;
-    border: 1px solid #263449;
-    border-radius: 10px;
+    margin-bottom: 0.9rem;
+    padding: 0.9rem 1rem;
+    background: var(--pt-surface-alt);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
 }
 
 .char-category-header {
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.65rem;
 }
 
 .char-category-select-all {
@@ -259,8 +373,11 @@
     gap: 0.5rem;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: var(--pt-text);
     cursor: pointer;
+}
+.char-category-select-all input {
+    accent-color: var(--pt-accent);
 }
 
 .char-grid {
@@ -273,66 +390,143 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.3rem 0.55rem;
-    border-radius: 6px;
-    border: 1px solid #334155;
-    background: #1e293b;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--pt-r-sm);
+    border: 1px solid var(--pt-border-strong);
+    background: var(--pt-surface);
+    font-family: var(--pt-mono);
+    font-size: 0.88rem;
     cursor: pointer;
     user-select: none;
+    transition: border-color var(--pt-transition), background var(--pt-transition), color var(--pt-transition);
+}
+.char-chip input {
+    accent-color: var(--pt-accent);
 }
 .char-chip:has(input:checked) {
-    border-color: #2563eb;
-    background: rgba(37, 99, 235, 0.18);
-    color: #93c5fd;
+    border-color: var(--pt-accent);
+    background: var(--pt-accent-soft-strong);
+    color: var(--pt-accent-hover);
 }
 
 .pool-summary {
     font-size: 0.82rem;
-    color: #94a3b8;
-    margin: 0.75rem 0 0 0;
+    color: var(--pt-text-muted);
+    margin: 0.85rem 0 0 0;
     word-break: break-word;
 }
 
-/* ===================== Radiogram display / playback ===================== */
+/* ===================== Radiogram: reference / reveal ===================== */
+.radiogram-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.radiogram-panel-header .settings-group-title {
+    margin: 0;
+}
+
+.radiogram-hint {
+    font-size: 0.8rem;
+    color: var(--pt-text-faint);
+    margin: 0.2rem 0 0.9rem 0;
+}
+
+/* Secondary control by design — a quiet text link, not a button, so it
+   never competes with the primary playback/analyze actions. */
+#radiogram-hide-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--pt-text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--pt-border-strong);
+    text-underline-offset: 3px;
+    transition: color var(--pt-transition);
+}
+#radiogram-hide-button:hover {
+    color: var(--pt-accent);
+    text-decoration-color: var(--pt-accent);
+}
+
 .radiogram-display {
-    padding: 1.25rem;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    margin-bottom: 1.25rem;
+    padding: 1.4rem 1.5rem;
+    background: var(--pt-surface-alt);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
+    margin-bottom: 1.5rem;
     overflow-x: auto;
 }
 
 .radiogram-row {
     display: flex;
-    gap: 1rem;
-    padding: 0.3rem 0;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 1.15rem;
-    letter-spacing: 0.06em;
+    align-items: baseline;
+    gap: 1.1rem;
+    padding: 0.32rem 0;
+    font-family: var(--pt-mono);
+    font-size: 1.1rem;
+    letter-spacing: 0.09em;
     white-space: nowrap;
 }
 .radiogram-row + .radiogram-row {
-    border-top: 1px solid #1e293b;
+    border-top: 1px solid var(--pt-border);
 }
 
 .radiogram-row-label {
-    color: #64748b;
-    font-size: 0.8rem;
-    min-width: 1.5rem;
-    padding-top: 0.15rem;
+    color: var(--pt-text-faint);
+    font-size: 0.75rem;
+    letter-spacing: normal;
+    min-width: 1.4rem;
 }
 
-.radiogram-row-text {
-    color: #60a5fa;
+.rg-group {
+    display: inline-flex;
+}
+.rg-group + .rg-group {
+    margin-left: 0.9em;
 }
 
+.rg-char {
+    display: inline-block;
+    width: 1ch;
+    text-align: center;
+    transition: color 180ms ease;
+}
+.rg-char.pending {
+    color: var(--pt-border-strong);
+}
+.rg-char.revealed {
+    color: var(--pt-text);
+    animation: pt-char-in 220ms ease;
+}
+@keyframes pt-char-in {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* "Hide Radiogram" masks only characters already revealed — pending
+   placeholders stay as-is, and playback/reveal scheduling underneath is
+   completely unaffected by this class. */
+.radiogram-display.reference-masked .rg-char.revealed {
+    color: transparent;
+}
+
+/* ===================== Radiogram: playback controls ===================== */
 .radiogram-playback-controls {
     display: flex;
     gap: 0.6rem;
     align-items: center;
+    margin-bottom: 0.4rem;
 }
 .radiogram-playback-controls .btn-large {
     margin-top: 0;
@@ -340,44 +534,99 @@
 .radiogram-playback-controls .btn-primary {
     flex: 1;
 }
+.radiogram-playback-controls .btn-secondary {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+}
 
 .radiogram-volume-field {
-    margin-top: 1rem;
+    margin-top: 0.9rem;
+}
+
+.radiogram-status {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--pt-text-muted);
+    background: var(--pt-surface-alt);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-pill);
+    padding: 0.3rem 0.8rem;
+    margin: 0.9rem 0 2rem 0;
+}
+
+/* ===================== Radiogram: transcription ===================== */
+/* Visually distinct from the reference panel on purpose — this is the
+   screen's "active" surface, so it gets a stronger border and a real
+   focus state instead of the reference panel's quiet, passive look. */
+.radiogram-answer-input {
+    width: 100%;
+    min-height: 7.5rem;
+    padding: 1rem 1.1rem;
+    background: var(--pt-surface);
+    border: 1.5px solid var(--pt-border-strong);
+    border-radius: var(--pt-r-md);
+    color: var(--pt-text);
+    font-family: var(--pt-mono);
+    font-size: 1.05rem;
+    letter-spacing: 0.07em;
+    line-height: 1.6;
+    text-transform: uppercase;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: border-color var(--pt-transition), box-shadow var(--pt-transition);
+}
+.radiogram-answer-input:focus {
+    outline: none;
+    border-color: var(--pt-accent);
+    box-shadow: 0 0 0 4px var(--pt-accent-soft);
+}
+.radiogram-answer-input::placeholder {
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--pt-text-faint);
 }
 
 .exercise-actions {
-    margin-top: 1rem;
+    margin-top: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 .exercise-actions .back-link {
     text-align: center;
-    padding: 0.7rem 0 0 0;
+    padding: 0.4rem 0 0 0;
 }
 
 /* ===================== Character Training: gameplay ===================== */
+.ct-session-heading {
+    text-align: center;
+}
+
 .ct-progress {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .ct-progress-text {
-    font-size: 0.85rem;
-    color: #94a3b8;
-    margin-bottom: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--pt-text-muted);
+    margin-bottom: 0.5rem;
     text-align: center;
 }
 
 .ct-progress-bar {
-    height: 8px;
-    background: #1e293b;
-    border-radius: 999px;
+    height: 6px;
+    background: var(--pt-border);
+    border-radius: var(--pt-r-pill);
     overflow: hidden;
 }
 
 .ct-progress-fill {
     height: 100%;
     width: 0%;
-    background: #2563eb;
-    border-radius: 999px;
-    transition: width 0.2s ease;
+    background: var(--pt-accent);
+    border-radius: var(--pt-r-pill);
+    transition: width 200ms ease;
 }
 
 .ct-stage {
@@ -386,7 +635,7 @@
     align-items: center;
     justify-content: center;
     min-height: 220px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .ct-feedback {
@@ -396,68 +645,78 @@
     gap: 0.5rem;
     width: 100%;
     max-width: 320px;
-    padding: 2rem 1.5rem;
-    background: #0f172a;
-    border: 2px solid #334155;
-    border-radius: 16px;
+    padding: 2.1rem 1.5rem;
+    background: var(--pt-surface);
+    border: 1.5px solid var(--pt-border);
+    border-radius: var(--pt-r-lg);
     text-align: center;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    box-shadow: var(--pt-shadow-xs);
+    transition: border-color var(--pt-transition), background var(--pt-transition);
 }
 
 .ct-feedback-icon {
-    font-size: 1.6rem;
-    color: #60a5fa;
-    min-height: 1.9rem;
+    font-size: 1.5rem;
+    color: var(--pt-text-faint);
+    min-height: 1.85rem;
 }
 
 .ct-feedback-char {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 3rem;
-    font-weight: 700;
+    font-family: var(--pt-mono);
+    font-size: 2.75rem;
+    font-weight: 600;
     line-height: 1;
-    min-height: 3.4rem;
-    color: #e2e8f0;
+    min-height: 3.2rem;
+    color: var(--pt-text);
 }
 
 .ct-feedback-time {
-    font-size: 0.8rem;
-    color: #94a3b8;
+    font-size: 0.78rem;
+    color: var(--pt-text-muted);
     min-height: 1.1rem;
 }
 
 .ct-feedback.state-correct {
-    border-color: #4ade80;
-    background: rgba(74, 222, 128, 0.08);
+    border-color: var(--pt-success);
+    background: var(--pt-success-soft);
+    animation: pt-pop-in 200ms ease;
 }
-.ct-feedback.state-correct .ct-feedback-char {
-    color: #4ade80;
-}
+.ct-feedback.state-correct .ct-feedback-char,
 .ct-feedback.state-correct .ct-feedback-icon {
-    color: #4ade80;
+    color: var(--pt-success);
 }
 
 .ct-feedback.state-incorrect {
-    border-color: #f87171;
-    background: rgba(248, 113, 113, 0.08);
+    border-color: var(--pt-error);
+    background: var(--pt-error-soft);
+    animation: pt-pop-in 200ms ease;
 }
-.ct-feedback.state-incorrect .ct-feedback-char {
-    color: #f87171;
-}
+.ct-feedback.state-incorrect .ct-feedback-char,
 .ct-feedback.state-incorrect .ct-feedback-icon {
-    color: #f87171;
+    color: var(--pt-error);
+}
+
+@keyframes pt-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .ct-hint {
     text-align: center;
-    color: #94a3b8;
+    color: var(--pt-text-muted);
     font-size: 0.85rem;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1.75rem 0;
 }
 
 .ct-live-stats {
     text-align: center;
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: var(--pt-text-muted);
 }
 
 .ct-confetti-layer {
@@ -471,8 +730,8 @@
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 1px;
     animation: ct-confetti-burst 0.7s ease-out forwards;
 }
@@ -490,27 +749,28 @@
 
 /* ===================== Session results (shared) ===================== */
 .result-accuracy {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-size: 2.75rem;
+    font-weight: 600;
     text-align: center;
-    margin: 0.5rem 0 1.25rem 0;
-    color: #4ade80;
+    letter-spacing: -0.01em;
+    margin: 0.25rem 0 1.5rem 0;
+    color: var(--pt-success);
 }
 .result-accuracy.low {
-    color: #f87171;
+    color: var(--pt-error);
 }
 .result-accuracy.mid {
-    color: #fbbf24;
+    color: var(--pt-warning);
 }
 
 .count-correct {
-    color: #4ade80;
+    color: var(--pt-success);
 }
 .count-incorrect {
-    color: #f87171;
+    color: var(--pt-error);
 }
 
-/* Stat tiles — used by the results screen's summary row. A grid of
+/* Stat tiles — used by the results screens' summary row. A grid of
    independent label+value tiles rather than a single dt/dd list, so
    columns can never silently misalign the way a flat dl does under
    grid-auto-flow. */
@@ -519,72 +779,69 @@
     grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
     gap: 0.6rem;
     text-align: center;
-    margin-bottom: 1.75rem;
+    margin-bottom: 2rem;
 }
 
 .stat-tile {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    padding: 0.75rem 0.5rem;
-    background: #0f172a;
-    border: 1px solid #263449;
-    border-radius: 8px;
+    padding: 0.85rem 0.6rem;
+    background: var(--pt-surface);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
 }
 
 .stat-label {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #94a3b8;
+    letter-spacing: 0.06em;
+    color: var(--pt-text-faint);
+    font-weight: 600;
 }
 
 .stat-value {
     font-size: 1.2rem;
-    font-weight: 700;
-}
-
-/* ===================== Character Training: results ===================== */
-.ct-session-heading {
-    text-align: center;
+    font-weight: 600;
+    color: var(--pt-text);
 }
 
 .ct-weak-hint {
     font-size: 0.8rem;
-    color: #64748b;
-    margin: -0.4rem 0 0.85rem 0;
+    color: var(--pt-text-faint);
+    margin: -0.5rem 0 1rem 0;
 }
 
 .weak-char-list {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.9rem;
 }
 
 .weak-char-item {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    padding: 0.6rem 0.85rem;
-    background: rgba(248, 113, 113, 0.06);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    border-radius: 8px;
+    gap: 0.9rem;
+    padding: 0.65rem 0.9rem;
+    background: var(--pt-error-soft);
+    border: 1px solid rgba(193, 88, 74, 0.22);
+    border-radius: var(--pt-r-sm);
 }
 
 .weak-char-glyph {
     flex: none;
     width: 2rem;
     text-align: center;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #f87171;
+    font-family: var(--pt-mono);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--pt-error);
 }
 
 .weak-char-reasons {
     font-size: 0.82rem;
-    color: #cbd5e1;
+    color: var(--pt-text-muted);
 }
 
 .table-wrap {
@@ -599,24 +856,144 @@
 
 .data-table th {
     text-align: left;
-    padding: 0.5rem 0.6rem;
-    color: #94a3b8;
-    font-size: 0.7rem;
+    padding: 0.55rem 0.6rem;
+    color: var(--pt-text-faint);
+    font-size: 0.68rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-bottom: 1px solid #334155;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--pt-border-strong);
 }
 
 .data-table td {
-    padding: 0.5rem 0.6rem;
-    border-bottom: 1px solid #1e293b;
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--pt-border);
+    color: var(--pt-text);
 }
 
 .data-table tbody tr.row-weak {
-    background: rgba(248, 113, 113, 0.06);
+    background: var(--pt-error-soft);
 }
 
 .ctr-char-cell {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-weight: 700;
+    font-family: var(--pt-mono);
+    font-weight: 600;
+}
+
+/* ===================== Radiogram: results comparison ===================== */
+.rg-legend-swatch {
+    display: inline-block;
+    width: 0.7em;
+    height: 0.7em;
+    border-radius: 3px;
+    margin: 0 0.15em 0 0.55em;
+    vertical-align: middle;
+}
+.rg-legend-swatch:first-child {
+    margin-left: 0;
+}
+
+.radiogram-compare {
+    padding: 1.4rem 1.5rem;
+    background: var(--pt-surface-alt);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
+    overflow-x: auto;
+    font-family: var(--pt-mono);
+    font-size: 1.05rem;
+    letter-spacing: 0.07em;
+}
+
+.rg-compare-row {
+    display: flex;
+    gap: 1.1rem;
+    padding: 0.32rem 0;
+    white-space: nowrap;
+}
+.rg-compare-row + .rg-compare-row {
+    border-top: 1px solid var(--pt-border);
+    margin-top: 0.25rem;
+    padding-top: 0.55rem;
+}
+
+.rg-compare-row-label {
+    color: var(--pt-text-faint);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    min-width: 5.5rem;
+    flex: none;
+}
+
+.rg-compare-gap {
+    display: inline-block;
+    width: 0.9em;
+}
+
+.rg-compare-cell {
+    display: inline-block;
+    width: 1ch;
+    text-align: center;
+    border-radius: 4px;
+}
+.rg-op-match {
+    color: var(--pt-success);
+    background: var(--pt-success-soft);
+}
+.rg-op-substitution {
+    color: var(--pt-warning);
+    background: var(--pt-warning-soft);
+}
+.rg-op-missing {
+    color: var(--pt-error);
+    background: var(--pt-error-soft);
+    text-decoration: line-through;
+    text-decoration-color: rgba(193, 88, 74, 0.5);
+}
+.rg-op-extra {
+    color: var(--pt-extra);
+    background: var(--pt-extra-soft);
+}
+
+.rg-legend-swatch.rg-op-match {
+    background: var(--pt-success);
+}
+.rg-legend-swatch.rg-op-substitution {
+    background: var(--pt-warning);
+}
+.rg-legend-swatch.rg-op-missing {
+    background: var(--pt-error);
+}
+.rg-legend-swatch.rg-op-extra {
+    background: var(--pt-extra);
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 860px) {
+    .practice-main {
+        max-width: 100%;
+        padding: 2rem 1.25rem 3rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .settings-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    .radiogram-playback-controls {
+        flex-wrap: wrap;
+    }
+    .radiogram-playback-controls .btn-primary {
+        flex: 1 1 100%;
+        order: -1;
+    }
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .practice-screen h1 {
+        font-size: 1.35rem;
+    }
+    .result-accuracy {
+        font-size: 2.25rem;
+    }
 }

@@ -385,11 +385,7 @@ async function init() {
     el('auth-gate').hidden = true;
     el('dashboard').hidden = false;
     el('teacher-name').textContent = `${user.firstName || ''} ${user.lastName || ''} (${user.username})`.trim();
-
-    el('logout-button').addEventListener('click', async () => {
-        await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        window.location.href = '/';
-    });
+    if (window.ScrollReveal) window.ScrollReveal.observe('#view-list .reveal-on-scroll');
 
     el('create-form').addEventListener('submit', createSession);
     el('new-type').addEventListener('change', updateTestSettingsVisibility);
@@ -415,6 +411,14 @@ async function init() {
 
     await loadClasses();
     await loadSessions();
+
+    // Deep link from the Teacher Dashboard's Group Sessions section
+    // ("Open" action): /sessions.html?open=<id> jumps straight to that
+    // session's monitor view instead of landing on the list.
+    const openId = Number(new URLSearchParams(window.location.search).get('open'));
+    if (Number.isInteger(openId) && openId > 0) {
+        openMonitor(openId);
+    }
 }
 
 init();
