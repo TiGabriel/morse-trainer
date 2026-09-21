@@ -25,16 +25,6 @@ const SCREENS = [
     'character-training-session',
     'character-training-results',
 ];
-const CATEGORIES = ['letters', 'numbers', 'punctuation'];
-
-const PRESET_CATEGORIES = {
-    letters: ['letters'],
-    numbers: ['numbers'],
-    punctuation: ['punctuation'],
-    alphanumeric: ['letters', 'numbers'],
-    all: ['letters', 'numbers', 'punctuation'],
-};
-
 let currentScreen = null;
 
 // Cleanup run automatically whenever navigation LEAVES a given screen —
@@ -56,131 +46,40 @@ function showScreen(name) {
     SCREENS.forEach((s) => {
         el(`screen-${s}`).hidden = s !== name;
     });
+    syncAnswerReveal();
+}
+
+/**
+ * Publishes the current screen's authoritative answer to the hidden
+ * P-O-O-U reveal popup (see nav.js), or clears it when the active screen
+ * has no "current item" of its own. Never sends anything anywhere — just
+ * republishes data this script already holds in memory for the item on
+ * screen right now. Called on every screen transition, and again mid-screen
+ * whenever the current item changes without a transition (character
+ * training's round-to-round advance).
+ */
+function syncAnswerReveal() {
+    if (!window.AnswerReveal) return;
+
+    if (currentScreen === 'character-training-session' && ctSession && ctSession.items[ctCurrentIndex]) {
+        const item = ctSession.items[ctCurrentIndex];
+        window.AnswerReveal.publish({ label: 'Character Training', answer: `${item.char}  (Morse: ${item.morse})` });
+        return;
+    }
+
+    if ((currentScreen === 'radiogram-play' || currentScreen === 'radiogram-results') && currentRadiogram) {
+        window.AnswerReveal.publish({ label: 'Radiogram Training', answer: currentRadiogram.rows.join('\n') });
+        return;
+    }
+
+    window.AnswerReveal.clear();
 }
 
 let charsets = { letters: [], numbers: [], punctuation: [] };
 
-// ---------------------------------------------------------------------
-// Character pool picker — a small factory so Radiograms and Character
-// Training share one implementation instead of two copies of the same
-// checkbox/preset logic. `idPrefix` namespaces the DOM ids each instance
-// reads/writes (e.g. "char-grid-letters" vs "ct-char-grid-letters").
-// ---------------------------------------------------------------------
-function createPoolPicker(idPrefix) {
-    const selected = new Set();
-    const domId = (id) => (idPrefix ? `${idPrefix}-${id}` : id);
-
-    function categoryCheckboxes(category) {
-        return Array.from(el(domId(`char-grid-${category}`)).querySelectorAll('input[type="checkbox"]'));
-    }
-
-    function toggleChar(ch, isSelected) {
-        if (isSelected) selected.add(ch);
-        else selected.delete(ch);
-    }
-
-    function syncCategorySelectAll(category) {
-        const boxes = categoryCheckboxes(category);
-        const checkedCount = boxes.filter((b) => b.checked).length;
-        const selectAll = el(domId(`category-select-all-${category}`));
-        selectAll.checked = boxes.length > 0 && checkedCount === boxes.length;
-        selectAll.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
-    }
-
-    function setCategoryChecked(category, checked) {
-        categoryCheckboxes(category).forEach((box) => {
-            box.checked = checked;
-            toggleChar(box.value, checked);
-        });
-        syncCategorySelectAll(category);
-    }
-
-    function updateSummary() {
-        const summary = el(domId('pool-summary'));
-        const count = selected.size;
-        if (count === 0) {
-            summary.textContent = 'No characters selected yet.';
-            return;
-        }
-        const sorted = [...selected].sort();
-        summary.textContent = `${count} character${count === 1 ? '' : 's'} selected: ${sorted.join(' ')}`;
-    }
-
-    function buildGrid(category, chars) {
-        const grid = el(domId(`char-grid-${category}`));
-        grid.innerHTML = '';
-        chars.forEach((ch) => {
-            const label = document.createElement('label');
-            label.className = 'char-chip';
-
-            const input = document.createElement('input');
-            input.type = 'checkbox';
-            input.value = ch;
-            input.addEventListener('change', () => {
-                toggleChar(ch, input.checked);
-                syncCategorySelectAll(category);
-                updateSummary();
-            });
-
-            const span = document.createElement('span');
-            span.textContent = ch;
-
-            label.appendChild(input);
-            label.appendChild(span);
-            grid.appendChild(label);
-        });
-    }
-
-    function buildAllGrids(sets) {
-        CATEGORIES.forEach((cat) => buildGrid(cat, sets[cat] || []));
-    }
-
-    function applyPreset(preset) {
-        selected.clear();
-        if (preset === 'clear') {
-            CATEGORIES.forEach((cat) => setCategoryChecked(cat, false));
-            updateSummary();
-            return;
-        }
-        const categoriesToSelect = PRESET_CATEGORIES[preset] || [];
-        CATEGORIES.forEach((cat) => setCategoryChecked(cat, categoriesToSelect.includes(cat)));
-        updateSummary();
-    }
-
-    function wireEvents(quickActionsContainerId) {
-        CATEGORIES.forEach((cat) => {
-            el(domId(`category-select-all-${cat}`)).addEventListener('change', (e) => {
-                setCategoryChecked(cat, e.target.checked);
-                updateSummary();
-            });
-        });
-        document.querySelectorAll(`#${quickActionsContainerId} .chip-button`).forEach((btn) => {
-            btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
-        });
-    }
-
-    function getSelected() {
-        return [...selected];
-    }
-
-    /** Replaces the current selection with exactly the given characters (e.g. "Practice Weak Characters"). */
-    function setSelected(chars) {
-        const want = new Set(chars.map((c) => String(c).toUpperCase()));
-        selected.clear();
-        CATEGORIES.forEach((cat) => {
-            categoryCheckboxes(cat).forEach((box) => {
-                const checked = want.has(box.value);
-                box.checked = checked;
-                toggleChar(box.value, checked);
-            });
-            syncCategorySelectAll(cat);
-        });
-        updateSummary();
-    }
-
-    return { buildAllGrids, wireEvents, applyPreset, getSelected, setSelected, updateSummary };
-}
-
+// Character pool picker (createPoolPicker/CATEGORIES/PRESET_CATEGORIES) now
+// lives in the shared character-pool.js, loaded before this file — see
+// that file's header. Group Session creation uses the same factory.
 const radiogramPool = createPoolPicker('');
 const characterTrainingPool = createPoolPicker('ct');
 
@@ -430,6 +329,14 @@ function renderRadiogramResults(result) {
     accuracyEl.textContent = `${score.accuracyPercent}%`;
     accuracyEl.className = 'result-accuracy' + (score.accuracyPercent >= 90 ? '' : score.accuracyPercent >= 60 ? ' mid' : ' low');
 
+    // The server already computed this via the same centralized grading
+    // service (see practiceController.analyzeRadiogram) — rendered as-is,
+    // never recomputed client-side.
+    const characterGrade = result.characterGrade;
+    const gradeEl = el('rgr-grade');
+    gradeEl.textContent = characterGrade ? String(characterGrade.grade) : '—';
+    gradeEl.className = 'result-grade-value' + (characterGrade && window.GradingService ? ' ' + window.GradingService.gradeSeverityClass(characterGrade.grade) : '');
+
     el('rgr-total').textContent = String(score.totalExpected);
     el('rgr-correct').textContent = String(score.correctCount);
     el('rgr-incorrect').textContent = String(score.incorrectCount);
@@ -532,6 +439,13 @@ let ctRoundToken = 0; // bumped on abort/finish to invalidate stale async callba
 let ctAwaitingAnswer = false;
 let ctRoundStartedAt = null; // performance.now() timestamp, set by the player's onStart hook
 
+// Visual Morse Aid: display-only, never sent to the server or mixed into
+// scoring/timing. Read from the settings checkbox once per session (see
+// startCharacterTrainingSession) rather than persisted anywhere, per the
+// feature's own "current session only" scope.
+let ctVisualAidEnabled = false;
+let ctAidHighlightTimeouts = [];
+
 // Structured result of the most recently completed session — this is the
 // data Part 3's results screen will consume. Not persisted beyond the
 // page session; that's out of scope here.
@@ -552,6 +466,91 @@ function ensureCtPlayer(volume) {
         },
     });
     return ctPlayer;
+}
+
+// Matches MorseAudioPlayer.play()'s own small lead-in before the first
+// tone starts (see morse-audio-player.js), so the aid's highlight
+// timers — scheduled independently via setTimeout, not the player's
+// AudioContext clock — line up with what's actually audible instead of
+// firing early. Same technique as RADIOGRAM_REVEAL_LEAD_IN_MS above.
+const CT_AID_LEAD_IN_MS = 50;
+
+/**
+ * Walks a round's playback plan (the exact array handed to
+ * MorseAudioPlayer.loadPlan — see characterTrainingEngine.js) and pulls
+ * out just the "tone" segments in order, each tagged with its cumulative
+ * start offset from the top of the plan. This mirrors the same
+ * cursor-accumulation MorseAudioPlayer.play() already does internally,
+ * so the aid never recomputes or re-derives Morse timing — it just reads
+ * the same segment list the audio engine was given.
+ */
+function buildMorseAidElements(plan) {
+    const elements = [];
+    let cursorMs = 0;
+    plan.forEach((segment) => {
+        if (segment.type === 'tone') {
+            elements.push({ symbol: segment.symbol, atMs: cursorMs });
+        }
+        cursorMs += segment.durationMs;
+    });
+    return elements;
+}
+
+function clearCtAidHighlightTimeouts() {
+    ctAidHighlightTimeouts.forEach((id) => clearTimeout(id));
+    ctAidHighlightTimeouts = [];
+}
+
+/**
+ * Renders the ti/tah + dot/dash rows for one round — the Morse rhythm
+ * only, never item.char — or hides the aid entirely when the setting is
+ * off. Called at the start of every round so it always matches whatever
+ * is about to play.
+ */
+function renderMorseAid(elements) {
+    const container = el('ct-morse-aid');
+    if (!ctVisualAidEnabled) {
+        container.hidden = true;
+        return;
+    }
+
+    const wordsRow = el('ct-morse-aid-words');
+    const symbolsRow = el('ct-morse-aid-symbols');
+    wordsRow.innerHTML = '';
+    symbolsRow.innerHTML = '';
+
+    elements.forEach(({ symbol }) => {
+        const wordEl = document.createElement('span');
+        wordEl.className = 'ct-morse-aid-element';
+        wordEl.textContent = symbol === '.' ? 'ti' : 'tah';
+        wordsRow.appendChild(wordEl);
+
+        const symbolEl = document.createElement('span');
+        symbolEl.className = 'ct-morse-aid-element ct-morse-aid-symbol';
+        symbolEl.textContent = symbol;
+        symbolsRow.appendChild(symbolEl);
+    });
+
+    container.hidden = false;
+}
+
+/** Highlights each aid element in turn, timed against the same plan currently playing — see CT_AID_LEAD_IN_MS. */
+function scheduleCtAidHighlights(elements) {
+    clearCtAidHighlightTimeouts();
+    if (!ctVisualAidEnabled) return;
+
+    const wordSpans = el('ct-morse-aid-words').children;
+    const symbolSpans = el('ct-morse-aid-symbols').children;
+
+    elements.forEach((element, index) => {
+        const id = setTimeout(() => {
+            Array.from(wordSpans).forEach((s) => s.classList.remove('is-active'));
+            Array.from(symbolSpans).forEach((s) => s.classList.remove('is-active'));
+            if (wordSpans[index]) wordSpans[index].classList.add('is-active');
+            if (symbolSpans[index]) symbolSpans[index].classList.add('is-active');
+        }, CT_AID_LEAD_IN_MS + element.atMs);
+        ctAidHighlightTimeouts.push(id);
+    });
 }
 
 function currentCharacterTrainingSettings() {
@@ -605,6 +604,7 @@ async function startCharacterTrainingSession() {
     ctResults = [];
     ctCurrentIndex = 0;
     ctRoundToken += 1;
+    ctVisualAidEnabled = el('ct-setting-visual-aid').checked;
 
     showScreen('character-training-session');
     resetCtFeedback();
@@ -619,6 +619,10 @@ async function playCtRound(index) {
     updateCtProgress(index);
 
     const item = ctSession.items[index];
+    const aidElements = buildMorseAidElements(item.plan);
+    renderMorseAid(aidElements);
+    syncAnswerReveal();
+
     const volume = Number(el('ct-setting-volume').value) / 100;
     const p = ensureCtPlayer(volume);
     p.setVolume(volume);
@@ -628,6 +632,7 @@ async function playCtRound(index) {
     if (token !== ctRoundToken) return; // navigated away while audio was starting
     if (!started) return;
     ctAwaitingAnswer = true;
+    scheduleCtAidHighlights(aidElements);
 }
 
 function updateCtProgress(index) {
@@ -841,6 +846,18 @@ function renderCtResultsScreen(session) {
     accuracyEl.textContent = `${analysis.accuracyPercent}%`;
     accuracyEl.className = 'result-accuracy' + (analysis.accuracyPercent >= 90 ? '' : analysis.accuracyPercent >= 60 ? ' mid' : ' low');
 
+    // Character Training never round-trips to the server for its
+    // per-session aggregate (each round is scored client-side), so this
+    // is the one place that calls the centralized grading service
+    // directly rather than just rendering a grade the server already
+    // computed — see grading.js's header comment.
+    const characterGrade = window.GradingService
+        ? window.GradingService.calculateGrade({ correct: analysis.correctCount, total: analysis.totalCount })
+        : null;
+    const gradeEl = el('ctr-grade');
+    gradeEl.textContent = characterGrade ? String(characterGrade.grade) : '—';
+    gradeEl.className = 'result-grade-value' + (characterGrade ? ' ' + window.GradingService.gradeSeverityClass(characterGrade.grade) : '');
+
     el('ctr-total').textContent = String(analysis.totalCount);
     el('ctr-correct').textContent = String(analysis.correctCount);
     el('ctr-incorrect').textContent = String(analysis.incorrectCount);
@@ -900,6 +917,7 @@ function practiceWeakCharacters() {
 function abortCharacterTrainingRound() {
     ctRoundToken += 1;
     ctAwaitingAnswer = false;
+    clearCtAidHighlightTimeouts();
     if (ctPlayer) ctPlayer.stop();
 }
 

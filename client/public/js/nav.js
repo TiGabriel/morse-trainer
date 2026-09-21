@@ -90,4 +90,334 @@
     }
 
     window.ScrollReveal = { observe };
+
+    // -----------------------------------------------------------------
+    // Hidden "Morse Receiver" secret activation.
+    //
+    // Not referenced anywhere in navigation/menus/routes — the only way
+    // to reach it is typing P-O-O-P (case-insensitive) in sequence
+    // outside any text field. This tiny always-present listener is all
+    // that's loaded on every page; the actual receiver (Web Audio
+    // microphone processing + UI) lives in morse-receiver-core.js and
+    // morse-receiver-ui.js, which are only fetched — via a plain
+    // dynamically-created <script> tag, not import()/fetch of anything
+    // executable-as-data — the moment the sequence completes. Until
+    // then, nothing but this listener exists on the page.
+    // -----------------------------------------------------------------
+    const SECRET_SEQUENCE = ['P', 'O', 'O', 'P'];
+    const SECRET_INACTIVITY_TIMEOUT_MS = 2500;
+    let secretProgress = 0;
+    let secretTimeoutId = null;
+    let secretModulesLoaded = false;
+    let secretModulesLoading = false;
+
+    function isTypingContext(target) {
+        if (!target || typeof target !== 'object') return false;
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+        return !!target.isContentEditable;
+    }
+
+    function resetSecretProgress() {
+        secretProgress = 0;
+        if (secretTimeoutId) {
+            clearTimeout(secretTimeoutId);
+            secretTimeoutId = null;
+        }
+    }
+
+    function loadScriptOnce(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.addEventListener('load', () => resolve());
+            script.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function openSecretReceiver() {
+        if (secretModulesLoading) return;
+        if (!secretModulesLoaded) {
+            secretModulesLoading = true;
+            try {
+                // Strict order: core reads the map at load time, and the
+                // UI reads core.ReceiverState at open() time.
+                await loadScriptOnce('/js/morse-receiver-map.js');
+                await loadScriptOnce('/js/morse-receiver-core.js');
+                await loadScriptOnce('/js/morse-receiver-ui.js');
+                secretModulesLoaded = true;
+            } catch {
+                // A hidden easter egg failing to load silently is
+                // correct here — there is deliberately no visible UI to
+                // surface an error into, and it must never announce its
+                // own existence.
+                secretModulesLoading = false;
+                return;
+            }
+            secretModulesLoading = false;
+        }
+        if (window.MorseReceiverUI) window.MorseReceiverUI.open();
+    }
+
+    function onSecretKeydown(e) {
+        // Only a real, single, physical, unmodified keystroke can ever
+        // advance the sequence:
+        //  - e.isTrusted excludes synthetic/programmatic dispatch, which
+        //    is how a pasted string could otherwise "type" P-O-O-P.
+        //  - e.repeat excludes a held key auto-repeating (so holding "O"
+        //    can never contribute two O's from one physical press).
+        //  - the modifier check excludes actual keyboard shortcuts.
+        //  - isTypingContext excludes every real text-entry field.
+        if (!e.isTrusted) return;
+        if (e.repeat) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+        if (isTypingContext(e.target)) return;
+        if (typeof e.key !== 'string' || e.key.length !== 1) return;
+
+        const key = e.key.toUpperCase();
+        const expected = SECRET_SEQUENCE[secretProgress];
+
+        if (key === expected) {
+            secretProgress += 1;
+            if (secretTimeoutId) clearTimeout(secretTimeoutId);
+            if (secretProgress === SECRET_SEQUENCE.length) {
+                resetSecretProgress();
+                openSecretReceiver();
+                return;
+            }
+            secretTimeoutId = setTimeout(resetSecretProgress, SECRET_INACTIVITY_TIMEOUT_MS);
+            return;
+        }
+
+        // Wrong key: reset, but let it start a fresh attempt if it's
+        // itself the sequence's first letter (e.g. "P-O-P-O-O-P" must
+        // still open the receiver via its trailing P-O-O-P).
+        resetSecretProgress();
+        if (key === SECRET_SEQUENCE[0]) {
+            secretProgress = 1;
+            secretTimeoutId = setTimeout(resetSecretProgress, SECRET_INACTIVITY_TIMEOUT_MS);
+        }
+    }
+
+    document.addEventListener('keydown', onSecretKeydown);
+
+    // -----------------------------------------------------------------
+    // Hidden "reveal correct answer" popup.
+    //
+    // Not referenced anywhere in navigation/menus/routes — the only way
+    // to reach it is typing P-O-O-U (case-insensitive) in sequence,
+    // anywhere on the page, including while focused in an answer
+    // input/textarea (that's the point: it's meant to work mid-exercise).
+    // Completely independent state machine from the P-O-O-P receiver
+    // above — they share no variables, only the same physical keydown
+    // events, so typing either sequence never disturbs the other's
+    // progress.
+    //
+    // This module never computes or guesses an answer. It only ever
+    // displays whatever the currently active exercise script has
+    // published via `window.AnswerReveal.publish(...)` — the same
+    // authoritative answer data already legitimately held in that
+    // script's own client-side state for the item currently on screen.
+    // If nothing has been published (no active exercise, or the
+    // student has moved on), it shows a small "no active exercise"
+    // notice instead of fabricating or inferring anything.
+    // -----------------------------------------------------------------
+    const ANSWER_SEQUENCE = ['P', 'O', 'O', 'U'];
+    const ANSWER_INACTIVITY_TIMEOUT_MS = 2000;
+    let answerProgress = 0;
+    let answerTimeoutId = null;
+
+    function resetAnswerProgress() {
+        answerProgress = 0;
+        if (answerTimeoutId) {
+            clearTimeout(answerTimeoutId);
+            answerTimeoutId = null;
+        }
+    }
+
+    let currentAnswerInfo = null;
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
+
+    let answerModalEls = null;
+
+    function ensureAnswerModal() {
+        if (answerModalEls) return answerModalEls;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .ar-backdrop {
+                position: fixed; inset: 0; z-index: 99999;
+                background: rgba(0, 0, 0, 0.6);
+                display: flex; align-items: center; justify-content: center;
+                padding: 1rem;
+            }
+            .ar-modal {
+                position: relative;
+                width: 100%; max-width: min(92vw, 560px);
+                background: var(--surface, #16233d);
+                border: 1px solid var(--border-strong, #3c4f6d);
+                border-radius: var(--r-lg, 14px);
+                box-shadow: var(--shadow-md, 0 6px 18px rgba(0,0,0,0.35));
+                padding: 1.5rem 1.75rem;
+                text-align: center;
+                font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+                animation: ar-pop 140ms ease-out;
+            }
+            @keyframes ar-pop {
+                from { opacity: 0; transform: scale(0.96); }
+                to { opacity: 1; transform: scale(1); }
+            }
+            .ar-close-btn {
+                position: absolute; top: 0.4rem; right: 0.6rem;
+                background: none; border: none; cursor: pointer;
+                font-size: 1.3rem; line-height: 1; padding: 0.3rem;
+                color: var(--text-faint, #71809b);
+            }
+            .ar-close-btn:hover { color: var(--text, #e7ecf4); }
+            .ar-title {
+                margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 600;
+                color: var(--text, #e7ecf4);
+            }
+            .ar-context {
+                margin: 0 0 0.9rem; font-size: 0.76rem;
+                text-transform: uppercase; letter-spacing: 0.06em;
+                color: var(--text-muted, #a4b1c7);
+            }
+            .ar-answer {
+                font-family: "Courier New", monospace;
+                font-size: 1.1rem; font-weight: 600; line-height: 1.6;
+                letter-spacing: 0.03em; white-space: pre-wrap; word-break: break-word;
+                color: var(--accent, #3d7ab8);
+                background: var(--bg, #0a1220);
+                border: 1px dashed var(--border-strong, #3c4f6d);
+                border-radius: var(--r-sm, 8px);
+                padding: 0.9rem 1rem;
+            }
+            .ar-empty {
+                margin: 0.25rem 0 0; font-size: 0.9rem;
+                color: var(--text-muted, #a4b1c7);
+            }
+        `;
+        document.head.appendChild(style);
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'ar-backdrop';
+        backdrop.hidden = true;
+        backdrop.innerHTML = `
+            <div class="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-title">
+                <button type="button" class="ar-close-btn" aria-label="Close">&times;</button>
+                <h3 class="ar-title" id="ar-title">Correct Answer</h3>
+                <div class="ar-body"></div>
+            </div>
+        `;
+        document.body.appendChild(backdrop);
+
+        const modal = backdrop.querySelector('.ar-modal');
+        const titleEl = backdrop.querySelector('.ar-title');
+        const bodyEl = backdrop.querySelector('.ar-body');
+        const closeBtn = backdrop.querySelector('.ar-close-btn');
+
+        function close() {
+            backdrop.hidden = true;
+            document.removeEventListener('keydown', onKeydown, true);
+        }
+
+        function onKeydown(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                close();
+            }
+        }
+
+        backdrop.addEventListener('mousedown', (e) => {
+            if (e.target === backdrop) close();
+        });
+        closeBtn.addEventListener('click', close);
+
+        function open() {
+            document.addEventListener('keydown', onKeydown, true);
+            backdrop.hidden = false;
+        }
+
+        answerModalEls = { backdrop, modal, titleEl, bodyEl, open, close };
+        return answerModalEls;
+    }
+
+    function openAnswerRevealPopup() {
+        const els = ensureAnswerModal();
+        if (!currentAnswerInfo || !currentAnswerInfo.answer) {
+            els.titleEl.textContent = 'No Active Exercise';
+            els.bodyEl.innerHTML = '<p class="ar-empty">Nothing to reveal right now.</p>';
+        } else {
+            els.titleEl.textContent = 'Correct Answer';
+            const contextHtml = currentAnswerInfo.label
+                ? `<p class="ar-context">${escapeHtml(currentAnswerInfo.label)}</p>`
+                : '';
+            els.bodyEl.innerHTML = `${contextHtml}<div class="ar-answer">${escapeHtml(currentAnswerInfo.answer)}</div>`;
+        }
+        els.open();
+    }
+
+    function onAnswerRevealKeydown(e) {
+        // Deliberately no isTypingContext restriction here — the whole
+        // point is that it works while the student is mid-answer in an
+        // input/textarea. Still ignores synthetic dispatch, key-repeat,
+        // and modifier combos so it can't be triggered by anything but
+        // a real, deliberate P-O-O-U keystroke sequence.
+        if (!e.isTrusted) return;
+        if (e.repeat) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+        if (typeof e.key !== 'string' || e.key.length !== 1) return;
+
+        const key = e.key.toUpperCase();
+        const expected = ANSWER_SEQUENCE[answerProgress];
+
+        if (key === expected) {
+            answerProgress += 1;
+            if (answerTimeoutId) clearTimeout(answerTimeoutId);
+            if (answerProgress === ANSWER_SEQUENCE.length) {
+                resetAnswerProgress();
+                openAnswerRevealPopup();
+                return;
+            }
+            answerTimeoutId = setTimeout(resetAnswerProgress, ANSWER_INACTIVITY_TIMEOUT_MS);
+            return;
+        }
+
+        resetAnswerProgress();
+        if (key === ANSWER_SEQUENCE[0]) {
+            answerProgress = 1;
+            answerTimeoutId = setTimeout(resetAnswerProgress, ANSWER_INACTIVITY_TIMEOUT_MS);
+        }
+    }
+
+    document.addEventListener('keydown', onAnswerRevealKeydown);
+
+    /**
+     * Registry other page scripts publish the CURRENT exercise item's
+     * authoritative correct answer to (and clear when no item is active).
+     * This module never derives/guesses an answer itself — it only ever
+     * displays whatever was last published here.
+     *
+     *   window.AnswerReveal.publish({ label: 'Character Training', answer: 'K' });
+     *   window.AnswerReveal.clear();
+     */
+    window.AnswerReveal = {
+        publish(info) {
+            if (!info || typeof info.answer !== 'string' || !info.answer) {
+                currentAnswerInfo = null;
+                return;
+            }
+            currentAnswerInfo = { label: info.label || '', answer: info.answer };
+        },
+        clear() {
+            currentAnswerInfo = null;
+        },
+    };
 })();

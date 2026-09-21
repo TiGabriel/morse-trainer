@@ -168,6 +168,14 @@ CREATE TABLE IF NOT EXISTS results (
     score               REAL,
     error_count         INTEGER,
     grade               TEXT,
+    -- Raw correct-character count from the same scoreAnswer() pass that
+    -- produced `score`/`error_count` above — persisted so the 4-10
+    -- school grade (see grading/gradingService.js) can be computed
+    -- on read from an exact input rather than reverse-engineered from
+    -- a rounded percentage. Total scored characters isn't duplicated
+    -- here: it's already derivable from the item's own stored
+    -- expected answer (session_items.exercise_json).
+    correct_count       INTEGER,
     graded_at           TEXT
 );
 

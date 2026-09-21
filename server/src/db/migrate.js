@@ -102,6 +102,15 @@ function applyColumnMigrations() {
         db.exec('ALTER TABLE sessions ADD COLUMN item_length INTEGER');
         console.log('[migrate] Added Phase 10 formal-testing columns to sessions.');
     }
+
+    // Centralized grading service: results gains the raw correct-count
+    // input the 4-10 school grade is computed from (see
+    // grading/gradingService.js) — additive, existing rows just get
+    // NULL and fall back to no character grade until re-graded.
+    if (tableExists('results') && !columnExists('results', 'correct_count')) {
+        db.exec('ALTER TABLE results ADD COLUMN correct_count INTEGER');
+        console.log('[migrate] Added results.correct_count.');
+    }
 }
 
 function migrate() {
@@ -115,7 +124,7 @@ function migrate() {
         'INSERT INTO schema_meta (key, value) VALUES (?, ?) ' +
         'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
     );
-    setMeta.run('schema_version', '7');
+    setMeta.run('schema_version', '8');
     setMeta.run('last_migrated_at', new Date().toISOString());
 
     console.log(`[migrate] Schema applied successfully. DB file: ${db.DB_PATH}`);

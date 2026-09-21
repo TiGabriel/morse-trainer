@@ -59,10 +59,10 @@ function wait(ms) {
  * which stretches inter-character/word gaps far more than the dots and
  * dashes themselves (found by this test taking 12s instead of ~1s).
  */
-function makeRunningSession({ exerciseCount = 1, prepTimeMs = 80, answerTimeMs = 80 } = {}) {
+function makeRunningSession({ exerciseCount = 1, prepTimeMs = 80, answerTimeMs = 80, type = 'group' } = {}) {
     const session = sessionRepository.createSession({
         classId: 1,
-        type: 'group',
+        type,
         exerciseMode: 'audio_to_text',
         difficulty: 'beginner',
         wpm: 60,
@@ -122,6 +122,31 @@ test('single-item lifecycle: scheduled_start -> item_active -> item_closed -> se
 
     assert.equal(sessionRepository.findByIdPublic(session.id).status, 'finished');
     assert.equal(sessionRuntime.getRuntimeState(session.id), null, 'runtime state should be cleaned up after finishing');
+});
+
+test('Formal Test: item_active includes expectedAnswer once the item goes live, but scheduled_start still never does', async () => {
+    const { session, items } = makeRunningSession({ prepTimeMs: 80, answerTimeMs: 80, type: 'test' });
+    const durationMs = items[0].exercise.durationMs;
+
+    sessionRuntime.startSession(session.id);
+
+    const scheduledStart = broadcasts.find((b) => b.type === 'scheduled_start');
+    assert.equal(
+        scheduledStart.item.expectedAnswer,
+        undefined,
+        'the upcoming item must still never reveal its answer before it has actually begun'
+    );
+
+    await wait(80 + durationMs + 150); // prep + play, well before the answer window closes
+
+    const itemActive = broadcasts.find((b) => b.type === 'item_active');
+    assert.equal(
+        itemActive.item.expectedAnswer,
+        items[0].exercise.expectedAnswer,
+        "a live Formal Test item's answer is intentionally included once that item goes active"
+    );
+
+    sessionRuntime.haltSession(session.id); // cleanup — don't let this session's timers leak into later tests
 });
 
 test('multi-item session auto-advances to the next item after the inter-item gap', async () => {

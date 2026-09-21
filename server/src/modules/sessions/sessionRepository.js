@@ -4,6 +4,7 @@
  * same pattern as `users/userRepository.js` and `classes/classRepository.js`.
  */
 const db = require('../../db/client');
+const gradingService = require('../grading/gradingService');
 
 function toPublicSession(row) {
     if (!row) return null;
@@ -359,16 +360,43 @@ function upsertAttempt({ sessionItemId, studentId, submittedText, durationMs }) 
     return getAttempt(sessionItemId, studentId);
 }
 
-function upsertResult({ attemptId, score, errorCount, grade }) {
+function upsertResult({ attemptId, score, errorCount, grade, correctCount }) {
     db.prepare(
-        `INSERT INTO results (attempt_id, score, error_count, grade, graded_at)
-         VALUES (?, ?, ?, ?, datetime('now'))
+        `INSERT INTO results (attempt_id, score, error_count, grade, correct_count, graded_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))
          ON CONFLICT (attempt_id) DO UPDATE SET
             score = excluded.score,
             error_count = excluded.error_count,
             grade = excluded.grade,
+            correct_count = excluded.correct_count,
             graded_at = datetime('now')`
-    ).run(attemptId, score, errorCount, grade);
+    ).run(attemptId, score, errorCount, grade, correctCount === undefined ? null : correctCount);
+}
+
+/**
+ * Total scored characters for an item's expected answer, using the exact
+ * same whitespace-stripping convention `sessionEngine.gradeSubmission`
+ * already applies before scoring (group-separator spaces in a
+ * radiogram-shaped answer are never counted) — so this always matches
+ * whatever `total` the original grading pass actually scored against.
+ */
+function scoredLength(expectedAnswer) {
+    return typeof expectedAnswer === 'string' ? expectedAnswer.replace(/\s+/g, '').length : null;
+}
+
+/**
+ * The centralized 4-10 school grade (see grading/gradingService.js) for
+ * one result row, computed on read from the persisted raw correct_count
+ * and the item's own expected answer — never stored pre-computed, so an
+ * instructor adjusting GRADE_THRESHOLDS later is reflected immediately,
+ * including for historical results. Null whenever there isn't yet an
+ * authoritative correct_count/expectedAnswer to compute it from (e.g. an
+ * ungraded/unsubmitted item, or a row from before this column existed).
+ */
+function characterGradeFor(correctCount, expectedAnswer) {
+    const total = scoredLength(expectedAnswer);
+    if (correctCount === null || correctCount === undefined || !total) return null;
+    return gradingService.calculateGrade({ correct: correctCount, total });
 }
 
 /** Full per-item/per-student results for a session — teacher-facing. Narrowed to selected participants for a restricted formal test, same as the roster. */
@@ -377,10 +405,10 @@ function listResultsForSession(sessionId) {
     const restrict = session && Array.isArray(session.participantIds) && session.participantIds.length > 0;
     const rows = db
         .prepare(
-            `SELECT session_items.order_index, session_items.id AS session_item_id,
+            `SELECT session_items.order_index, session_items.id AS session_item_id, session_items.exercise_json,
                     users.id AS student_id, users.username, users.first_name, users.last_name,
                     attempts.submitted_text, attempts.submitted_at, attempts.duration_ms, attempts.attempt_count,
-                    results.score, results.error_count, results.grade
+                    results.score, results.error_count, results.grade, results.correct_count
              FROM session_items
              CROSS JOIN users
              LEFT JOIN attempts ON attempts.session_item_id = session_items.id AND attempts.student_id = users.id
@@ -396,6 +424,14 @@ function listResultsForSession(sessionId) {
     return rows.map((row) => ({
         orderIndex: row.order_index,
         sessionItemId: row.session_item_id,
+        // The exact exercise generated once at session-creation time (see
+        // session_items.exercise_json's own comment in schema.sql) — never
+        // regenerated, so this is always the literal sequence that was
+        // transmitted, not a fresh derivation. Null only if a row somehow
+        // predates that field ever being populated (defensive, not
+        // expected in practice — the column has always been written at
+        // item-creation time since it was introduced).
+        expectedAnswer: readExpectedAnswer(row.exercise_json),
         studentId: row.student_id,
         username: row.username,
         firstName: row.first_name,
@@ -407,7 +443,18 @@ function listResultsForSession(sessionId) {
         score: row.score,
         errorCount: row.error_count,
         grade: row.grade,
+        characterGrade: characterGradeFor(row.correct_count, readExpectedAnswer(row.exercise_json)),
     }));
+}
+
+/** Pulls just the expected-answer field out of a session_items.exercise_json blob, tolerating rows where it's missing/unparseable rather than throwing. */
+function readExpectedAnswer(exerciseJson) {
+    try {
+        const exercise = JSON.parse(exerciseJson || '{}');
+        return typeof exercise.expectedAnswer === 'string' ? exercise.expectedAnswer : null;
+    } catch {
+        return null;
+    }
 }
 
 /** Same shape, filtered to one student's own rows — student-facing. */

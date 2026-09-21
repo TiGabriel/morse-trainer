@@ -24,6 +24,49 @@ function showScreen(name) {
     ['list', 'waiting', 'exercise', 'finished'].forEach((s) => {
         el(`screen-${s}`).hidden = s !== name;
     });
+    syncAnswerReveal();
+}
+
+/**
+ * Publishes the current item's authoritative answer to the hidden P-O-O-U
+ * reveal popup (see nav.js) — or clears it — whenever this changes. Reuses
+ * only data already legitimately in this script's own memory:
+ *
+ *   - Group Practice: pre-submission, the server never sends expectedAnswer
+ *     (see sessionRuntime.js's publicItemPayload), so there is nothing safe
+ *     to show yet. Post-submission, the server's own attempt response
+ *     already included expectedAnswer (captured into lastRevealedAnswer by
+ *     submitAnswer below).
+ *   - Formal Test: the server includes expectedAnswer directly on
+ *     `currentItem` once that item goes live (see publicItemPayload's
+ *     includeAnswer, item_active-only) — the same field every connected
+ *     student's client already legitimately holds in memory for the item
+ *     on screen, so it's read straight off currentItem here.
+ *
+ * Never calls the server itself and never shows anything for any item
+ * other than the one currently on screen.
+ */
+function syncAnswerReveal() {
+    if (!window.AnswerReveal) return;
+    if (el('screen-exercise').hidden || !currentItem) {
+        window.AnswerReveal.clear();
+        return;
+    }
+
+    const modeLabel = MODE_LABELS[currentItem.mode] || currentItem.mode;
+    const isTest = latestSessionState && latestSessionState.session.type === 'test';
+
+    if (isTest && currentItem.expectedAnswer) {
+        window.AnswerReveal.publish({ label: modeLabel, answer: currentItem.expectedAnswer });
+        return;
+    }
+
+    if (!isTest && hasSubmittedCurrentItem && lastRevealedItemId === currentItem.itemId && lastRevealedAnswer) {
+        window.AnswerReveal.publish({ label: modeLabel, answer: lastRevealedAnswer });
+        return;
+    }
+
+    window.AnswerReveal.publish({ label: modeLabel, answer: 'Correct answer is no longer available.' });
 }
 
 let toastTimer = null;
@@ -74,6 +117,13 @@ let itemActivatedAt = null; // local Date.now() when this item became answerable
 let hasSubmittedCurrentItem = false;
 let hasPlayedCurrentItem = false; // whether audio has actually played in THIS browser instance for the current item
 let countdownTimer = null;
+
+// See syncAnswerReveal(): the only place this client ever legitimately
+// learns an expected answer (a graded Group Practice item's own attempt
+// response) is captured here, keyed by itemId so it can never be shown
+// against a *different* item the moment the next one starts.
+let lastRevealedItemId = null;
+let lastRevealedAnswer = null;
 
 function ensurePlayer() {
     if (!player) {
@@ -519,10 +569,14 @@ async function submitAnswer() {
         el('exercise-submit-button').disabled = true;
         el('exercise-feedback').hidden = false;
         if (result.score) {
-            el('exercise-feedback').textContent = `Submitted — accuracy ${result.score.accuracyPercent}%. Correct answer: ${result.expectedAnswer}`;
+            lastRevealedItemId = currentItem.itemId;
+            lastRevealedAnswer = result.expectedAnswer;
+            const markNote = result.characterGrade ? ` Mark: ${result.characterGrade.grade}.` : '';
+            el('exercise-feedback').textContent = `Submitted — accuracy ${result.score.accuracyPercent}%.${markNote} Correct answer: ${result.expectedAnswer}`;
         } else {
             el('exercise-feedback').textContent = 'Answer submitted. Results will be available once the test ends.';
         }
+        syncAnswerReveal();
     } catch (err) {
         showToast(err.message, 'error');
     }
@@ -546,10 +600,17 @@ async function showFinishedScreen() {
     }
 }
 
+/** Renders the centralized 4-10 school grade (see grading.js) as a small badge, or an em dash if this item has no grade yet. */
+function renderMarkBadge(characterGrade) {
+    if (!characterGrade) return '—';
+    const cls = window.GradingService ? window.GradingService.gradeBadgeClass(characterGrade.grade) : 'badge-grade-mid';
+    return `<span class="badge ${cls}">${characterGrade.grade}</span>`;
+}
+
 function renderFinishedResults(results) {
     const tbody = el('finished-results-tbody');
     if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="muted">No results.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No results.</td></tr>';
         return;
     }
     tbody.innerHTML = '';
@@ -560,6 +621,7 @@ function renderFinishedResults(results) {
             <td>${escapeHtml(r.submittedText || '—')}</td>
             <td>${r.score !== undefined && r.score !== null ? r.score + '%' : '—'}</td>
             <td>${r.grade || '—'}</td>
+            <td>${renderMarkBadge(r.characterGrade)}</td>
         `;
         tbody.appendChild(tr);
     });

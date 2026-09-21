@@ -174,6 +174,52 @@ test('attempts/results: upsert increments attempt_count and grading is queryable
     assert.equal(fullResults.length, 2 /* students */ * 2 /* items */);
 });
 
+test('listResultsForSession: exposes the exact original exercise text alongside a student answer that differs from it', () => {
+    const session = makeSession();
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+
+    sessionRepository.upsertAttempt({ sessionItemId: item.id, studentId: 2, submittedText: 'WRONG ANSWER', durationMs: 800 });
+
+    const results = sessionRepository.listResultsForSession(session.id);
+    const row = results.find((r) => r.sessionItemId === item.id && r.studentId === 2);
+
+    // The stored original is read back from session_items.exercise_json —
+    // never regenerated — so it must equal exactly what was generated at
+    // session-creation time, and must not have been overwritten by the
+    // (deliberately different) student submission.
+    assert.equal(row.expectedAnswer, item.exercise.expectedAnswer);
+    assert.notEqual(row.expectedAnswer, row.submittedText);
+    assert.equal(row.submittedText, 'WRONG ANSWER');
+
+    // A perfect answer (correct === submitted) still keeps both fields present and equal to each other.
+    const item2 = sessionRepository.getItemByIndex(session.id, 1);
+    sessionRepository.upsertAttempt({ sessionItemId: item2.id, studentId: 2, submittedText: item2.exercise.expectedAnswer, durationMs: 400 });
+    const results2 = sessionRepository.listResultsForSession(session.id);
+    const row2 = results2.find((r) => r.sessionItemId === item2.id && r.studentId === 2);
+    assert.equal(row2.expectedAnswer, item2.exercise.expectedAnswer);
+    assert.equal(row2.submittedText, row2.expectedAnswer);
+});
+
+test('listResultsForSession: characterGrade is computed from the persisted correct_count and the item\'s own expectedAnswer length', () => {
+    const session = makeSession();
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+    const totalCharacters = item.exercise.expectedAnswer.replace(/\s+/g, '').length;
+
+    const attempt = sessionRepository.upsertAttempt({ sessionItemId: item.id, studentId: 2, submittedText: 'X', durationMs: 100 });
+    sessionRepository.upsertResult({ attemptId: attempt.id, score: 100, errorCount: 0, grade: 'pass', correctCount: totalCharacters });
+
+    const rows = sessionRepository.listResultsForSession(session.id);
+    const row = rows.find((r) => r.sessionItemId === item.id && r.studentId === 2);
+    assert.ok(row.characterGrade, 'a graded row with a correct_count must carry a characterGrade');
+    assert.equal(row.characterGrade.grade, 10, 'correctCount === total should be a perfect grade 10');
+    assert.equal(row.characterGrade.correctCharacters, totalCharacters);
+    assert.equal(row.characterGrade.totalCharacters, totalCharacters);
+
+    // A row that has never been graded (no attempt/result at all) has no characterGrade.
+    const otherRow = rows.find((r) => r.sessionItemId === item.id && r.studentId === 3);
+    assert.equal(otherRow.characterGrade, null);
+});
+
 // ---------------------------------------------------------------------
 // Phase 10: formal-test extras — instructions, item length, participant restriction
 // ---------------------------------------------------------------------
@@ -242,7 +288,11 @@ test('a session without a participant restriction still behaves exactly as befor
 });
 
 test('generateItems: an explicit length override produces items of exactly that length', () => {
-    const { items } = sessionEngine.generateItems({ exerciseMode: 'audio_to_text', difficulty: 'medium', exerciseCount: 3, length: 9 });
+    // Not audio_to_text: that mode is now always a fixed-shape 3x10x4
+    // radiogram (see buildRadiogramExercise) and deliberately ignores
+    // length overrides — this test covers the still-unchanged generic
+    // practiceEngine.buildExercise path every other mode uses.
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'morse_to_text', difficulty: 'medium', exerciseCount: 3, length: 9 });
     items.forEach((item) => {
         assert.equal(item.exercise.text.replace(/\s/g, '').length, 9);
     });

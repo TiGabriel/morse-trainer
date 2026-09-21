@@ -8,6 +8,18 @@
     margin-bottom: 0.5rem;
 }
 
+.settings-group {
+    margin-bottom: 1.6rem;
+}
+.settings-group-title {
+    font-size: 0.88rem;
+    font-weight: 650;
+    margin: 0 0 0.75rem 0;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .monitor-config {
     grid-template-columns: repeat(3, auto 1fr);
     gap: 0.4rem 1rem;
@@ -48,5 +60,318 @@
 
 .participant-checkbox input {
     width: auto;
+}
+
+/* =========================================================================
+   New Session wizard (Step 1: type -> Step 2: class -> Step 3: exercise
+   type -> Step 4: settings). See sessions.js goToWizardStep/select*.
+   ========================================================================= */
+.wizard-step-label {
+    text-align: center;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    margin: 0 0 0.35rem 0;
+}
+.wizard-step-heading {
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 650;
+    margin: 0 0 0.4rem 0;
+}
+.wizard-step .back-link {
+    margin-bottom: 0.25rem;
+}
+
+/* Zoom-in on step change — same "hidden attribute controls it" pattern
+   already used for .practice-screen in styles.css, just a scale-based
+   feel instead of a slide, per this feature's own spec. Reduced-motion
+   users get the instant hidden/visible toggle with no animation, further
+   down in styles.css's existing reduced-motion block. */
+@keyframes wizard-step-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.wizard-step:not([hidden]) {
+    animation: wizard-step-in 220ms ease both;
+}
+
+/* ===================== Selection circles (Step 1 + Step 3) ===================== */
+.selection-circles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: 1.75rem;
+    margin: 1.75rem 0 1rem;
+}
+.selection-circles-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(200px, 240px));
+    justify-content: center;
+}
+
+@keyframes circle-zoom-in {
+    from {
+        opacity: 0;
+        transform: scale(0.85);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.selection-circle {
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+    text-align: center;
+    cursor: pointer;
+    font: inherit;
+    animation: circle-zoom-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), background var(--transition);
+}
+.selection-circles > .selection-circle:nth-child(1) { animation-delay: 0ms; }
+.selection-circles > .selection-circle:nth-child(2) { animation-delay: 50ms; }
+.selection-circles > .selection-circle:nth-child(3) { animation-delay: 100ms; }
+.selection-circles > .selection-circle:nth-child(4) { animation-delay: 150ms; }
+
+.selection-circle:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent);
+}
+.selection-circle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+.selection-circle.is-selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm);
+}
+.selection-circle-icon {
+    width: 2.3rem;
+    height: 2.3rem;
+    color: var(--accent);
+}
+.selection-circle-icon svg {
+    width: 100%;
+    height: 100%;
+}
+.selection-circle-title {
+    font-size: 0.95rem;
+    font-weight: 650;
+}
+.selection-circle-desc {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+    .selection-circles-grid {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+    .selection-circle {
+        width: 175px;
+        height: 175px;
+        padding: 1.1rem;
+    }
+}
+
+/* ===================== Class list (Step 2) — kept visually simple ===================== */
+.wizard-class-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    margin: 1.5rem 0 1rem;
+}
+.wizard-class-button {
+    padding: 0.85rem 1.4rem;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.wizard-class-button:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+.wizard-class-button.is-selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+/* =========================================================================
+   Character pool picker (Step 4 "Content") — same component/behavior as
+   Individual Training's (see character-pool.js), just restyled with this
+   page's own global dark-navy/light-warm tokens instead of practice.css's
+   separate --pt-* palette, since this is the dashboard's visual system,
+   not Individual Training's.
+   ========================================================================= */
+.pool-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.1rem;
+}
+.chip-button {
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.chip-button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+.chip-button-clear {
+    color: var(--error);
+}
+.chip-button-clear:hover {
+    border-color: var(--error);
+    background: var(--error-soft);
+    color: var(--error);
+}
+
+.char-category {
+    margin-bottom: 0.9rem;
+    padding: 0.9rem 1rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+}
+.char-category-header {
+    margin-bottom: 0.65rem;
+}
+.char-category-select-all {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+}
+.char-category-select-all input {
+    accent-color: var(--accent);
+}
+.char-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.char-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.88rem;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.char-chip input {
+    accent-color: var(--accent);
+}
+.char-chip:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.pool-summary {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0.85rem 0 0 0;
+    word-break: break-word;
+}
+
+/* =========================================================================
+   "My Sessions" — collapsed by default so the wizard stays the visual
+   focus (see sessions.js's my-sessions-toggle handler). max-height is the
+   animation mechanism rather than [hidden], since [hidden] snaps
+   instantly and can't transition — see styles.css for why [hidden] is
+   otherwise always display:none!important globally.
+   ========================================================================= */
+.collapsible-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--text);
+    font: inherit;
+}
+.collapsible-header-title {
+    font-size: var(--fs-section-heading);
+    font-weight: 600;
+}
+.collapsible-header-icon {
+    color: var(--text-faint);
+    transition: transform var(--transition);
+}
+.collapsible-panel[data-expanded="true"] .collapsible-header-icon {
+    transform: rotate(90deg);
+}
+.collapsible-body {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 320ms ease, opacity 220ms ease;
+}
+.collapsible-panel[data-expanded="true"] .collapsible-body {
+    max-height: 2400px;
+    opacity: 1;
+    margin-top: 1.1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wizard-step:not([hidden]),
+    .selection-circle {
+        animation: none !important;
+    }
+    .collapsible-body {
+        transition: none !important;
+    }
 }
 

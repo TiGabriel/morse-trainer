@@ -3,6 +3,7 @@ const { buildExercise } = require('./practiceEngine');
 const { buildRadiogram } = require('./radiogramEngine');
 const { buildCharacterTrainingSession } = require('./characterTrainingEngine');
 const practiceRepository = require('./practiceRepository');
+const gradingService = require('../grading/gradingService');
 const logger = require('../../logger');
 
 function toNumberOrUndefined(v) {
@@ -94,6 +95,7 @@ function submitAttempt(req, res) {
     }
 
     const score = engine.scoreAnswer(exercise.expectedAnswer, body.submittedAnswer);
+    const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
 
     const saved = practiceRepository.insertAttempt({
         studentId: req.user.id,
@@ -126,6 +128,7 @@ function submitAttempt(req, res) {
         expectedAnswer: exercise.expectedAnswer,
         submittedAnswer: body.submittedAnswer,
         score,
+        characterGrade,
         createdAt: saved.createdAt,
     });
 }
@@ -225,6 +228,7 @@ function analyzeRadiogram(req, res) {
     const reference = radiogram.text.replace(/\s+/g, '');
     const submitted = body.submittedAnswer.replace(/\s+/g, '');
     const score = engine.scoreAnswer(reference, submitted);
+    const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
 
     return res.json({
         seed: radiogram.seed,
@@ -234,6 +238,7 @@ function analyzeRadiogram(req, res) {
         groupSize: radiogram.groupSize,
         submittedAnswer: body.submittedAnswer,
         score,
+        characterGrade,
     });
 }
 

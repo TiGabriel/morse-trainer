@@ -100,12 +100,21 @@
 }
 
 /* ===================== Shell ===================== */
+/*
+ * Light mode: the page background reuses the app-wide --bg/--camo-bg-image
+ * tokens directly (styles.css's :root[data-theme="light"]) rather than
+ * this file's own --pt-bg, so Individual Training's outer page matches
+ * every other page's background color, naval-green camo tint, and depth
+ * exactly — only this page's cards/surfaces (--pt-surface, etc.) keep
+ * their own distinct warm-paper look. Dark mode is untouched: it keeps
+ * this file's own --pt-bg dark-paper tone (see the override below).
+ */
 .practice-body {
     display: block;
     align-items: unset;
     justify-content: unset;
     padding: 0;
-    background-color: var(--pt-bg);
+    background-color: var(--bg);
     background-image: var(--camo-bg-image);
     background-attachment: fixed;
     color: var(--pt-text);
@@ -114,6 +123,7 @@
 }
 
 :root[data-theme="dark"] .practice-body {
+    background-color: var(--pt-bg);
     color-scheme: dark;
 }
 
@@ -646,6 +656,115 @@
     padding: 0.4rem 0 0 0;
 }
 
+/* ===================== Character Training: visual aid toggle (settings) ===================== */
+.ct-aid-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    cursor: pointer;
+}
+
+.ct-aid-toggle-switch {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+.ct-aid-toggle-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+}
+.ct-aid-toggle-track {
+    width: 2.6rem;
+    height: 1.5rem;
+    background: var(--pt-border-strong);
+    border-radius: var(--pt-r-pill);
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem;
+    transition: background var(--pt-transition);
+}
+.ct-aid-toggle-thumb {
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: var(--pt-surface);
+    box-shadow: var(--pt-shadow-xs);
+    transition: transform var(--pt-transition);
+}
+.ct-aid-toggle-switch input:checked + .ct-aid-toggle-track {
+    background: var(--pt-accent);
+}
+.ct-aid-toggle-switch input:checked + .ct-aid-toggle-track .ct-aid-toggle-thumb {
+    transform: translateX(1.1rem);
+}
+.ct-aid-toggle-switch input:focus-visible + .ct-aid-toggle-track {
+    box-shadow: 0 0 0 3px var(--pt-accent-soft-strong);
+}
+.ct-aid-toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.85rem;
+    color: var(--pt-text);
+}
+.ct-aid-toggle-copy .muted {
+    font-size: 0.78rem;
+}
+
+/* ===================== Character Training: visual aid display (gameplay) =====================
+   Shows the ti/tah + dot/dash rhythm for the character currently playing —
+   never the character itself. The active element (synced to playback via
+   a small setTimeout layer in practice.js, not the audio engine) gets
+   .is-active; everything else stays a quiet, secondary strip below the
+   main feedback card. */
+.ct-morse-aid {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto 1.25rem;
+    padding: 0.8rem 1rem;
+    background: var(--pt-surface-alt);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ct-morse-aid-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ct-morse-aid-element {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.9rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: var(--pt-r-sm);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--pt-text-muted);
+    transition: background var(--pt-transition), color var(--pt-transition);
+}
+
+.ct-morse-aid-symbols .ct-morse-aid-element {
+    font-family: var(--pt-mono);
+    font-size: 1rem;
+    color: var(--pt-text-faint);
+}
+
+.ct-morse-aid-element.is-active {
+    background: var(--pt-accent-soft-strong);
+    color: var(--pt-accent);
+}
+
 /* ===================== Character Training: gameplay ===================== */
 .ct-session-heading {
     text-align: center;
@@ -809,6 +928,34 @@
 }
 .result-accuracy.mid {
     color: var(--pt-warning);
+}
+
+/* The centralized 4-10 school grade, shown as a small companion badge
+   right under the accuracy percentage — not a separate dashboard. */
+.result-grade-badge {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.45rem;
+    margin: -0.9rem 0 1.5rem 0;
+}
+.result-grade-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--pt-text-faint);
+    font-weight: 600;
+}
+.result-grade-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--pt-success);
+}
+.result-grade-value.mid {
+    color: var(--pt-warning);
+}
+.result-grade-value.low {
+    color: var(--pt-error);
 }
 
 .count-correct {

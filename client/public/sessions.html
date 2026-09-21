@@ -13,7 +13,7 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Morse Trainer — Group Sessions</title>
+    <title>Morse SMMMFN — Group Sessions</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/teacher.css" />
     <link rel="stylesheet" href="/css/sessions.css" />
@@ -23,7 +23,7 @@
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link">Home</a>
                 <a href="/teacher.html" class="app-nav-link">Dashboard</a>
@@ -43,114 +43,253 @@
 
             <!-- LIST + CREATE VIEW -->
             <section id="view-list">
-                <section class="panel reveal-on-scroll">
-                    <div class="panel-header">
-                        <h2>New Session</h2>
+                <section class="panel reveal-on-scroll" id="wizard-panel">
+                    <!-- STEP 1: Group Practice vs Formal Test -->
+                    <div class="wizard-step" id="wizard-step-type" data-wizard-step="type">
+                        <p class="wizard-step-label">Step 1 of 4</p>
+                        <h2 class="wizard-step-heading">What kind of session is this?</h2>
+                        <div class="selection-circles">
+                            <button type="button" class="selection-circle" data-select-type="group">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="9" cy="8" r="3" />
+                                        <circle cx="16.5" cy="9.5" r="2.3" />
+                                        <path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2" />
+                                        <path d="M14.8 14.3c2.3 0.4 3.7 2.2 3.7 4.7" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Group Practice</span>
+                                <span class="selection-circle-desc">Ungraded — students get feedback right away.</span>
+                            </button>
+                            <button type="button" class="selection-circle" data-select-type="test">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="6" y="4" width="12" height="17" rx="2" />
+                                        <path d="M9 3.5h6v2H9z" />
+                                        <path d="M9 12.5l2 2 4-4.5" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Formal Test</span>
+                                <span class="selection-circle-desc">Graded &amp; timed — results stay hidden until it ends.</span>
+                            </button>
+                        </div>
                     </div>
-                    <form id="create-form" class="session-form">
-                        <div class="preview-params">
-                            <div class="modal-field">
-                                <label for="new-type">Session type</label>
-                                <select id="new-type">
-                                    <option value="group" selected>Group Practice</option>
-                                    <option value="test">Formal Test</option>
-                                </select>
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-class">Class</label>
-                                <select id="new-class" required></select>
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-mode">Exercise type</label>
-                                <select id="new-mode">
-                                    <option value="audio_to_text">Audio → Text</option>
-                                    <option value="morse_to_text">Morse → Text</option>
-                                    <option value="text_to_morse">Text → Morse</option>
-                                    <option value="character_recognition">Character Recognition</option>
-                                </select>
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-difficulty">Difficulty</label>
-                                <select id="new-difficulty">
-                                    <option value="beginner">Beginner</option>
-                                    <option value="easy" selected>Easy</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-wpm">WPM <span class="muted">(blank = difficulty default)</span></label>
-                                <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
-                                <input type="number" id="new-farnsworth" min="1" max="60" placeholder="&mdash;" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-tone">Tone frequency (Hz) <span class="muted">(blank = 600)</span></label>
-                                <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-length">Item length (characters) <span class="muted">(blank = difficulty default)</span></label>
-                                <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-count">Number of exercises</label>
-                                <input type="number" id="new-count" min="1" max="100" value="5" required />
-                            </div>
+
+                    <!-- STEP 2: Class -->
+                    <div class="wizard-step" id="wizard-step-class" data-wizard-step="class" hidden>
+                        <button type="button" class="link-button back-link" data-wizard-back="type">&larr; Back</button>
+                        <p class="wizard-step-label">Step 2 of 4</p>
+                        <h2 class="wizard-step-heading">Which class?</h2>
+                        <div class="wizard-class-list" id="wizard-class-list">
+                            <span class="muted">Loading classes&hellip;</span>
                         </div>
+                    </div>
 
-                        <div class="modal-field">
-                            <label for="new-instructions">Instructions for students <span class="muted">(optional, shown in the waiting room)</span></label>
-                            <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once."></textarea>
+                    <!-- STEP 3: Exercise type -->
+                    <div class="wizard-step" id="wizard-step-mode" data-wizard-step="mode" hidden>
+                        <button type="button" class="link-button back-link" data-wizard-back="class">&larr; Back</button>
+                        <p class="wizard-step-label">Step 3 of 4</p>
+                        <h2 class="wizard-step-heading">Choose the exercise type</h2>
+                        <div class="selection-circles selection-circles-grid">
+                            <button type="button" class="selection-circle" data-select-mode="audio_to_text">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M2.5 12h2l1.8 4.5 2.7-9 2 4.5h2" />
+                                        <path d="M15.5 12h2" />
+                                        <path d="M18 9.2l2.8 2.8-2.8 2.8" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Audio → Text</span>
+                                <span class="selection-circle-desc">Listen to the transmitted audio and type what you hear.</span>
+                            </button>
+                            <button type="button" class="selection-circle" data-select-mode="morse_to_text">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="3" cy="12" r="1.1" fill="currentColor" stroke="none" />
+                                        <line x1="6" y1="12" x2="9.5" y2="12" />
+                                        <circle cx="12.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+                                        <path d="M16 9l2.8 3-2.8 3" />
+                                        <line x1="20" y1="8.5" x2="21.5" y2="8.5" />
+                                        <line x1="20" y1="12" x2="21.5" y2="12" />
+                                        <line x1="20" y1="15.5" x2="21.5" y2="15.5" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Morse → Text</span>
+                                <span class="selection-circle-desc">Listen to Morse code and transcribe the received message.</span>
+                            </button>
+                            <button type="button" class="selection-circle" data-select-mode="text_to_morse">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="2.5" y1="8.5" x2="4" y2="8.5" />
+                                        <line x1="2.5" y1="12" x2="4" y2="12" />
+                                        <line x1="2.5" y1="15.5" x2="4" y2="15.5" />
+                                        <path d="M8 9l2.8 3-2.8 3" />
+                                        <circle cx="14.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+                                        <line x1="17.5" y1="12" x2="21" y2="12" />
+                                        <circle cx="21.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Text → Morse</span>
+                                <span class="selection-circle-desc">Read the text and type the matching Morse code.</span>
+                            </button>
+                            <button type="button" class="selection-circle" data-select-mode="character_recognition">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                                        <path d="M7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h6" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title">Character Recognition</span>
+                                <span class="selection-circle-desc">Identify individual Morse characters, one at a time.</span>
+                            </button>
                         </div>
+                    </div>
 
-                        <div class="modal-field">
-                            <div class="participants-header">
-                                <label>Participants <span class="muted">(default: everyone in the class)</span></label>
-                                <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;">Select/deselect all</button>
-                            </div>
-                            <div id="participants-list" class="participants-list">
-                                <span class="muted">Select a class to choose participants&hellip;</span>
-                            </div>
-                        </div>
+                    <!-- STEP 4: Settings -->
+                    <div class="wizard-step" id="wizard-step-settings" data-wizard-step="settings" hidden>
+                        <button type="button" class="link-button back-link" data-wizard-back="mode">&larr; Back</button>
+                        <p class="wizard-step-label">Step 4 of 4</p>
+                        <h2 class="wizard-step-heading">Configure the exercise</h2>
+                        <p class="subtitle" id="wizard-summary" style="text-align:center;"></p>
 
-                        <fieldset id="test-settings" class="preview-params" hidden>
-                            <legend>Formal Test Settings</legend>
-                            <div class="modal-field">
-                                <label for="new-prep-time">Preparation time before each item (seconds)</label>
-                                <input type="number" id="new-prep-time" min="1" max="30" value="5" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-answer-time">Answer time per item (seconds)</label>
-                                <input type="number" id="new-answer-time" min="3" max="180" value="20" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-allowed-attempts">Allowed attempts per item</label>
-                                <input type="number" id="new-allowed-attempts" min="1" max="5" value="1" />
-                            </div>
-                            <div class="modal-field">
-                                <label for="new-pass-threshold">Pass threshold (% accuracy, blank = ungraded)</label>
-                                <input type="number" id="new-pass-threshold" min="0" max="100" placeholder="&mdash;" />
-                            </div>
-                        </fieldset>
+                        <form id="create-form" class="session-form">
+                            <div class="settings-group">
+                                <h3 class="settings-group-title">Content</h3>
+                                <div class="pool-quick-actions" id="gs-pool-quick-actions">
+                                    <button type="button" class="chip-button" data-preset="letters">All Letters</button>
+                                    <button type="button" class="chip-button" data-preset="numbers">All Numbers</button>
+                                    <button type="button" class="chip-button" data-preset="punctuation">All Special</button>
+                                    <button type="button" class="chip-button" data-preset="alphanumeric">Letters + Numbers</button>
+                                    <button type="button" class="chip-button" data-preset="all">All Characters</button>
+                                    <button type="button" class="chip-button chip-button-clear" data-preset="clear">Clear</button>
+                                </div>
 
-                        <button type="submit" class="btn btn-primary">Create Session</button>
-                    </form>
-                    <div id="create-error" class="modal-error" hidden></div>
+                                <div class="char-category" id="gs-char-category-letters">
+                                    <div class="char-category-header">
+                                        <label class="char-category-select-all">
+                                            <input type="checkbox" id="gs-category-select-all-letters" />
+                                            Letters
+                                        </label>
+                                    </div>
+                                    <div class="char-grid" id="gs-char-grid-letters"></div>
+                                </div>
+                                <div class="char-category" id="gs-char-category-numbers">
+                                    <div class="char-category-header">
+                                        <label class="char-category-select-all">
+                                            <input type="checkbox" id="gs-category-select-all-numbers" />
+                                            Numbers
+                                        </label>
+                                    </div>
+                                    <div class="char-grid" id="gs-char-grid-numbers"></div>
+                                </div>
+                                <div class="char-category" id="gs-char-category-punctuation">
+                                    <div class="char-category-header">
+                                        <label class="char-category-select-all">
+                                            <input type="checkbox" id="gs-category-select-all-punctuation" />
+                                            Special characters
+                                        </label>
+                                    </div>
+                                    <div class="char-grid" id="gs-char-grid-punctuation"></div>
+                                </div>
+                                <p class="pool-summary" id="gs-pool-summary">No characters selected yet — the difficulty preset's own pool will be used.</p>
+                            </div>
+
+                            <div class="settings-group">
+                                <h3 class="settings-group-title">Morse</h3>
+                                <div class="preview-params">
+                                    <div class="modal-field">
+                                        <label for="new-difficulty">Difficulty</label>
+                                        <select id="new-difficulty">
+                                            <option value="beginner">Beginner</option>
+                                            <option value="easy" selected>Easy</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="hard">Hard</option>
+                                        </select>
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-wpm">WPM <span class="muted">(blank = difficulty default)</span></label>
+                                        <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                                        <input type="number" id="new-farnsworth" min="1" max="60" placeholder="&mdash;" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-tone">Tone frequency (Hz) <span class="muted">(blank = 600)</span></label>
+                                        <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-group">
+                                <h3 class="settings-group-title">Session</h3>
+                                <div class="preview-params">
+                                    <div class="modal-field" id="new-length-field">
+                                        <label for="new-length">Item length (characters) <span class="muted">(blank = difficulty default)</span></label>
+                                        <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-count">Number of exercises</label>
+                                        <input type="number" id="new-count" min="1" max="100" value="5" required />
+                                    </div>
+                                </div>
+
+                                <div class="modal-field">
+                                    <label for="new-instructions">Instructions for students <span class="muted">(optional, shown in the waiting room)</span></label>
+                                    <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once."></textarea>
+                                </div>
+
+                                <div class="modal-field">
+                                    <div class="participants-header">
+                                        <label>Participants <span class="muted">(default: everyone in the class)</span></label>
+                                        <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;">Select/deselect all</button>
+                                    </div>
+                                    <div id="participants-list" class="participants-list">
+                                        <span class="muted">Select a class to choose participants&hellip;</span>
+                                    </div>
+                                </div>
+
+                                <fieldset id="test-settings" class="preview-params" hidden>
+                                    <legend>Formal Test Settings</legend>
+                                    <div class="modal-field">
+                                        <label for="new-prep-time">Preparation time before each item (seconds)</label>
+                                        <input type="number" id="new-prep-time" min="1" max="30" value="5" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-answer-time">Answer time per item (seconds)</label>
+                                        <input type="number" id="new-answer-time" min="3" max="180" value="20" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-allowed-attempts">Allowed attempts per item</label>
+                                        <input type="number" id="new-allowed-attempts" min="1" max="5" value="1" />
+                                    </div>
+                                    <div class="modal-field">
+                                        <label for="new-pass-threshold">Pass threshold (% accuracy, blank = ungraded)</label>
+                                        <input type="number" id="new-pass-threshold" min="0" max="100" placeholder="&mdash;" />
+                                    </div>
+                                </fieldset>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-large">Start Group Session</button>
+                        </form>
+                        <div id="create-error" class="modal-error" hidden></div>
+                    </div>
                 </section>
 
-                <section class="panel reveal-on-scroll">
-                    <div class="panel-header">
-                        <h2>My Sessions</h2>
-                    </div>
-                    <div class="table-wrap">
-                        <table class="data-table">
-                            <thead>
-                                <tr><th>Class</th><th>Type</th><th>Difficulty</th><th>WPM</th><th>Exercises</th><th>Status</th><th class="col-actions">Actions</th></tr>
-                            </thead>
-                            <tbody id="sessions-tbody"><tr><td colspan="7" class="muted">Loading&hellip;</td></tr></tbody>
-                        </table>
+                <section class="panel collapsible-panel reveal-on-scroll" id="my-sessions-panel">
+                    <button type="button" class="collapsible-header" id="my-sessions-toggle" aria-expanded="false" aria-controls="my-sessions-body">
+                        <span class="collapsible-header-title">My Sessions</span>
+                        <span class="collapsible-header-icon" aria-hidden="true">&#9656;</span>
+                    </button>
+                    <div class="collapsible-body" id="my-sessions-body">
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                    <tr><th>Class</th><th>Type</th><th>Difficulty</th><th>WPM</th><th>Exercises</th><th>Status</th><th class="col-actions">Actions</th></tr>
+                                </thead>
+                                <tbody id="sessions-tbody"><tr><td colspan="7" class="muted">Loading&hellip;</td></tr></tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
             </section>
@@ -216,12 +355,13 @@
                     <div class="panel-header">
                         <h2>Results</h2>
                     </div>
+                    <p class="muted">Click a student to see their per-exercise breakdown.</p>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
-                                <tr><th>Item</th><th>Student</th><th>Answer</th><th>Attempts</th><th>Score</th><th>Grade</th></tr>
+                                <tr><th></th><th>Student</th><th>Accuracy</th><th>Grade</th><th>Mark</th></tr>
                             </thead>
-                            <tbody id="results-tbody"><tr><td colspan="6" class="muted">Not finished yet.</td></tr></tbody>
+                            <tbody id="results-tbody"><tr><td colspan="5" class="muted">Not finished yet.</td></tr></tbody>
                         </table>
                     </div>
                 </section>
@@ -232,6 +372,8 @@
     <div id="toast" class="toast" hidden></div>
 
     <script src="/js/nav.js"></script>
+    <script src="/js/character-pool.js"></script>
+    <script src="/js/grading.js"></script>
     <script src="/js/sessions.js"></script>
 </body>
 </html>

@@ -52,8 +52,15 @@ function scheduleTimer(sessionId, fn, delayMs) {
     return timer;
 }
 
-/** What a client is allowed to see ahead of time about an item — never the expected answer. */
-function publicItemPayload(item) {
+/**
+ * What a client is allowed to see about an item — never the expected
+ * answer, UNLESS `includeAnswer` is explicitly passed (used only for a
+ * Formal Test's *currently active* item, once it has actually gone live —
+ * never for a future/upcoming item, and never for non-test session types,
+ * which get their answer through the separate post-submission grading
+ * response instead).
+ */
+function publicItemPayload(item, { includeAnswer = false } = {}) {
     const ex = item.exercise;
     const payload = {
         itemId: item.id,
@@ -69,6 +76,9 @@ function publicItemPayload(item) {
         payload.promptMorse = ex.morse;
     } else if (ex.mode === 'text_to_morse') {
         payload.promptText = ex.text;
+    }
+    if (includeAnswer) {
+        payload.expectedAnswer = ex.expectedAnswer;
     }
     return payload;
 }
@@ -120,14 +130,18 @@ function activateItem(sessionId, itemIndex) {
 
     // Includes the full item payload (not just the index) so a client that
     // reconnects mid-item — or whose earlier `scheduled_start` message was
-    // lost — can resync from this broadcast alone.
+    // lost — can resync from this broadcast alone. For a Formal Test, the
+    // expected answer is deliberately included here (and only here — never
+    // in scheduleItem's earlier scheduled_start broadcast, which fires
+    // before the item has actually begun) so it's already legitimately in
+    // every connected client's own memory once that item goes live.
     hub.broadcast(sessionId, {
         type: 'item_active',
         itemIndex,
         itemsTotal: sessionRepository.countItems(sessionId),
         deadlineAt,
         serverNow: Date.now(),
-        item: publicItemPayload(item),
+        item: publicItemPayload(item, { includeAnswer: session.type === 'test' }),
     });
 
     scheduleTimer(sessionId, () => closeItem(sessionId, itemIndex), deadlineAt - Date.now());

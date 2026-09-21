@@ -128,6 +128,7 @@ test('submitAttempt: accepts a valid submission for the currently active item (g
     assert.equal(res.body.submitted, true);
     assert.equal(res.body.score.accuracyPercent, 100);
     assert.equal(res.body.expectedAnswer, item.exercise.text);
+    assert.equal(res.body.characterGrade.grade, 10, 'a perfect group-practice submission uses the same centralized grading service');
 });
 
 test('submitAttempt: rejects a submission for an item that is no longer the active one', () => {
@@ -236,6 +237,7 @@ test('submitAttempt: formal tests withhold score/answer from the immediate respo
     assert.equal(res.body.submitted, true);
     assert.equal(res.body.score, undefined);
     assert.equal(res.body.expectedAnswer, undefined);
+    assert.equal(res.body.characterGrade, undefined, 'a Formal Test must never reveal its character grade before the test ends, same as score/expectedAnswer');
 });
 
 // ---------------------------------------------------------------------
@@ -317,7 +319,12 @@ test('createSession handler: persists instructions, Farnsworth/tone, item length
         body: {
             type: 'test',
             classId: 1,
-            exerciseMode: 'audio_to_text',
+            // Not audio_to_text: that mode is now always a fixed-shape
+            // 3x10x4 radiogram (see sessionEngine.buildRadiogramExercise)
+            // and deliberately ignores the `length` override being tested
+            // here — this test is about generic item-length persistence,
+            // which every other mode still honors unchanged.
+            exerciseMode: 'morse_to_text',
             difficulty: 'easy',
             exerciseCount: 2,
             farnsworthWpm: 10,
@@ -343,6 +350,29 @@ test('createSession handler: persists instructions, Farnsworth/tone, item length
 
     const items = sessionRepository.listItems(session.id);
     items.forEach((item) => assert.equal(item.exercise.text.replace(/\s/g, '').length, 8));
+});
+
+test('createSession handler: an explicit characters pool from the request body restricts every generated item to it', () => {
+    const req = {
+        body: {
+            type: 'group',
+            classId: 1,
+            exerciseMode: 'morse_to_text',
+            difficulty: 'hard',
+            exerciseCount: 2,
+            characters: ['Q', 'W'],
+        },
+        user: { id: 1, username: 'teacher1' },
+    };
+    const res = mockRes();
+    sessionsController.createSession(req, res);
+
+    assert.equal(res.statusCode, 201);
+    const items = sessionRepository.listItems(res.body.session.id);
+    items.forEach((item) => {
+        const usedChars = new Set(item.exercise.text.replace(/\s/g, '').split(''));
+        usedChars.forEach((ch) => assert.ok(['Q', 'W'].includes(ch)));
+    });
 });
 
 test('createSession handler: rejects when none of the submitted participantIds are real students in that class', () => {

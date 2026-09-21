@@ -13,7 +13,7 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Morse Trainer — Individual Training</title>
+    <title>Morse SMMMFN — Individual Training</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/practice.css" />
 </head>
@@ -22,7 +22,7 @@
 
     <div id="app" hidden>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse Trainer</a>
+            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link">Home</a>
                 <a href="/teacher.html" class="app-nav-link">Dashboard</a>
@@ -170,6 +170,20 @@
                     </div>
                 </div>
 
+                <div class="settings-group">
+                    <h2 class="settings-group-title">Visual aid</h2>
+                    <label class="ct-aid-toggle" for="ct-setting-visual-aid">
+                        <span class="ct-aid-toggle-switch">
+                            <input type="checkbox" id="ct-setting-visual-aid" />
+                            <span class="ct-aid-toggle-track"><span class="ct-aid-toggle-thumb"></span></span>
+                        </span>
+                        <span class="ct-aid-toggle-copy">
+                            <strong>Visual Morse Aid</strong>
+                            <span class="muted">Show the Morse rhythm and dot/dash pattern while the character is being played.</span>
+                        </span>
+                    </label>
+                </div>
+
                 <div id="ct-settings-error" class="form-error" hidden></div>
 
                 <button id="ct-start-button" class="btn btn-primary btn-large" type="button">Start Session</button>
@@ -194,6 +208,11 @@
                     </div>
                 </div>
 
+                <div class="ct-morse-aid" id="ct-morse-aid" hidden>
+                    <div class="ct-morse-aid-row" id="ct-morse-aid-words"></div>
+                    <div class="ct-morse-aid-row ct-morse-aid-symbols" id="ct-morse-aid-symbols"></div>
+                </div>
+
                 <p class="ct-hint" id="ct-hint">Listen, then type the character you heard.</p>
 
                 <div class="ct-live-stats">
@@ -209,6 +228,10 @@
                 <p class="subtitle" id="ctr-subtitle"></p>
 
                 <div class="result-accuracy" id="ctr-accuracy">&mdash;</div>
+                <div class="result-grade-badge">
+                    <span class="result-grade-label">Grade</span>
+                    <span class="result-grade-value" id="ctr-grade">&mdash;</span>
+                </div>
 
                 <div class="stat-grid" id="ctr-summary-grid">
                     <div class="stat-tile">
@@ -409,6 +432,10 @@
                 <p class="subtitle" id="rgr-subtitle"></p>
 
                 <div class="result-accuracy" id="rgr-accuracy">&mdash;</div>
+                <div class="result-grade-badge">
+                    <span class="result-grade-label">Grade</span>
+                    <span class="result-grade-value" id="rgr-grade">&mdash;</span>
+                </div>
 
                 <div class="stat-grid" id="rgr-summary-grid">
                     <div class="stat-tile">
@@ -461,7 +488,9 @@
     </div>
 
     <script src="/js/nav.js"></script>
+    <script src="/js/character-pool.js"></script>
     <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/grading.js"></script>
     <script src="/js/practice.js"></script>
 </body>
 </html>

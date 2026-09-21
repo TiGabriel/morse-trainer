@@ -4,6 +4,7 @@ const sessionRuntime = require('./sessionRuntime');
 const classRepository = require('../classes/classRepository');
 const { VALID_MODES } = require('../practice/practiceEngine');
 const { findDifficultyPreset } = require('../morse-engine/difficultyPresets');
+const gradingService = require('../grading/gradingService');
 const hub = require('../../realtime/hub');
 const logger = require('../../logger');
 
@@ -65,6 +66,12 @@ function createSession(req, res) {
             : clampInt(toNumberOrUndefined(body.passThresholdPercent), 70, 0, 100);
     const itemLength = body.length === undefined || body.length === '' ? undefined : clampInt(toNumberOrUndefined(body.length), 10, 1, 100);
     const instructions = typeof body.instructions === 'string' && body.instructions.trim() ? body.instructions.trim().slice(0, 2000) : null;
+    // Optional teacher-picked character pool (same shape Individual
+    // Training's pool picker produces — an array of single characters).
+    // Omitted/invalid/empty falls back to the difficulty preset's own
+    // pool, unchanged from before this option existed; the engine itself
+    // re-validates/uppercases/dedupes whatever's actually usable here.
+    const characters = Array.isArray(body.characters) && body.characters.length > 0 ? body.characters : undefined;
 
     // A teacher may restrict a formal test to specific students rather
     // than the whole class — validated against real, active students in
@@ -87,6 +94,7 @@ function createSession(req, res) {
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
             length: itemLength,
+            characters,
             exerciseCount,
         });
     } catch (err) {
@@ -250,11 +258,13 @@ function submitAttempt(req, res) {
 
     const score = sessionEngine.gradeSubmission(item.exercise, body.submittedAnswer);
     const grade = sessionEngine.computeGrade(score.accuracyPercent, session.passThresholdPercent);
+    const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
     sessionRepository.upsertResult({
         attemptId: attempt.id,
         score: score.accuracyPercent,
         errorCount: score.incorrectCount + score.missingCount + score.extraCount,
         grade,
+        correctCount: score.correctCount,
     });
 
     hub.broadcast(sessionId, {
@@ -271,7 +281,9 @@ function submitAttempt(req, res) {
     if (session.type === 'test') {
         return res.status(201).json({ submitted: true, attemptCount: attempt.attemptCount });
     }
-    return res.status(201).json({ submitted: true, attemptCount: attempt.attemptCount, score, expectedAnswer: item.exercise.expectedAnswer });
+    return res
+        .status(201)
+        .json({ submitted: true, attemptCount: attempt.attemptCount, score, expectedAnswer: item.exercise.expectedAnswer, characterGrade });
 }
 
 /** GET /api/sessions/:id/results — full roster for a teacher; own rows only for a student, withheld mid-test. */

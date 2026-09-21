@@ -677,6 +677,62 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     flex-wrap: wrap;
 }
 
+/*
+ * Group Session results table: the original/correct radiogram vs. what
+ * the student actually submitted (see sessions.js loadResults). Both use
+ * a monospace face so groups of characters stay aligned and easy to
+ * compare at a glance; .result-answer-correct gets a soft success tint
+ * so it reads as "the reference answer" rather than just more plain text
+ * next to it.
+ */
+.result-answer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    word-break: break-word;
+}
+.result-answer-correct {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--r-sm);
+    background: var(--success-soft);
+    color: var(--success);
+}
+.result-answer-unavailable {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-faint);
+}
+
+/*
+ * Group Session results: one collapsed per-student summary row
+ * (accuracy% + grade only), expandable on click into a nested table with
+ * every exercise's own correct-answer/student-answer/attempts/score/grade
+ * — see sessions.js loadResults. The detail row's own <td> is stripped of
+ * the normal cell padding/border so the nested table reads as its own
+ * block rather than a mis-aligned cell.
+ */
+.results-toggle-icon {
+    width: 1.2rem;
+    color: var(--text-faint);
+    transition: transform var(--transition);
+}
+tr[aria-expanded="true"] .results-toggle-icon {
+    color: var(--text-muted);
+}
+.results-detail-cell {
+    padding: 0 !important;
+    border-bottom: 1px solid var(--surface-alt) !important;
+}
+.results-detail-table {
+    background: var(--surface-alt);
+}
+.results-detail-table th,
+.results-detail-table td {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.82rem;
+}
+
 /* ===================== Badges ===================== */
 .badge {
     display: inline-block;
@@ -694,6 +750,13 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
 .status-paused { background: var(--warning-soft); color: var(--warning); }
 .status-finished { background: var(--neutral-soft); color: var(--neutral); }
 .status-cancelled { background: var(--error-soft); color: var(--error); }
+
+/* The centralized 4-10 school grade (see grading/gradingService.js),
+   shown as a small badge distinct from the pass/fail .status-* badges
+   above — the two are unrelated concepts that happen to share a table. */
+.badge-grade-low { background: var(--error-soft); color: var(--error); }
+.badge-grade-mid { background: var(--warning-soft); color: var(--warning); }
+.badge-grade-high { background: var(--success-soft); color: var(--success); }
 
 .connection-connected { color: var(--success); font-weight: 600; }
 .connection-disconnected { color: var(--text-faint); }
@@ -807,6 +870,31 @@ body.js-reveal-ready .reveal-on-scroll.is-visible {
     letter-spacing: 0.05em;
     color: var(--text-muted);
     font-weight: 650;
+}
+
+/*
+ * ===================== Morse Receiver (hidden feature) =====================
+ * Injected dynamically by morse-receiver-ui.js only after the secret
+ * P-O-O-P sequence is entered (see nav.js) — never present in any page's
+ * own HTML. Mirrors teacher.css's .modal-backdrop/.modal pattern, but
+ * defined globally here since the receiver must work on every page, not
+ * just the dashboard pages that load teacher.css.
+ */
+.morse-receiver-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1rem;
+}
+.morse-receiver-panel {
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 /* ===================== Toast ===================== */
