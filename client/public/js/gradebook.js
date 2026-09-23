@@ -101,14 +101,19 @@ async function loadStudents() {
     const classId = el('gb-class-filter').value;
     if (search) params.set('search', search);
     if (classId) params.set('classId', classId);
-    try {
-        const [{ users }, { pending }] = await Promise.all([api(`/api/users?${params}`), api('/api/gradebook/pending-counts')]);
-        students = users;
-        pendingCounts = pending || {};
+    // The student list must never depend on the "to confirm" badge counts —
+    // if those can't be loaded, the list still shows, just without badges.
+    const [usersResult, pendingResult] = await Promise.allSettled([api(`/api/users?${params}`), api('/api/gradebook/pending-counts')]);
+    pendingCounts = pendingResult.status === 'fulfilled' ? pendingResult.value.pending || {} : {};
+    if (usersResult.status === 'fulfilled') {
+        students = usersResult.value.users;
         renderStudentList();
-    } catch (err) {
-        showToast(err.message, 'error');
+    } else {
+        students = [];
+        el('gb-student-list').innerHTML = `<li class="muted gb-list-empty">${escapeHtml(usersResult.reason.message)}</li>`;
+        showToast(usersResult.reason.message, 'error');
     }
+    if (pendingResult.status === 'rejected') showToast(pendingResult.reason.message, 'error');
 }
 
 function renderStudentList() {
