@@ -1,0 +1,93 @@
+/* Morse Alphabet reference page — layout only; colors come from the
+   shared design tokens in styles.css, so Light/Dark both apply. */
+
+.alphabet-main {
+    max-width: 980px;
+}
+.alphabet-header {
+    text-align: center;
+}
+.alphabet-header .subtitle {
+    margin-bottom: 0.35rem;
+}
+.alphabet-hint {
+    margin: 0;
+}
+.alphabet-legend {
+    white-space: pre;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.alphabet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 0.75rem;
+}
+
+.alphabet-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 92px;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface-alt);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    font: inherit;
+    transition: border-color var(--transition), transform var(--transition), background var(--transition);
+}
+.alphabet-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+.alphabet-card:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.alphabet-card.is-playing {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.alphabet-char {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.alphabet-code {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    /* letter-spacing adds trailing space after the last glyph — offset it so the code stays visually centered */
+    margin-right: -0.18em;
+}
+
+@media (max-width: 520px) {
+    .alphabet-grid {
+        grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+        gap: 0.55rem;
+    }
+    .alphabet-card {
+        min-height: 78px;
+    }
+    .alphabet-char {
+        font-size: 1.35rem;
+    }
+    .alphabet-code {
+        font-size: 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .alphabet-card:hover {
+        transform: none;
+    }
+}

@@ -24,6 +24,13 @@ const SCREENS = [
     'character-training-settings',
     'character-training-session',
     'character-training-results',
+    'reception-settings',
+    'reception-play',
+    'reception-results',
+    'transmission-settings',
+    'transmission-play',
+    'transmission-results',
+    'transmission-free',
 ];
 let currentScreen = null;
 
@@ -36,6 +43,23 @@ const SCREEN_LEAVE_HOOKS = {
         clearRadiogramRevealTimeouts();
     },
     'character-training-session': () => abortCharacterTrainingRound(),
+    'reception-play': () => {
+        if (receptionPlayer) receptionPlayer.stop();
+        stopReceptionTimer();
+    },
+    'transmission-play': () => {
+        stopTxTimer();
+        txKeyPhysicallyDown = false;
+        const keyArea = el('tx-key-area');
+        if (keyArea) keyArea.classList.remove('is-pressed');
+    },
+    'transmission-free': () => {
+        stopFreeTxTimer();
+        if (freeTxTonePlayer) freeTxTonePlayer.stopTone();
+        freeTxKeyPhysicallyDown = false;
+        const keyArea = el('txf-key-area');
+        if (keyArea) keyArea.classList.remove('is-pressed');
+    },
 };
 
 function showScreen(name) {
@@ -72,6 +96,15 @@ function syncAnswerReveal() {
         return;
     }
 
+    // Deliberately NOT published during 'reception-play' — Reception is a
+    // blind-copy assessment (see receptionEngine.js's doc comment) and the
+    // server never even sends the answer to the client until after
+    // submission, so there is nothing to reveal yet at that point.
+    if (currentScreen === 'reception-results' && lastReceptionResult) {
+        window.AnswerReveal.publish({ label: 'Reception Training', answer: lastReceptionResult.referenceGroups.join(' ') });
+        return;
+    }
+
     window.AnswerReveal.clear();
 }
 
@@ -89,6 +122,10 @@ async function loadCharsets() {
     radiogramPool.applyPreset('letters'); // sensible default pool so Generate works immediately
     characterTrainingPool.buildAllGrids(charsets);
     characterTrainingPool.applyPreset('letters');
+    receptionPool.buildAllGrids(charsets);
+    receptionPool.applyPreset('letters');
+    transmissionPool.buildAllGrids(charsets);
+    transmissionPool.applyPreset('letters');
 }
 
 // =======================================================================
@@ -99,6 +136,7 @@ let currentRadiogram = null; // full server response incl. text/charReveal — k
 let radiogramCharSlots = []; // flat array of the 120 per-character DOM spans, same order as currentRadiogram.charReveal
 let radiogramRevealTimeouts = [];
 let radiogramMasked = false; // "Hide Radiogram" toggle — display-only, never touches playback or the answer field
+let radiogramStartedAt = null; // Date.now() at first playback of the current radiogram; reset whenever a new one is generated
 
 // Matches MorseAudioPlayer.play()'s own small lead-in before the first
 // tone starts (see morse-audio-player.js), so reveal timers — which are
@@ -114,7 +152,7 @@ function ensureRadiogramPlayer(volume) {
         maxPlays: null, // radiogram copy practice: unlimited replay
         onEnd: () => {
             clearRadiogramRevealTimeouts();
-            el('radiogram-status').textContent = 'Playback complete. Finish your transcription, then analyze.';
+            el('radiogram-status').textContent = t('radiogram.statusPlaybackComplete');
             el('radiogram-analyze-button').disabled = false;
         },
     });
@@ -147,11 +185,11 @@ async function generateRadiogram() {
     const settings = currentRadiogramSettings();
 
     if (settings.characters.length === 0) {
-        showRadiogramError('Select at least one character for the pool.');
+        showRadiogramError(t('validation.selectAtLeastOneChar'));
         return;
     }
     if (!settings.wpm || settings.wpm <= 0) {
-        showRadiogramError('Enter a valid WPM.');
+        showRadiogramError(t('validation.enterValidWpm'));
         return;
     }
 
@@ -164,6 +202,7 @@ async function generateRadiogram() {
     }
 
     currentRadiogram = radiogram;
+    radiogramStartedAt = null;
     renderRadiogram(radiogram);
     showScreen('radiogram-play');
 }
@@ -225,7 +264,7 @@ function revealRadiogramCharAt(index, char) {
     slot.textContent = char;
     slot.classList.remove('pending');
     slot.classList.add('revealed');
-    el('radiogram-status').textContent = `Transmitting… ${index + 1} / ${radiogramCharSlots.length}`;
+    el('radiogram-status').textContent = t('radiogram.statusTransmittingProgress', { current: index + 1, total: radiogramCharSlots.length });
 }
 
 /** (Re)schedules the live reveal against the exact same charReveal sequence used to build the audio plan, from scratch — used by both the first Play and every Replay. */
@@ -241,7 +280,7 @@ function scheduleRadiogramReveal(radiogram) {
 function setRadiogramMasked(masked) {
     radiogramMasked = masked;
     el('radiogram-display').classList.toggle('reference-masked', masked);
-    el('radiogram-hide-button').textContent = masked ? 'Show Radiogram' : 'Hide Radiogram';
+    el('radiogram-hide-button').textContent = masked ? t('radiogram.showRadiogram') : t('radiogram.hideRadiogram');
 }
 
 function renderRadiogram(radiogram) {
@@ -249,14 +288,14 @@ function renderRadiogram(radiogram) {
     setRadiogramMasked(false);
 
     const farnsworthNote =
-        radiogram.timing.farnsworthWpm !== radiogram.timing.wpm ? ` (Farnsworth ${radiogram.timing.farnsworthWpm} WPM)` : '';
+        radiogram.timing.farnsworthWpm !== radiogram.timing.wpm ? t('common.farnsworthNote', { wpm: radiogram.timing.farnsworthWpm }) : '';
     el('radiogram-meta').textContent =
-        `${radiogram.totalCharacters} characters · ${radiogram.groups.length} groups · ` +
-        `${radiogram.timing.wpm} WPM${farnsworthNote} · ${radiogram.timing.toneFrequencyHz} Hz`;
+        `${radiogram.totalCharacters} ${t('common.characters')} · ${radiogram.groups.length} ${t('common.groupsUnit')} · ` +
+        `${radiogram.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${radiogram.timing.toneFrequencyHz} Hz`;
 
     el('radiogram-replay-button').hidden = true;
     el('radiogram-stop-button').hidden = true;
-    el('radiogram-status').textContent = 'Not started yet.';
+    el('radiogram-status').textContent = t('radiogram.statusNotStarted');
     el('radiogram-answer').value = '';
     el('radiogram-analyze-button').disabled = true;
 
@@ -268,6 +307,7 @@ function renderRadiogram(radiogram) {
 
 function playRadiogram() {
     if (!currentRadiogram) return;
+    if (radiogramStartedAt === null) radiogramStartedAt = Date.now();
     const volume = Number(el('radiogram-play-volume').value) / 100;
     const p = ensureRadiogramPlayer(volume);
     p.setVolume(volume);
@@ -275,14 +315,14 @@ function playRadiogram() {
     el('radiogram-replay-button').hidden = false;
     el('radiogram-stop-button').hidden = false;
     el('radiogram-analyze-button').disabled = true;
-    el('radiogram-status').textContent = 'Transmitting…';
+    el('radiogram-status').textContent = t('radiogram.statusTransmitting');
     scheduleRadiogramReveal(currentRadiogram);
 }
 
 function stopRadiogram() {
     if (radiogramPlayer) radiogramPlayer.stop();
     clearRadiogramRevealTimeouts();
-    el('radiogram-status').textContent = 'Stopped. You can replay, or analyze what you have so far.';
+    el('radiogram-status').textContent = t('radiogram.statusStopped');
     el('radiogram-analyze-button').disabled = false;
 }
 
@@ -304,6 +344,7 @@ async function analyzeRadiogram() {
         toneFrequencyHz: currentRadiogram.timing.toneFrequencyHz,
         seed: currentRadiogram.seed,
         submittedAnswer: normalizeRadiogramAnswer(submittedAnswer),
+        durationMs: radiogramStartedAt !== null ? Date.now() - radiogramStartedAt : undefined,
     };
 
     let result;
@@ -322,8 +363,8 @@ function renderRadiogramResults(result) {
     const { score } = result;
     const timing = currentRadiogram.timing;
 
-    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? ` (Farnsworth ${timing.farnsworthWpm} WPM)` : '';
-    el('rgr-subtitle').textContent = `${score.totalExpected} characters · ${timing.wpm} WPM${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
+    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? t('common.farnsworthNote', { wpm: timing.farnsworthWpm }) : '';
+    el('rgr-subtitle').textContent = `${score.totalExpected} ${t('common.characters')} · ${timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
 
     const accuracyEl = el('rgr-accuracy');
     accuracyEl.textContent = `${score.accuracyPercent}%`;
@@ -344,7 +385,7 @@ function renderRadiogramResults(result) {
     el('rgr-extra').textContent = String(score.extraCount);
     el('rgr-errors').textContent = String(score.errorCount);
 
-    renderRadiogramComparison(score.ops, result.groupSize || 4);
+    renderComparison('rgr-compare', score.ops, result.groupSize || 4);
 }
 
 /**
@@ -352,16 +393,18 @@ function renderRadiogramResults(result) {
  * directly from scoreAnswer's ops (one column per op, so a missing or
  * extra character shifts neither row out of alignment with the other —
  * see scoring.js for why alignment beats index-by-index comparison).
+ * Shared by the Radiogram and Reception results screens — one comparison
+ * renderer, not a duplicate per exercise type.
  */
-function renderRadiogramComparison(ops, groupSize) {
-    const container = el('rgr-compare');
+function renderComparison(containerId, ops, groupSize) {
+    const container = el(containerId);
     container.innerHTML = '';
 
     const refRow = document.createElement('div');
     refRow.className = 'rg-compare-row';
     const refLabel = document.createElement('span');
     refLabel.className = 'rg-compare-row-label';
-    refLabel.textContent = 'REFERENCE';
+    refLabel.textContent = t('radiogram.referenceLabel');
     const refCells = document.createElement('span');
     refRow.appendChild(refLabel);
     refRow.appendChild(refCells);
@@ -370,7 +413,7 @@ function renderRadiogramComparison(ops, groupSize) {
     subRow.className = 'rg-compare-row';
     const subLabel = document.createElement('span');
     subLabel.className = 'rg-compare-row-label';
-    subLabel.textContent = 'YOUR ANSWER';
+    subLabel.textContent = t('radiogram.yourAnswerLabel');
     const subCells = document.createElement('span');
     subRow.appendChild(subLabel);
     subRow.appendChild(subCells);
@@ -438,6 +481,7 @@ let ctCurrentIndex = 0;
 let ctRoundToken = 0; // bumped on abort/finish to invalidate stale async callbacks
 let ctAwaitingAnswer = false;
 let ctRoundStartedAt = null; // performance.now() timestamp, set by the player's onStart hook
+let ctSessionStartedAt = null; // Date.now() when the session was launched, for the saved attempt's durationMs
 
 // Visual Morse Aid: display-only, never sent to the server or mixed into
 // scoring/timing. Read from the settings checkbox once per session (see
@@ -580,15 +624,15 @@ async function startCharacterTrainingSession() {
     const settings = currentCharacterTrainingSettings();
 
     if (settings.characters.length === 0) {
-        showCtSettingsError('Select at least one character for the pool.');
+        showCtSettingsError(t('validation.selectAtLeastOneChar'));
         return;
     }
     if (!settings.wpm || settings.wpm <= 0) {
-        showCtSettingsError('Enter a valid WPM.');
+        showCtSettingsError(t('validation.enterValidWpm'));
         return;
     }
     if (!settings.length || settings.length < 1) {
-        showCtSettingsError('Enter a valid number of characters (1 or more).');
+        showCtSettingsError(t('validation.enterValidCharCount'));
         return;
     }
 
@@ -605,6 +649,7 @@ async function startCharacterTrainingSession() {
     ctCurrentIndex = 0;
     ctRoundToken += 1;
     ctVisualAidEnabled = el('ct-setting-visual-aid').checked;
+    ctSessionStartedAt = Date.now();
 
     showScreen('character-training-session');
     resetCtFeedback();
@@ -637,7 +682,7 @@ async function playCtRound(index) {
 
 function updateCtProgress(index) {
     const total = ctSession.items.length;
-    el('ct-progress-text').textContent = `Character ${index + 1} / ${total}`;
+    el('ct-progress-text').textContent = t('characterTraining.progressText', { current: index + 1, total });
     el('ct-progress-fill').style.width = `${Math.round((index / total) * 100)}%`;
 }
 
@@ -815,6 +860,40 @@ function analyzeCharacterTrainingSession(results) {
     };
 }
 
+/**
+ * Persists a completed Character Training session to the student's
+ * practice history. Server-side, this regenerates the session from
+ * `seed` and recomputes correctness itself (never trusting the client's
+ * per-round `correct` flags) — same pattern as analyzeRadiogram. Runs in
+ * the background: the results screen has already rendered from the
+ * locally-computed analysis by the time this resolves, so a slow or
+ * failed save never blocks the student from seeing their score, it only
+ * surfaces a small non-blocking notice if the save itself failed.
+ */
+async function saveCharacterTrainingAttempt(session, results) {
+    const box = el('ctr-save-error');
+    box.hidden = true;
+    box.textContent = '';
+
+    const payload = {
+        characters: session.characters,
+        length: session.length,
+        wpm: session.timing.wpm,
+        farnsworthWpm: session.timing.farnsworthWpm,
+        toneFrequencyHz: session.timing.toneFrequencyHz,
+        seed: session.seed,
+        submittedAnswer: results.map((r) => r.submittedKey).join(''),
+        durationMs: ctSessionStartedAt !== null ? Date.now() - ctSessionStartedAt : undefined,
+    };
+
+    try {
+        await api('/api/practice/character-training/attempts', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (err) {
+        box.hidden = false;
+        box.textContent = t('common.resultNotSaved', { message: err.message });
+    }
+}
+
 function finishCharacterTrainingSession() {
     if (ctPlayer) ctPlayer.stop();
 
@@ -831,6 +910,8 @@ function finishCharacterTrainingSession() {
         completedAt: new Date().toISOString(),
     };
 
+    saveCharacterTrainingAttempt(ctSession, ctResults);
+
     renderCtResultsScreen(lastCharacterTrainingSession);
     showScreen('character-training-results');
 }
@@ -838,9 +919,9 @@ function finishCharacterTrainingSession() {
 function renderCtResultsScreen(session) {
     const { analysis, timing } = session;
 
-    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? ` (Farnsworth ${timing.farnsworthWpm} WPM)` : '';
+    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? t('common.farnsworthNote', { wpm: timing.farnsworthWpm }) : '';
     el('ctr-subtitle').textContent =
-        `${analysis.totalCount} characters · ${timing.wpm} WPM${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
+        `${analysis.totalCount} ${t('common.characters')} · ${timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
 
     const accuracyEl = el('ctr-accuracy');
     accuracyEl.textContent = `${analysis.accuracyPercent}%`;
@@ -913,6 +994,701 @@ function practiceWeakCharacters() {
     startCharacterTrainingSession();
 }
 
+// =======================================================================
+// Reception Training (Audio -> Text, blind copy)
+// =======================================================================
+const receptionPool = createPoolPicker('rcp');
+let receptionPlayer = null;
+let currentReception = null; // server generate response — NEVER includes the answer text, only what's needed to play it
+let lastReceptionResult = null; // most recently graded submit response, for the results screen + AnswerReveal
+let receptionTimerId = null;
+let receptionAccumulatedMs = 0; // ms of audio already played, across pause/resume
+let receptionSegmentStartedAt = null; // Date.now() when the current play/resume segment began
+let receptionExerciseStartedAt = null; // Date.now() at the very first Start (or after a Restart), for the saved attempt's durationMs
+
+function ensureReceptionPlayer(volume) {
+    if (receptionPlayer) return receptionPlayer;
+    receptionPlayer = new MorseAudioPlayer({
+        volume,
+        maxPlays: null, // unlimited replay — replay must not regenerate the answer, only re-play the same audio
+        onEnd: () => {
+            stopReceptionTimer();
+            setReceptionProgress(currentReception ? currentReception.durationMs : 0);
+            el('rcp-pause-button').hidden = true;
+            el('rcp-resume-button').hidden = true;
+            el('rcp-stop-button').hidden = true;
+            el('rcp-replay-button').hidden = false;
+            el('rcp-status').textContent = t('reception.statusPlaybackComplete');
+        },
+    });
+    return receptionPlayer;
+}
+
+function currentReceptionSettings() {
+    const farnsworthRaw = el('rcp-setting-farnsworth').value;
+    return {
+        characters: receptionPool.getSelected(),
+        groupSize: Number(el('rcp-setting-group-size').value),
+        groupCount: Number(el('rcp-setting-group-count').value) || undefined,
+        wpm: Number(el('rcp-setting-wpm').value) || undefined,
+        farnsworthWpm: farnsworthRaw ? Number(farnsworthRaw) : undefined,
+        toneFrequencyHz: Number(el('rcp-setting-tone').value) || undefined,
+    };
+}
+
+function showReceptionError(message) {
+    const box = el('rcp-settings-error');
+    if (!message) {
+        box.hidden = true;
+        box.textContent = '';
+        return;
+    }
+    box.hidden = false;
+    box.textContent = message;
+}
+
+function updateReceptionLengthSummary() {
+    const groupSize = Number(el('rcp-setting-group-size').value) || 0;
+    const groupCount = Number(el('rcp-setting-group-count').value) || 0;
+    const total = groupSize > 0 ? groupSize * groupCount : groupCount;
+    el('rcp-length-summary').textContent = groupSize > 0
+        ? `${total} characters total (${groupCount} group${groupCount === 1 ? '' : 's'} of ${groupSize}).`
+        : `${total} characters total, ungrouped.`;
+}
+
+async function generateReception() {
+    showReceptionError('');
+    const settings = currentReceptionSettings();
+
+    if (settings.characters.length === 0) {
+        showReceptionError(t('validation.selectAtLeastOneChar'));
+        return;
+    }
+    if (!settings.wpm || settings.wpm <= 0) {
+        showReceptionError(t('validation.enterValidWpm'));
+        return;
+    }
+    if (!settings.groupCount || settings.groupCount < 1) {
+        showReceptionError(t('validation.enterValidGroupCount'));
+        return;
+    }
+
+    let exercise;
+    try {
+        exercise = await api('/api/practice/reception/exercises', { method: 'POST', body: JSON.stringify(settings) });
+    } catch (err) {
+        showReceptionError(err.message);
+        return;
+    }
+
+    currentReception = exercise;
+    lastReceptionResult = null;
+    renderReceptionPlay(exercise);
+    showScreen('reception-play');
+}
+
+function renderReceptionPlay(exercise) {
+    const farnsworthNote = exercise.timing.farnsworthWpm !== exercise.timing.wpm ? t('common.farnsworthNote', { wpm: exercise.timing.farnsworthWpm }) : '';
+    el('rcp-meta').textContent =
+        `${exercise.totalCharacters} ${t('common.characters')} · ${exercise.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${exercise.timing.toneFrequencyHz} Hz`;
+
+    el('rcp-answer').value = '';
+    resetReceptionPlaybackButtons();
+    receptionAccumulatedMs = 0;
+    receptionSegmentStartedAt = null;
+    receptionExerciseStartedAt = null;
+    setReceptionProgress(0);
+    el('rcp-status').textContent = t('reception.statusNotStarted');
+
+    const volume = Number(el('rcp-play-volume').value) / 100;
+    const p = ensureReceptionPlayer(volume);
+    p.setVolume(volume);
+    p.loadPlan(exercise.plan, { durationMs: exercise.durationMs });
+}
+
+function resetReceptionPlaybackButtons() {
+    el('rcp-play-button').hidden = false;
+    el('rcp-pause-button').hidden = true;
+    el('rcp-resume-button').hidden = true;
+    el('rcp-stop-button').hidden = true;
+    el('rcp-replay-button').hidden = true;
+}
+
+function formatMmSs(ms) {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function setReceptionProgress(elapsedMs) {
+    const total = currentReception ? currentReception.durationMs : 0;
+    const clamped = Math.min(Math.max(elapsedMs, 0), total);
+    el('rcp-progress-text').textContent = `${formatMmSs(clamped)} / ${formatMmSs(total)}`;
+    el('rcp-progress-fill').style.width = total > 0 ? `${Math.round((clamped / total) * 100)}%` : '0%';
+}
+
+function stopReceptionTimer() {
+    if (receptionTimerId) {
+        clearInterval(receptionTimerId);
+        receptionTimerId = null;
+    }
+}
+
+function startReceptionTimer() {
+    stopReceptionTimer();
+    receptionSegmentStartedAt = Date.now();
+    receptionTimerId = setInterval(() => {
+        const elapsed = receptionAccumulatedMs + (Date.now() - receptionSegmentStartedAt);
+        setReceptionProgress(elapsed);
+    }, 200);
+}
+
+/** Freezes the accumulated-elapsed counter at whatever the timer last showed — called on pause/stop so resume continues from the right place. */
+function freezeReceptionElapsed() {
+    if (receptionSegmentStartedAt !== null) {
+        receptionAccumulatedMs += Date.now() - receptionSegmentStartedAt;
+        receptionSegmentStartedAt = null;
+    }
+    stopReceptionTimer();
+}
+
+async function startReceptionPlayback() {
+    if (!currentReception) return;
+    if (receptionExerciseStartedAt === null) receptionExerciseStartedAt = Date.now();
+    const volume = Number(el('rcp-play-volume').value) / 100;
+    const p = ensureReceptionPlayer(volume);
+    p.setVolume(volume);
+    const started = await p.play();
+    if (!started) return;
+
+    el('rcp-play-button').hidden = true;
+    el('rcp-replay-button').hidden = true;
+    el('rcp-pause-button').hidden = false;
+    el('rcp-stop-button').hidden = false;
+    el('rcp-status').textContent = t('reception.statusTransmitting');
+    startReceptionTimer();
+}
+
+function pauseReceptionPlayback() {
+    if (!receptionPlayer) return;
+    receptionPlayer.pause();
+    freezeReceptionElapsed();
+    el('rcp-pause-button').hidden = true;
+    el('rcp-resume-button').hidden = false;
+    el('rcp-status').textContent = t('reception.statusPaused');
+}
+
+async function resumeReceptionPlayback() {
+    if (!receptionPlayer) return;
+    const resumed = await receptionPlayer.resume();
+    if (!resumed) return;
+    el('rcp-resume-button').hidden = true;
+    el('rcp-pause-button').hidden = false;
+    el('rcp-status').textContent = t('reception.statusTransmitting');
+    startReceptionTimer();
+}
+
+function stopReceptionPlayback() {
+    if (receptionPlayer) receptionPlayer.stop();
+    freezeReceptionElapsed();
+    receptionAccumulatedMs = 0;
+    resetReceptionPlaybackButtons();
+    setReceptionProgress(0);
+    el('rcp-status').textContent = t('reception.statusStopped');
+}
+
+function replayReceptionPlayback() {
+    startReceptionPlayback();
+}
+
+/** Restarts THIS SAME exercise (same seed — replay must not regenerate the answer, and neither does Restart): resets playback, timer, and the student's transcription, but keeps the exercise itself. A brand-new exercise only happens via the explicit "New Exercise" action. */
+function restartReceptionExercise() {
+    if (!currentReception) return;
+    if (receptionPlayer) receptionPlayer.stop();
+    freezeReceptionElapsed();
+    receptionAccumulatedMs = 0;
+    receptionExerciseStartedAt = null;
+    el('rcp-answer').value = '';
+    resetReceptionPlaybackButtons();
+    setReceptionProgress(0);
+    el('rcp-status').textContent = t('reception.statusNotStarted');
+
+    const volume = Number(el('rcp-play-volume').value) / 100;
+    const p = ensureReceptionPlayer(volume);
+    p.setVolume(volume);
+    p.loadPlan(currentReception.plan, { durationMs: currentReception.durationMs });
+}
+
+async function submitReceptionAnswer() {
+    if (!currentReception) return;
+    if (receptionPlayer) receptionPlayer.stop();
+    freezeReceptionElapsed();
+
+    const submittedAnswer = el('rcp-answer').value;
+    const payload = {
+        characters: currentReception.characters,
+        groupSize: currentReception.groupSize || 0,
+        groupCount: currentReception.groupCount,
+        wpm: currentReception.timing.wpm,
+        farnsworthWpm: currentReception.timing.farnsworthWpm,
+        toneFrequencyHz: currentReception.timing.toneFrequencyHz,
+        seed: currentReception.seed,
+        submittedAnswer,
+        durationMs: receptionExerciseStartedAt !== null ? Date.now() - receptionExerciseStartedAt : undefined,
+    };
+
+    let result;
+    try {
+        result = await api('/api/practice/reception/attempts', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (err) {
+        showReceptionError(err.message);
+        return;
+    }
+
+    lastReceptionResult = result;
+    renderReceptionResults(result);
+    showScreen('reception-results');
+}
+
+function renderReceptionResults(result) {
+    const { score } = result;
+    const timing = currentReception.timing;
+
+    const farnsworthNote = timing.farnsworthWpm !== timing.wpm ? t('common.farnsworthNote', { wpm: timing.farnsworthWpm }) : '';
+    el('rcpr-subtitle').textContent = `${score.totalExpected} ${t('common.characters')} · ${timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${timing.toneFrequencyHz} Hz`;
+
+    const accuracyEl = el('rcpr-accuracy');
+    accuracyEl.textContent = `${score.accuracyPercent}%`;
+    accuracyEl.className = 'result-accuracy' + (score.accuracyPercent >= 90 ? '' : score.accuracyPercent >= 60 ? ' mid' : ' low');
+
+    const characterGrade = result.characterGrade;
+    const gradeEl = el('rcpr-grade');
+    gradeEl.textContent = characterGrade ? String(characterGrade.grade) : '—';
+    gradeEl.className = 'result-grade-value' + (characterGrade && window.GradingService ? ' ' + window.GradingService.gradeSeverityClass(characterGrade.grade) : '');
+
+    el('rcpr-total').textContent = String(score.totalExpected);
+    el('rcpr-correct').textContent = String(score.correctCount);
+    el('rcpr-incorrect').textContent = String(score.incorrectCount);
+    el('rcpr-missing').textContent = String(score.missingCount);
+    el('rcpr-extra').textContent = String(score.extraCount);
+    el('rcpr-errors').textContent = String(score.errorCount);
+
+    renderComparison('rcpr-compare', score.ops, result.groupSize || 5);
+}
+
+// =======================================================================
+// Morse Transmission (keyboard -> Morse)
+// =======================================================================
+const transmissionPool = createPoolPicker('tx');
+let txEngine = null; // MorseTransmitterCore.TransmissionEngine instance, one per exercise
+let currentTransmission = null; // server target — text/groups ARE visible (unlike Reception), nothing withheld
+let txWpm = 15; // locked in at exercise start, so mid-exercise settings edits (unreachable via UI anyway) can never desync engine vs. submit payload
+let txToleranceFactor = 0.35;
+let txStartedAt = null; // Date.now() at the first keydown, for the timer + submitted durationMs
+let txTimerId = null;
+let txKeyPhysicallyDown = false; // guards against the same physical Space key firing keyDown twice before a keyUp (OS auto-repeat)
+let lastTransmissionResult = null;
+
+function currentTransmissionSettings() {
+    return {
+        characters: transmissionPool.getSelected(),
+        groupSize: Number(el('tx-setting-group-size').value),
+        groupCount: Number(el('tx-setting-group-count').value) || undefined,
+        wpm: Number(el('tx-setting-wpm').value) || undefined,
+        toleranceFactor: Number(el('tx-setting-tolerance').value) || undefined,
+    };
+}
+
+function showTransmissionError(message) {
+    const box = el('tx-settings-error');
+    if (!message) {
+        box.hidden = true;
+        box.textContent = '';
+        return;
+    }
+    box.hidden = false;
+    box.textContent = message;
+}
+
+function showTxPlayError(message) {
+    const box = el('tx-play-error');
+    if (!message) {
+        box.hidden = true;
+        box.textContent = '';
+        return;
+    }
+    box.hidden = false;
+    box.textContent = message;
+}
+
+function updateTransmissionLengthSummary() {
+    const groupSize = Number(el('tx-setting-group-size').value) || 0;
+    const groupCount = Number(el('tx-setting-group-count').value) || 0;
+    const total = groupSize > 0 ? groupSize * groupCount : groupCount;
+    el('tx-length-summary').textContent = groupSize > 0
+        ? `${total} characters total (${groupCount} group${groupCount === 1 ? '' : 's'} of ${groupSize}).`
+        : `${total} characters total, ungrouped.`;
+}
+
+async function generateTransmission() {
+    showTransmissionError('');
+    const settings = currentTransmissionSettings();
+
+    if (settings.characters.length === 0) {
+        showTransmissionError(t('validation.selectAtLeastOneChar'));
+        return;
+    }
+    if (!settings.wpm || settings.wpm <= 0) {
+        showTransmissionError(t('validation.enterValidTargetWpm'));
+        return;
+    }
+    if (!settings.groupCount || settings.groupCount < 1) {
+        showTransmissionError(t('validation.enterValidCharGroupCount'));
+        return;
+    }
+
+    let target;
+    try {
+        target = await api('/api/practice/transmission/exercises', {
+            method: 'POST',
+            body: JSON.stringify({ characters: settings.characters, groupSize: settings.groupSize, groupCount: settings.groupCount }),
+        });
+    } catch (err) {
+        showTransmissionError(err.message);
+        return;
+    }
+
+    currentTransmission = target;
+    txWpm = settings.wpm;
+    txToleranceFactor = settings.toleranceFactor || 0.35;
+    renderTransmissionPlay();
+    showScreen('transmission-play');
+}
+
+/** (Re)creates the engine for the current target — used both at exercise start and by Restart (same target, fresh engine state). */
+function resetTxEngine() {
+    txEngine = new MorseTransmitterCore.TransmissionEngine({
+        wpm: txWpm,
+        toleranceFactor: txToleranceFactor,
+        onFeedback: (f) => showTxFeedback(f),
+        onCharacterDecoded: () => updateTxLiveDisplay(),
+        onSequenceChange: () => updateTxLiveDisplay(),
+    });
+    txStartedAt = null;
+    txKeyPhysicallyDown = false;
+    stopTxTimer();
+}
+
+function renderTransmissionPlay() {
+    showTxPlayError('');
+    el('tx-target').textContent = currentTransmission.groups.join('  ');
+    el('tx-target-wpm').textContent = String(txWpm);
+    el('tx-actual-wpm').textContent = '—';
+    el('tx-status').textContent = t('transmission.statusReady');
+    el('tx-decoded').textContent = '';
+    el('tx-current-morse').innerHTML = '&nbsp;';
+    el('tx-feedback').textContent = '';
+    el('tx-feedback').className = 'tx-feedback';
+    resetTxEngine();
+    updateTxProgress();
+    const keyArea = el('tx-key-area');
+    if (keyArea && typeof keyArea.focus === 'function') keyArea.focus();
+}
+
+function updateTxProgress() {
+    const decodedCount = txEngine ? txEngine.decodedText.replace(/\s+/g, '').length : 0;
+    const total = currentTransmission ? currentTransmission.totalCharacters : 0;
+    const elapsedMs = txStartedAt !== null ? Date.now() - txStartedAt : 0;
+    el('tx-progress-text').textContent = `${formatMmSs(elapsedMs)} · ${Math.min(decodedCount, total)} / ${total} characters`;
+    el('tx-progress-fill').style.width = total > 0 ? `${Math.min(100, Math.round((decodedCount / total) * 100))}%` : '0%';
+}
+
+function updateTxLiveDisplay() {
+    el('tx-current-morse').textContent = txEngine.currentMorse || ' ';
+    el('tx-decoded').textContent = txEngine.decodedText || ' ';
+    const stats = txEngine.getStats();
+    el('tx-actual-wpm').textContent = stats.actualWpm !== null ? String(stats.actualWpm) : '—';
+    updateTxProgress();
+}
+
+function showTxFeedback(feedback) {
+    const box = el('tx-feedback');
+    box.textContent = t(`transmission.fb.${feedback.messageKey}`);
+    box.className = 'tx-feedback' + (feedback.verdict === 'correct' ? ' state-correct' : feedback.verdict === 'irregular' ? ' state-warning' : '');
+}
+
+function startTxTimer() {
+    stopTxTimer();
+    txTimerId = setInterval(updateTxProgress, 250);
+}
+
+function stopTxTimer() {
+    if (txTimerId) {
+        clearInterval(txTimerId);
+        txTimerId = null;
+    }
+}
+
+/** Gated to the transmission-play screen only (see onTransmissionKeydown/Keyup) — Space presses on every other screen are completely untouched, so normal typing/scrolling elsewhere is never affected. */
+function onTransmissionKeydown(e) {
+    if (currentScreen !== 'transmission-play') return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    e.preventDefault(); // always, even on OS auto-repeat, so the page never scrolls while keying
+    if (txKeyPhysicallyDown) return; // auto-repeat — TransmissionEngine.keyDown() also dedupes this, but skip the state churn entirely
+    txKeyPhysicallyDown = true;
+
+    if (txStartedAt === null) {
+        txStartedAt = Date.now();
+        startTxTimer();
+    }
+    el('tx-key-area').classList.add('is-pressed');
+    el('tx-status').textContent = t('transmission.statusKeyDown');
+    txEngine.keyDown(performance.now());
+}
+
+function onTransmissionKeyup(e) {
+    if (currentScreen !== 'transmission-play') return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (!txKeyPhysicallyDown) return;
+    e.preventDefault();
+    txKeyPhysicallyDown = false;
+
+    el('tx-key-area').classList.remove('is-pressed');
+    el('tx-status').textContent = t('transmission.statusWaiting');
+    txEngine.keyUp(performance.now());
+    updateTxLiveDisplay();
+}
+
+/** Restarts THIS SAME target (same seed): resets the engine/timer/displays but keeps the exercise itself — a brand-new target only happens via the explicit "New Exercise" action. */
+function restartTransmission() {
+    if (!currentTransmission) return;
+    renderTransmissionPlay();
+}
+
+async function submitTransmissionAnswer() {
+    if (!currentTransmission || !txEngine) return;
+    showTxPlayError('');
+    if (txEngine.elementLog.length === 0 && !txKeyPhysicallyDown) {
+        showTxPlayError(t('groupSession.keyAtLeastOne'));
+        return;
+    }
+    if (txKeyPhysicallyDown) {
+        // A held key at submit time still has a final press to account for.
+        txEngine.keyUp(performance.now());
+        txKeyPhysicallyDown = false;
+    }
+    txEngine.flush();
+    stopTxTimer();
+
+    const payload = {
+        characters: currentTransmission.characters,
+        groupSize: currentTransmission.groupSize || 0,
+        groupCount: currentTransmission.groupCount,
+        seed: currentTransmission.seed,
+        wpm: txWpm,
+        toleranceFactor: txToleranceFactor,
+        elementLog: txEngine.elementLog,
+    };
+
+    let result;
+    try {
+        result = await api('/api/practice/transmission/attempts', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (err) {
+        showTxPlayError(err.message);
+        return;
+    }
+
+    lastTransmissionResult = result;
+    renderTransmissionResults(result);
+    showScreen('transmission-results');
+}
+
+const TIMING_STAT_ROWS = [
+    ['transmission.targetWpm', (s) => s.targetWpm],
+    ['stats.actualWpm', (s) => (s.actualWpm !== null ? s.actualWpm : '—')],
+    ['transmission.avgDotDuration', (s) => (s.avgDotMs !== null ? `${s.avgDotMs} ms` : '—')],
+    ['transmission.avgDashDuration', (s) => (s.avgDashMs !== null ? `${s.avgDashMs} ms` : '—')],
+    ['transmission.avgCharacterGap', (s) => (s.avgCharacterGapMs !== null ? `${s.avgCharacterGapMs} ms` : '—')],
+    ['transmission.avgWordGap', (s) => (s.avgWordGapMs !== null ? `${s.avgWordGapMs} ms` : '—')],
+    ['transmission.rhythmConsistency', (s) => (s.rhythmConsistencyPercent !== null ? `${s.rhythmConsistencyPercent}%` : '—')],
+    ['transmission.timingErrors', (s) => s.timingErrorCount],
+    ['transmission.totalTransmissionTime', (s) => formatMmSs(s.totalDurationMs)],
+];
+
+function renderTransmissionResults(result) {
+    const { score, stats } = result;
+
+    el('txr-subtitle').textContent = `${score.totalExpected} ${t('common.characters')} · ${t('common.targetUnit')} ${stats.targetWpm} ${t('common.wpmShort')}`;
+
+    const accuracyEl = el('txr-accuracy');
+    accuracyEl.textContent = `${score.accuracyPercent}%`;
+    accuracyEl.className = 'result-accuracy' + (score.accuracyPercent >= 90 ? '' : score.accuracyPercent >= 60 ? ' mid' : ' low');
+
+    const characterGrade = result.characterGrade;
+    const gradeEl = el('txr-grade');
+    gradeEl.textContent = characterGrade ? String(characterGrade.grade) : '—';
+    gradeEl.className = 'result-grade-value' + (characterGrade && window.GradingService ? ' ' + window.GradingService.gradeSeverityClass(characterGrade.grade) : '');
+
+    el('txr-total').textContent = String(score.totalExpected);
+    el('txr-correct').textContent = String(score.correctCount);
+    el('txr-incorrect').textContent = String(score.incorrectCount);
+    el('txr-missing').textContent = String(score.missingCount);
+    el('txr-extra').textContent = String(score.extraCount);
+    el('txr-errors').textContent = String(score.errorCount);
+
+    renderComparison('txr-compare', score.ops, result.groupSize || 5);
+
+    const tbody = el('txr-timing-tbody');
+    tbody.innerHTML = '';
+    TIMING_STAT_ROWS.forEach(([label, get]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${t(label)}</td><td>${get(stats)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// =======================================================================
+// Free Transmission — no target, no grading, nothing saved. A sandbox
+// around the exact same TransmissionEngine the graded Exercise mode
+// uses, minus everything that makes it an assessment: no target text
+// (never generated, never fetched), no server round-trip at all, no
+// score/grade. Only WPM/tolerance are read from the settings screen —
+// character pool/length don't apply since there's no target to build.
+// =======================================================================
+let freeTxEngine = null;
+let freeTxTimerId = null;
+let freeTxAccumulatedMs = 0;
+let freeTxSegmentStartedAt = null;
+let freeTxKeyPhysicallyDown = false;
+
+function startFreeTransmission() {
+    const wpm = Number(el('tx-setting-wpm').value) || 15;
+    const toleranceFactor = Number(el('tx-setting-tolerance').value) || 0.35;
+
+    freeTxEngine = new MorseTransmitterCore.TransmissionEngine({
+        wpm,
+        toleranceFactor,
+        onFeedback: (f) => showFreeTxFeedback(f),
+        onCharacterDecoded: () => updateFreeTxLiveDisplay(),
+        onSequenceChange: () => updateFreeTxLiveDisplay(),
+    });
+    freeTxAccumulatedMs = 0;
+    freeTxSegmentStartedAt = null;
+    freeTxKeyPhysicallyDown = false;
+
+    el('txf-status').textContent = t('transmission.statusReadyFree');
+    el('txf-elapsed').textContent = '0:00';
+    el('txf-actual-wpm').textContent = '—';
+    el('txf-rhythm').textContent = '—';
+    el('txf-current-morse').innerHTML = '&nbsp;';
+    el('txf-decoded').textContent = '';
+    el('txf-feedback').textContent = '';
+    el('txf-feedback').className = 'tx-feedback';
+    el('txf-timing-tbody').innerHTML = '';
+    stopFreeTxTimer();
+
+    showScreen('transmission-free');
+    const keyArea = el('txf-key-area');
+    if (keyArea && typeof keyArea.focus === 'function') keyArea.focus();
+}
+
+function clearFreeTransmission() {
+    startFreeTransmission();
+}
+
+function updateFreeTxLiveDisplay() {
+    el('txf-current-morse').textContent = freeTxEngine.currentMorse || ' ';
+    el('txf-decoded').textContent = freeTxEngine.decodedText || ' ';
+    renderFreeTxStats();
+}
+
+function showFreeTxFeedback(feedback) {
+    const box = el('txf-feedback');
+    box.textContent = t(`transmission.fb.${feedback.messageKey}`);
+    box.className = 'tx-feedback' + (feedback.verdict === 'correct' ? ' state-correct' : feedback.verdict === 'irregular' ? ' state-warning' : '');
+}
+
+function renderFreeTxStats() {
+    const stats = freeTxEngine.getStats();
+    el('txf-actual-wpm').textContent = stats.actualWpm !== null ? String(stats.actualWpm) : '—';
+    el('txf-rhythm').textContent = stats.rhythmConsistencyPercent !== null ? `${stats.rhythmConsistencyPercent}%` : '—';
+
+    const tbody = el('txf-timing-tbody');
+    tbody.innerHTML = '';
+    TIMING_STAT_ROWS.forEach(([label, get]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${t(label)}</td><td>${get(stats)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function startFreeTxTimer() {
+    stopFreeTxTimer();
+    freeTxSegmentStartedAt = Date.now();
+    freeTxTimerId = setInterval(() => {
+        const elapsed = freeTxAccumulatedMs + (Date.now() - freeTxSegmentStartedAt);
+        el('txf-elapsed').textContent = formatMmSs(elapsed);
+    }, 250);
+}
+
+function stopFreeTxTimer() {
+    if (freeTxTimerId) {
+        clearInterval(freeTxTimerId);
+        freeTxTimerId = null;
+    }
+}
+
+// Real-time keying tone for Free Transmission: the shared MorseAudioPlayer's
+// live startTone()/stopTone() (no second audio system) — sounds from the
+// instant Space goes down until the instant it comes back up.
+let freeTxTonePlayer = null;
+
+function ensureFreeTxTonePlayer() {
+    if (!freeTxTonePlayer) freeTxTonePlayer = new MorseAudioPlayer({ toneFrequencyHz: 600, volume: 0.5 });
+    return freeTxTonePlayer;
+}
+
+/** Gated to the Free Transmission screen only — every other screen's Space presses (including the graded Exercise mode) are completely unaffected. */
+function onFreeTxKeydown(e) {
+    if (currentScreen !== 'transmission-free') return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    e.preventDefault(); // always, even on OS auto-repeat, so the page never scrolls
+    if (freeTxKeyPhysicallyDown) return; // auto-repeat: never a second, overlapping tone
+    freeTxKeyPhysicallyDown = true;
+
+    // A previously clicked button (Clear, Back) must not also be
+    // "pressed" by Space — keying owns the Space bar on this screen.
+    const focused = document.activeElement;
+    if (focused && focused !== document.body && typeof focused.blur === 'function') focused.blur();
+
+    ensureFreeTxTonePlayer().startTone();
+    if (freeTxSegmentStartedAt === null) startFreeTxTimer();
+    el('txf-key-area').classList.add('is-pressed');
+    el('txf-status').textContent = t('transmission.statusKeyDown');
+    freeTxEngine.keyDown(performance.now());
+}
+
+function onFreeTxKeyup(e) {
+    if (currentScreen !== 'transmission-free') return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (!freeTxKeyPhysicallyDown) return;
+    e.preventDefault();
+    releaseFreeTxKey();
+}
+
+/** Key-up bookkeeping, shared by the real keyup and by the safety release (window blur / tab hidden / leaving the screen) when a keyup would otherwise never arrive. */
+function releaseFreeTxKey() {
+    if (!freeTxKeyPhysicallyDown) return;
+    freeTxKeyPhysicallyDown = false;
+    if (freeTxTonePlayer) freeTxTonePlayer.stopTone();
+
+    el('txf-key-area').classList.remove('is-pressed');
+    el('txf-status').textContent = t('transmission.statusTransmittingFree');
+    freeTxEngine.keyUp(performance.now());
+    updateFreeTxLiveDisplay();
+}
+
 /** Leave hook for the session screen: stops audio and invalidates any in-flight round so navigating away never lets a stray callback act on the next screen. */
 function abortCharacterTrainingRound() {
     ctRoundToken += 1;
@@ -948,13 +1724,17 @@ async function init() {
     try {
         await loadCharsets();
     } catch (err) {
-        showRadiogramError(`Could not load character sets: ${err.message}`);
-        showCtSettingsError(`Could not load character sets: ${err.message}`);
+        showRadiogramError(t('validation.couldNotLoadCharsets', { message: err.message }));
+        showCtSettingsError(t('validation.couldNotLoadCharsets', { message: err.message }));
+        showReceptionError(t('validation.couldNotLoadCharsets', { message: err.message }));
+        showTransmissionError(t('validation.couldNotLoadCharsets', { message: err.message }));
     }
 
     // Hub navigation
     el('hub-card-radiogram').addEventListener('click', () => showScreen('radiogram-settings'));
     el('hub-card-character-training').addEventListener('click', () => showScreen('character-training-settings'));
+    el('hub-card-reception').addEventListener('click', () => showScreen('reception-settings'));
+    el('hub-card-transmission').addEventListener('click', () => showScreen('transmission-settings'));
 
     document.querySelectorAll('.back-link[data-back-to]').forEach((btn) => {
         btn.addEventListener('click', () => showScreen(btn.dataset.backTo));
@@ -963,6 +1743,14 @@ async function init() {
     // Character pool controls (shared picker, one instance per screen)
     radiogramPool.wireEvents('pool-quick-actions');
     characterTrainingPool.wireEvents('ct-pool-quick-actions');
+    el('learned-apply-button').addEventListener('click', () => {
+        radiogramPool.applyLearnedPreset(Number(el('learned-count').value));
+    });
+    if (window.SpeedProgression) {
+        window.SpeedProgression.renderSpeedProgressionChips('speed-progression', (wpm) => {
+            el('setting-wpm').value = wpm;
+        });
+    }
 
     // Radiogram settings -> generate
     el('generate-button').addEventListener('click', generateRadiogram);
@@ -993,6 +1781,14 @@ async function init() {
             el('ct-setting-length').value = btn.dataset.length;
         });
     });
+    el('ct-learned-apply-button').addEventListener('click', () => {
+        characterTrainingPool.applyLearnedPreset(Number(el('ct-learned-count').value));
+    });
+    if (window.SpeedProgression) {
+        window.SpeedProgression.renderSpeedProgressionChips('ct-speed-progression', (wpm) => {
+            el('ct-setting-wpm').value = wpm;
+        });
+    }
     el('ct-start-button').addEventListener('click', startCharacterTrainingSession);
     el('ctr-practice-again-button').addEventListener('click', startCharacterTrainingSession);
     el('ctr-practice-weak-button').addEventListener('click', practiceWeakCharacters);
@@ -1000,6 +1796,89 @@ async function init() {
     // Character Training gameplay: one global keydown listener, gated by
     // screen + awaiting-answer state rather than added/removed per round.
     document.addEventListener('keydown', onGlobalKeydown);
+
+    // Reception Training settings
+    receptionPool.wireEvents('rcp-pool-quick-actions');
+    el('rcp-learned-apply-button').addEventListener('click', () => {
+        receptionPool.applyLearnedPreset(Number(el('rcp-learned-count').value));
+    });
+    if (window.SpeedProgression) {
+        window.SpeedProgression.renderSpeedProgressionChips('rcp-speed-progression', (wpm) => {
+            el('rcp-setting-wpm').value = wpm;
+        });
+    }
+    document.querySelectorAll('#rcp-length-quick-actions .chip-button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            el('rcp-setting-group-count').value = btn.dataset.groups;
+            updateReceptionLengthSummary();
+        });
+    });
+    el('rcp-setting-group-size').addEventListener('input', updateReceptionLengthSummary);
+    el('rcp-setting-group-count').addEventListener('input', updateReceptionLengthSummary);
+    updateReceptionLengthSummary();
+    el('rcp-start-button').addEventListener('click', generateReception);
+
+    // Reception Training playback
+    el('rcp-play-button').addEventListener('click', startReceptionPlayback);
+    el('rcp-pause-button').addEventListener('click', pauseReceptionPlayback);
+    el('rcp-resume-button').addEventListener('click', resumeReceptionPlayback);
+    el('rcp-stop-button').addEventListener('click', stopReceptionPlayback);
+    el('rcp-replay-button').addEventListener('click', replayReceptionPlayback);
+    el('rcp-restart-button').addEventListener('click', restartReceptionExercise);
+    el('rcp-play-volume').addEventListener('input', () => {
+        if (receptionPlayer) receptionPlayer.setVolume(Number(el('rcp-play-volume').value) / 100);
+    });
+    el('rcp-generate-another-button').addEventListener('click', generateReception);
+    el('rcp-submit-button').addEventListener('click', submitReceptionAnswer);
+
+    // Reception Training results
+    el('rcpr-generate-another-button').addEventListener('click', generateReception);
+
+    // Morse Transmission settings
+    transmissionPool.wireEvents('tx-pool-quick-actions');
+    el('tx-learned-apply-button').addEventListener('click', () => {
+        transmissionPool.applyLearnedPreset(Number(el('tx-learned-count').value));
+    });
+    if (window.SpeedProgression) {
+        window.SpeedProgression.renderSpeedProgressionChips('tx-speed-progression', (wpm) => {
+            el('tx-setting-wpm').value = wpm;
+        });
+    }
+    document.querySelectorAll('#tx-length-quick-actions .chip-button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            el('tx-setting-group-count').value = btn.dataset.groups;
+            updateTransmissionLengthSummary();
+        });
+    });
+    el('tx-setting-group-size').addEventListener('input', updateTransmissionLengthSummary);
+    el('tx-setting-group-count').addEventListener('input', updateTransmissionLengthSummary);
+    updateTransmissionLengthSummary();
+    el('tx-start-button').addEventListener('click', generateTransmission);
+
+    // Morse Transmission keying: Space keydown/keyup, gated to the
+    // transmission-play screen only (see onTransmissionKeydown) so every
+    // other screen's normal keyboard/typing behavior is untouched.
+    document.addEventListener('keydown', onTransmissionKeydown);
+    document.addEventListener('keyup', onTransmissionKeyup);
+    el('tx-restart-button').addEventListener('click', restartTransmission);
+    el('tx-generate-another-button').addEventListener('click', generateTransmission);
+    el('tx-submit-button').addEventListener('click', submitTransmissionAnswer);
+
+    // Morse Transmission results
+    el('txr-generate-another-button').addEventListener('click', generateTransmission);
+
+    // Free Transmission (no target, no grading)
+    el('tx-free-start-button').addEventListener('click', startFreeTransmission);
+    el('txf-clear-button').addEventListener('click', clearFreeTransmission);
+    document.addEventListener('keydown', onFreeTxKeydown);
+    document.addEventListener('keyup', onFreeTxKeyup);
+    // A keyup that happens while the window isn't focused never reaches
+    // us — release the key (and silence the tone) instead of leaving it
+    // sounding forever.
+    window.addEventListener('blur', releaseFreeTxKey);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) releaseFreeTxKey();
+    });
 
     showScreen('hub');
 }

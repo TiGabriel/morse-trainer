@@ -67,7 +67,7 @@ let activeModalSubmit = null;
  * onSubmit(values) -> should return a Promise; throw an Error with a
  * user-facing message to show it inline in the modal.
  */
-function openModal({ title, fields, note, confirmLabel = 'Save', onSubmit }) {
+function openModal({ title, fields, note, confirmLabel = t('common.save'), onSubmit }) {
     modalTitle.textContent = title;
     modalError.hidden = true;
     modalError.textContent = '';
@@ -126,7 +126,7 @@ function openModal({ title, fields, note, confirmLabel = 'Save', onSubmit }) {
                 closeModal();
             }
         } catch (err) {
-            modalError.textContent = err.message || 'Something went wrong.';
+            modalError.textContent = err.message || t('teacher.somethingWrong');
             modalError.hidden = false;
         } finally {
             modalConfirmBtn.disabled = false;
@@ -174,7 +174,7 @@ function renderClasses(classes) {
     tbody.innerHTML = '';
 
     if (classes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="muted">No classes yet. Create one to get started.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(t('teacher.noClassesYet'))}</td></tr>`;
         return;
     }
 
@@ -182,8 +182,8 @@ function renderClasses(classes) {
         const tr = document.createElement('tr');
 
         const statusBadge = cls.isActive
-            ? '<span class="badge badge-active">Active</span>'
-            : '<span class="badge badge-inactive">Inactive</span>';
+            ? `<span class="badge badge-active">${escapeHtml(t('common.active'))}</span>`
+            : `<span class="badge badge-inactive">${escapeHtml(t('common.inactive'))}</span>`;
 
         tr.innerHTML = `
             <td>${escapeHtml(cls.name)}</td>
@@ -194,19 +194,19 @@ function renderClasses(classes) {
 
         const actions = tr.querySelector('.row-actions');
 
-        actions.appendChild(makeButton('Rename', 'btn-secondary', () => openRenameClassModal(cls), true));
+        actions.appendChild(makeButton(t('teacher.rename'), 'btn-secondary', () => openRenameClassModal(cls), true));
         actions.appendChild(
             makeButton(
-                cls.isActive ? 'Deactivate' : 'Reactivate',
+                cls.isActive ? t('teacher.deactivate') : t('teacher.reactivate'),
                 cls.isActive ? 'btn-secondary' : 'btn-primary',
                 () => toggleClassActive(cls),
                 true
             )
         );
 
-        const deleteBtn = makeButton('Delete', 'btn-danger', () => confirmDeleteClass(cls), true);
+        const deleteBtn = makeButton(t('common.delete'), 'btn-danger', () => confirmDeleteClass(cls), true);
         deleteBtn.disabled = cls.studentCount > 0;
-        if (cls.studentCount > 0) deleteBtn.title = 'Reassign or remove students before deleting.';
+        if (cls.studentCount > 0) deleteBtn.title = t('teacher.reassignBeforeDelete');
         actions.appendChild(deleteBtn);
 
         tbody.appendChild(tr);
@@ -216,7 +216,7 @@ function renderClasses(classes) {
 function populateClassFilter(classes) {
     const select = document.getElementById('class-filter');
     const previousValue = select.value;
-    select.innerHTML = '<option value="">All classes</option><option value="none">No class</option>';
+    select.innerHTML = `<option value="">${escapeHtml(t('teacher.allClasses'))}</option><option value="none">${escapeHtml(t('teacher.noClass'))}</option>`;
     classes.forEach((cls) => {
         const opt = document.createElement('option');
         opt.value = String(cls.id);
@@ -228,13 +228,13 @@ function populateClassFilter(classes) {
 
 function openNewClassModal() {
     openModal({
-        title: 'New Class',
-        fields: [{ key: 'name', label: 'Class name', type: 'text', placeholder: 'e.g. Radio Comms 101' }],
-        confirmLabel: 'Create',
+        title: t('teacher.newClassModalTitle'),
+        fields: [{ key: 'name', label: t('teacher.className'), type: 'text', placeholder: t('teacher.classNamePlaceholder') }],
+        confirmLabel: t('teacher.create'),
         onSubmit: async (values) => {
-            if (!values.name.trim()) throw new Error('Class name is required.');
+            if (!values.name.trim()) throw new Error(t('teacher.errClassNameRequired'));
             await api('/api/classes', { method: 'POST', body: JSON.stringify({ name: values.name.trim() }) });
-            showToast('Class created.', 'success');
+            showToast(t('teacher.toastClassCreated'), 'success');
             await Promise.all([loadClasses(), loadStudents()]);
         },
     });
@@ -242,13 +242,13 @@ function openNewClassModal() {
 
 function openRenameClassModal(cls) {
     openModal({
-        title: `Rename "${cls.name}"`,
-        fields: [{ key: 'name', label: 'Class name', type: 'text', value: cls.name }],
-        confirmLabel: 'Save',
+        title: t('teacher.renameModalTitle', { name: cls.name }),
+        fields: [{ key: 'name', label: t('teacher.className'), type: 'text', value: cls.name }],
+        confirmLabel: t('common.save'),
         onSubmit: async (values) => {
-            if (!values.name.trim()) throw new Error('Class name is required.');
+            if (!values.name.trim()) throw new Error(t('teacher.errClassNameRequired'));
             await api(`/api/classes/${cls.id}`, { method: 'PATCH', body: JSON.stringify({ name: values.name.trim() }) });
-            showToast('Class renamed.', 'success');
+            showToast(t('teacher.toastClassRenamed'), 'success');
             await Promise.all([loadClasses(), loadStudents()]);
         },
     });
@@ -260,7 +260,7 @@ async function toggleClassActive(cls) {
             method: 'PATCH',
             body: JSON.stringify({ isActive: !cls.isActive }),
         });
-        showToast(cls.isActive ? 'Class deactivated.' : 'Class reactivated.', 'success');
+        showToast(cls.isActive ? t('teacher.toastClassDeactivated') : t('teacher.toastClassReactivated'), 'success');
         await loadClasses();
     } catch (err) {
         showToast(err.message, 'error');
@@ -269,13 +269,13 @@ async function toggleClassActive(cls) {
 
 function confirmDeleteClass(cls) {
     openModal({
-        title: `Delete "${cls.name}"?`,
+        title: t('teacher.deleteClassModalTitle', { name: cls.name }),
         fields: [],
-        note: 'This permanently removes the class. This cannot be undone.',
-        confirmLabel: 'Delete',
+        note: t('teacher.deleteClassNote'),
+        confirmLabel: t('common.delete'),
         onSubmit: async () => {
             await api(`/api/classes/${cls.id}`, { method: 'DELETE' });
-            showToast('Class deleted.', 'success');
+            showToast(t('teacher.toastClassDeleted'), 'success');
             await loadClasses();
         },
     });
@@ -302,38 +302,38 @@ function renderStudents(students) {
     tbody.innerHTML = '';
 
     if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted">No students match the current filters.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(t('teacher.noStudentsMatch'))}</td></tr>`;
         return;
     }
 
     students.forEach((student) => {
         const tr = document.createElement('tr');
         const statusBadge = student.isActive
-            ? '<span class="badge badge-active">Active</span>'
-            : '<span class="badge badge-inactive">Inactive</span>';
+            ? `<span class="badge badge-active">${escapeHtml(t('common.active'))}</span>`
+            : `<span class="badge badge-inactive">${escapeHtml(t('common.inactive'))}</span>`;
 
         tr.innerHTML = `
             <td>${escapeHtml(student.rank || '—')}</td>
             <td>${escapeHtml(student.lastName || '—')}</td>
             <td>${escapeHtml(student.firstName || '—')}</td>
             <td>${escapeHtml(student.username)}</td>
-            <td>${escapeHtml(student.className || '— none —')}</td>
+            <td>${escapeHtml(student.className || t('teacher.noClass'))}</td>
             <td>${statusBadge}</td>
             <td class="col-actions"><div class="row-actions"></div></td>
         `;
 
         const actions = tr.querySelector('.row-actions');
 
-        actions.appendChild(makeButton('Edit', 'btn-secondary', () => openEditStudentModal(student), true));
+        actions.appendChild(makeButton(t('common.edit'), 'btn-secondary', () => openEditStudentModal(student), true));
         actions.appendChild(
             makeButton(
-                student.isActive ? 'Deactivate' : 'Reactivate',
+                student.isActive ? t('teacher.deactivate') : t('teacher.reactivate'),
                 student.isActive ? 'btn-secondary' : 'btn-primary',
                 () => toggleStudentActive(student),
                 true
             )
         );
-        actions.appendChild(makeButton('Reset PW', 'btn-secondary', () => confirmResetPassword(student), true));
+        actions.appendChild(makeButton(t('teacher.resetPw'), 'btn-secondary', () => confirmResetPassword(student), true));
 
         tbody.appendChild(tr);
     });
@@ -341,24 +341,24 @@ function renderStudents(students) {
 
 function openNewStudentModal() {
     openModal({
-        title: 'New Student',
-        confirmLabel: 'Create',
+        title: t('teacher.newStudentModalTitle'),
+        confirmLabel: t('teacher.create'),
         fields: [
-            { key: 'username', label: 'Username', type: 'text' },
-            { key: 'password', label: 'Temporary password', type: 'text', placeholder: 'At least 8 characters' },
-            { key: 'rank', label: 'Rank', type: 'text' },
-            { key: 'firstName', label: 'First name', type: 'text' },
-            { key: 'lastName', label: 'Last name', type: 'text' },
+            { key: 'username', label: t('teacher.username'), type: 'text' },
+            { key: 'password', label: t('teacher.tempPassword'), type: 'text', placeholder: t('teacher.tempPasswordPlaceholder') },
+            { key: 'rank', label: t('auth.rank'), type: 'text' },
+            { key: 'firstName', label: t('teacher.firstName'), type: 'text' },
+            { key: 'lastName', label: t('teacher.lastName'), type: 'text' },
             {
                 key: 'classId',
-                label: 'Class',
+                label: t('common.class'),
                 type: 'select',
-                options: [{ value: '', label: '— No class —' }, ...classesCache.map((c) => ({ value: String(c.id), label: c.name }))],
+                options: [{ value: '', label: t('teacher.noClass') }, ...classesCache.map((c) => ({ value: String(c.id), label: c.name }))],
             },
         ],
         onSubmit: async (values) => {
-            if (!values.username.trim()) throw new Error('Username is required.');
-            if (!values.password || values.password.length < 8) throw new Error('Password must be at least 8 characters.');
+            if (!values.username.trim()) throw new Error(t('teacher.errUsernameRequired'));
+            if (!values.password || values.password.length < 8) throw new Error(t('teacher.errPasswordLength'));
 
             await api('/api/users', {
                 method: 'POST',
@@ -372,7 +372,7 @@ function openNewStudentModal() {
                     classId: values.classId ? Number(values.classId) : null,
                 }),
             });
-            showToast('Student created.', 'success');
+            showToast(t('teacher.toastStudentCreated'), 'success');
             await Promise.all([loadStudents(), loadClasses()]);
         },
     });
@@ -380,23 +380,23 @@ function openNewStudentModal() {
 
 function openEditStudentModal(student) {
     openModal({
-        title: `Edit ${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Edit Student',
-        confirmLabel: 'Save',
+        title: `${t('common.edit')} ${student.firstName || ''} ${student.lastName || ''}`.trim() || t('teacher.editStudentModalTitle'),
+        confirmLabel: t('common.save'),
         fields: [
-            { key: 'username', label: 'Username', type: 'text', value: student.username },
-            { key: 'rank', label: 'Rank', type: 'text', value: student.rank || '' },
-            { key: 'firstName', label: 'First name', type: 'text', value: student.firstName || '' },
-            { key: 'lastName', label: 'Last name', type: 'text', value: student.lastName || '' },
+            { key: 'username', label: t('teacher.username'), type: 'text', value: student.username },
+            { key: 'rank', label: t('auth.rank'), type: 'text', value: student.rank || '' },
+            { key: 'firstName', label: t('teacher.firstName'), type: 'text', value: student.firstName || '' },
+            { key: 'lastName', label: t('teacher.lastName'), type: 'text', value: student.lastName || '' },
             {
                 key: 'classId',
-                label: 'Class',
+                label: t('common.class'),
                 type: 'select',
                 value: student.classId != null ? String(student.classId) : '',
-                options: [{ value: '', label: '— No class —' }, ...classesCache.map((c) => ({ value: String(c.id), label: c.name }))],
+                options: [{ value: '', label: t('teacher.noClass') }, ...classesCache.map((c) => ({ value: String(c.id), label: c.name }))],
             },
         ],
         onSubmit: async (values) => {
-            if (!values.username.trim()) throw new Error('Username is required.');
+            if (!values.username.trim()) throw new Error(t('teacher.errUsernameRequired'));
             await api(`/api/users/${student.id}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
@@ -407,7 +407,7 @@ function openEditStudentModal(student) {
                     classId: values.classId ? Number(values.classId) : null,
                 }),
             });
-            showToast('Student updated.', 'success');
+            showToast(t('teacher.toastStudentUpdated'), 'success');
             await Promise.all([loadStudents(), loadClasses()]);
         },
     });
@@ -419,7 +419,7 @@ async function toggleStudentActive(student) {
             method: 'PATCH',
             body: JSON.stringify({ isActive: !student.isActive }),
         });
-        showToast(student.isActive ? 'Student deactivated.' : 'Student reactivated.', 'success');
+        showToast(student.isActive ? t('teacher.toastStudentDeactivated') : t('teacher.toastStudentReactivated'), 'success');
         await loadStudents();
     } catch (err) {
         showToast(err.message, 'error');
@@ -428,10 +428,10 @@ async function toggleStudentActive(student) {
 
 function confirmResetPassword(student) {
     openModal({
-        title: `Reset password for ${student.username}`,
-        note: 'A new random password will be generated and shown once below. Any sessions this student has open will be signed out.',
+        title: t('teacher.resetPasswordTitle', { username: student.username }),
+        note: t('teacher.resetPasswordNote'),
         fields: [],
-        confirmLabel: 'Generate new password',
+        confirmLabel: t('teacher.generateNewPassword'),
         onSubmit: async () => {
             const result = await api(`/api/users/${student.id}/reset-password`, { method: 'POST', body: JSON.stringify({}) });
 
@@ -444,11 +444,11 @@ function confirmResetPassword(student) {
 
             const hint = document.createElement('p');
             hint.className = 'modal-note';
-            hint.textContent = 'Write this down now — it will not be shown again. Click Cancel to close.';
+            hint.textContent = t('teacher.writeDownPassword');
             modalBody.appendChild(hint);
 
             modalConfirmBtn.hidden = true;
-            showToast('Password reset.', 'success');
+            showToast(t('teacher.toastPasswordReset'), 'success');
 
             return { keepOpen: true };
         },
@@ -480,7 +480,7 @@ function renderDashboardSessions() {
 
     tbody.innerHTML = '';
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted">No group sessions match the current filters.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(t('teacher.noSessionsMatch'))}</td></tr>`;
         return;
     }
 
@@ -488,17 +488,17 @@ function renderDashboardSessions() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${escapeHtml(s.className || '—')}</td>
-            <td>${escapeHtml(s.type)}</td>
+            <td>${escapeHtml(s.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice'))}</td>
             <td>${escapeHtml(s.difficulty || '—')}</td>
             <td>${s.wpm}</td>
             <td>${s.exerciseCount}</td>
-            <td><span class="badge status-${s.status}">${escapeHtml(s.status)}</span></td>
+            <td><span class="badge status-${s.status}">${escapeHtml(t('teacher.status' + s.status.charAt(0).toUpperCase() + s.status.slice(1)) || s.status)}</span></td>
             <td class="col-actions"><div class="row-actions"></div></td>
         `;
         const actions = tr.querySelector('.row-actions');
         actions.appendChild(
             makeButton(
-                'Open',
+                t('teacher.open'),
                 'btn-secondary',
                 () => {
                     window.location.href = `/sessions.html?open=${s.id}`;
@@ -563,7 +563,7 @@ function renderGrades() {
 
     tbody.innerHTML = '';
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="muted">No students match the current filters.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="9" class="muted">${escapeHtml(t('teacher.noStudentsMatch'))}</td></tr>`;
         return;
     }
 
@@ -647,6 +647,17 @@ async function init() {
     await loadStudents();
     await loadDashboardSessions();
     await loadGrades();
+
+    // Rows built from fetched data don't retranslate themselves on a
+    // same-page language switch — re-render (from already-fetched
+    // caches where possible, no need to hit the API again) whichever
+    // tables are visible.
+    document.addEventListener('morseTrainer:languageChanged', () => {
+        renderClasses(classesCache);
+        loadStudents();
+        renderDashboardSessions();
+        renderGrades();
+    });
 }
 
 init();

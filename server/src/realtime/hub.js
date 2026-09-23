@@ -151,7 +151,7 @@ function resyncActiveItem(ws, sessionId, session) {
             itemIndex: runtime.currentItemIndex,
             deadlineAt: runtime.currentDeadlineAt,
             serverNow: Date.now(),
-            item: sessionRuntime.publicItemPayload(item, { includeAnswer: session.type === 'test' }),
+            item: sessionRuntime.publicItemPayload(item, { includeAnswer: true }),
         });
     } else if (runtime.scheduledStartAt) {
         send(ws, {

@@ -10,63 +10,78 @@
             } catch (e) {
                 document.documentElement.dataset.theme = 'dark';
             }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Morse SMMMFN — Group Session</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/group-session.css" />
+    <!-- Reuses Individual Training's .tx-key-area/.tx-current-morse/.tx-feedback/.tx-decoded styles for Morse Transmission items, rather than a duplicate copy of them. -->
+    <link rel="stylesheet" href="/css/practice.css" />
 </head>
 <body class="practice-body">
-    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+    <div id="auth-gate" class="auth-gate" data-i18n="auth.checkingAccess">Checking access&hellip;</div>
 
     <div id="app" hidden>
-        <div id="connection-banner" class="connection-banner" hidden>&#9888; Connection lost — reconnecting&hellip;</div>
+        <div id="connection-banner" class="connection-banner" hidden>&#9888; <span data-i18n="groupSession.connectionLost">Connection lost — reconnecting&hellip;</span></div>
         <nav class="app-nav" aria-label="Main">
             <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
-                <a href="/" class="app-nav-link">Home</a>
-                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
-                <a href="/group-session.html" class="app-nav-link active">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link">Statistics</a>
+                <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
+                <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+                <a href="/group-session.html" class="app-nav-link active" data-i18n="nav.groupSessions">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+                <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
             <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+            <div class="app-nav-lang-toggle" id="lang-toggle">
+                <button type="button" data-lang-btn="ro">RO</button>
+                <button type="button" data-lang-btn="en">EN</button>
+            </div>
             <div class="app-nav-right">
                 <span id="user-name" class="app-nav-user"></span>
-                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+                <button id="logout-button" class="app-nav-logout" type="button" data-i18n="nav.logout">Log out</button>
             </div>
         </nav>
 
         <main class="practice-main">
             <!-- LIST: available sessions for this student's class -->
             <section id="screen-list" class="practice-screen">
-                <h1><span class="accent">Group</span> Sessions</h1>
-                <p class="subtitle">Sessions your teacher has opened for your class.</p>
-                <div id="no-class-notice" class="modal-error" hidden>
+                <h1 data-i18n-html="groupSession.title"><span class="accent">Group</span> Sessions</h1>
+                <p class="subtitle" data-i18n="groupSession.subtitle">Sessions your teacher has opened for your class.</p>
+                <div id="no-class-notice" class="modal-error" hidden data-i18n="groupSession.noClassNotice">
                     You are not assigned to a class yet — ask your teacher to assign you one.
                 </div>
                 <div id="sessions-list" class="gs-session-list"></div>
-                <button id="refresh-list-button" class="link-button" type="button">Refresh</button>
+                <button id="refresh-list-button" class="link-button" type="button" data-i18n="common.refresh">Refresh</button>
             </section>
 
             <!-- WAITING ROOM: joined, waiting for the teacher to start -->
             <section id="screen-waiting" class="practice-screen" hidden>
-                <h1>Waiting Room</h1>
+                <h1 data-i18n="groupSession.waitingRoom">Waiting Room</h1>
                 <p class="subtitle" id="waiting-config">&mdash;</p>
 
                 <div class="gs-status-box">
-                    <div id="waiting-status-badge" class="badge status-waiting">waiting</div>
+                    <div id="waiting-status-badge" class="badge status-waiting" data-i18n="groupSession.waiting">waiting</div>
                     <div id="waiting-ready-count" class="muted">&mdash;</div>
                 </div>
 
                 <div id="waiting-instructions-box" class="modal-note" hidden>
-                    <strong>Instructions:</strong> <span id="waiting-instructions"></span>
+                    <strong data-i18n="groupSession.instructions">Instructions:</strong> <span id="waiting-instructions"></span>
                 </div>
 
-                <button id="ready-toggle-button" class="btn btn-primary btn-large" type="button">I'm Ready</button>
-                <p class="modal-note">Clicking "I'm Ready" also unlocks audio playback in this browser — required once per session by your browser's autoplay rules.</p>
+                <button id="ready-toggle-button" class="btn btn-primary btn-large" type="button" data-i18n="groupSession.imReady">I'm Ready</button>
+                <p class="modal-note" data-i18n="groupSession.readyHint">Clicking "I'm Ready" also unlocks audio playback in this browser — required once per session by your browser's autoplay rules.</p>
 
-                <button id="leave-waiting-button" class="link-button" type="button">Leave this session</button>
+                <button id="leave-waiting-button" class="link-button" type="button" data-i18n="groupSession.leaveSession">Leave this session</button>
             </section>
 
             <!-- EXERCISE: countdown, playback, and answer submission -->
@@ -76,22 +91,30 @@
                     <span id="exercise-countdown" class="gs-countdown">&mdash;</span>
                 </div>
 
-                <div id="exercise-countdown-banner" class="gs-countdown-banner" hidden>Get ready&hellip;</div>
+                <div id="exercise-countdown-banner" class="gs-countdown-banner" hidden data-i18n="groupSession.getReady">Get ready&hellip;</div>
 
                 <div class="exercise-prompt">
                     <div id="exercise-audio-controls" class="exercise-audio-controls" hidden>
-                        <button id="exercise-replay-button" class="btn btn-secondary" type="button" hidden>&#8635; Replay</button>
+                        <button id="exercise-replay-button" class="btn btn-secondary" type="button" hidden>&#8635; <span data-i18n="groupSession.replay">Replay</span></button>
                     </div>
                     <div id="exercise-text-prompt" class="exercise-text-prompt" hidden></div>
                 </div>
 
-                <div class="modal-field">
-                    <label for="exercise-answer" id="exercise-answer-label">Your answer</label>
+                <!-- Morse Transmission only: Space-bar keying, live decode. Hidden for every other exercise mode, which uses #exercise-answer below instead. -->
+                <div id="exercise-transmission-panel" class="tx-key-area" hidden>
+                    <div class="tx-key-hint" data-i18n-html="transmission.holdSpaceHint">Hold <kbd>Space</kbd> to key a dot or dash.</div>
+                    <div class="tx-current-morse" id="gs-tx-current-morse">&nbsp;</div>
+                    <div class="tx-feedback" id="gs-tx-feedback"></div>
+                    <div class="tx-decoded" id="gs-tx-decoded"></div>
+                </div>
+
+                <div class="modal-field" id="exercise-answer-field">
+                    <label for="exercise-answer" id="exercise-answer-label" data-i18n="groupSession.yourAnswer">Your answer</label>
                     <input type="text" id="exercise-answer" autocomplete="off" autocapitalize="characters" spellcheck="false" disabled />
                 </div>
 
                 <div class="exercise-actions">
-                    <button id="exercise-submit-button" class="btn btn-primary btn-large" type="button" disabled>Submit</button>
+                    <button id="exercise-submit-button" class="btn btn-primary btn-large" type="button" disabled data-i18n="common.submit">Submit</button>
                 </div>
 
                 <div id="exercise-feedback" class="modal-note" hidden></div>
@@ -99,27 +122,31 @@
 
             <!-- FINISHED -->
             <section id="screen-finished" class="practice-screen" hidden>
-                <h1>Session Complete</h1>
-                <p class="subtitle" id="finished-subtitle">Great work.</p>
+                <h1 data-i18n="groupSession.sessionComplete">Session Complete</h1>
+                <p class="subtitle" id="finished-subtitle" data-i18n="groupSession.greatWork">Great work.</p>
 
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Item</th><th>Answer</th><th>Score</th><th>Grade</th><th>Mark</th></tr>
+                            <tr><th data-i18n="groupSession.item">Item</th><th data-i18n="groupSession.answer">Answer</th><th data-i18n="common.score">Score</th><th data-i18n="common.grade">Grade</th><th data-i18n="groupSession.mark">Mark</th></tr>
                         </thead>
-                        <tbody id="finished-results-tbody"><tr><td colspan="5" class="muted">Loading&hellip;</td></tr></tbody>
+                        <tbody id="finished-results-tbody"><tr><td colspan="5" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
                     </table>
                 </div>
 
-                <button id="finished-back-button" class="btn btn-primary btn-large" type="button">Back to Sessions</button>
+                <button id="finished-back-button" class="btn btn-primary btn-large" type="button" data-i18n="groupSession.backToSessions">Back to Sessions</button>
             </section>
         </main>
     </div>
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
     <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/morse-receiver-map.js"></script>
+    <script src="/js/morse-receiver-core.js"></script>
+    <script src="/js/morse-transmitter-core.js"></script>
     <script src="/js/clock-sync.js"></script>
     <script src="/js/grading.js"></script>
     <script src="/js/group-session.js"></script>

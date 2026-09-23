@@ -66,7 +66,13 @@ CREATE TABLE IF NOT EXISTS sessions (
     -- CREATED -> WAITING -> RUNNING <-> PAUSED -> FINISHED
     --    \-> CANCELLED (reachable from CREATED, WAITING, RUNNING, or PAUSED)
     status              TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'waiting', 'running', 'paused', 'finished', 'cancelled')),
-    exercise_mode       TEXT NOT NULL CHECK (exercise_mode IN ('audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition')),
+    -- 'transmission' (added alongside the Morse Transmission feature) is
+    -- distinct from the pre-existing 'text_to_morse' — that mode has
+    -- students TYPE literal dot/dash characters as text; 'transmission'
+    -- has them KEY the target via the Space bar, decoded automatically
+    -- (see sessionEngine.buildTransmissionExercise). Both remain valid,
+    -- unrelated exercise modes.
+    exercise_mode       TEXT NOT NULL CHECK (exercise_mode IN ('audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition', 'transmission')),
     difficulty          TEXT NOT NULL,
     wpm                 INTEGER,
     farnsworth_wpm      INTEGER,
@@ -204,7 +210,12 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires
 CREATE TABLE IF NOT EXISTS practice_attempts (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    exercise_type       TEXT NOT NULL CHECK (exercise_type IN ('audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition')),
+    -- radiogram_training/character_training added alongside the
+    -- Individual Training redesign (Radiograms + Character Training),
+    -- which replaced the original four-mode practice UI — see the
+    -- Phase-N-shaped rebuild in db/migrate.js for existing installs,
+    -- since SQLite can't ALTER a CHECK constraint in place.
+    exercise_type       TEXT NOT NULL CHECK (exercise_type IN ('audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition', 'radiogram_training', 'character_training')),
     difficulty          TEXT,
     wpm                 INTEGER NOT NULL,
     farnsworth_wpm      INTEGER,
@@ -219,11 +230,52 @@ CREATE TABLE IF NOT EXISTS practice_attempts (
     extra_count         INTEGER NOT NULL,
     accuracy_percent    REAL NOT NULL,
     duration_ms         INTEGER,
+    -- Morse Transmission only: dot/dash/gap averages, actual transmission
+    -- WPM, rhythm consistency, and per-feedback-message counts (see
+    -- morse-transmitter-core.js's getStats()), as a JSON blob — NULL for
+    -- every other exercise type, which has no per-keystroke timing to
+    -- report.
+    timing_stats_json   TEXT,
     created_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_practice_attempts_student_id ON practice_attempts(student_id);
 CREATE INDEX IF NOT EXISTS idx_practice_attempts_created_at ON practice_attempts(created_at);
+
+-- Electronic gradebook ("Catalog electronic"): teacher-maintained grades
+-- and written notes/observations per student. Teacher-only, both in the
+-- API (requireRole('teacher')) and the UI.
+--   source = 'manual'      -> typed in by a teacher; permanent immediately.
+--   source = 'formal_test' -> created automatically when a Formal Test
+--                             finishes, from that test's own authoritative
+--                             graded results (see gradebookService.js). It
+--                             starts TEMPORARY (is_permanent = 0) and only
+--                             becomes an official, permanent entry once a
+--                             teacher explicitly confirms it.
+-- details_json holds the Formal Test's result summary (accuracy, items
+-- answered, pass/fail, exercise mode) for display; NULL for manual rows.
+CREATE TABLE IF NOT EXISTS gradebook_entries (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    teacher_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    entry_type          TEXT NOT NULL CHECK (entry_type IN ('grade', 'note')),
+    grade               INTEGER CHECK (grade IS NULL OR (grade BETWEEN 1 AND 10)),
+    note                TEXT,
+    source              TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'formal_test')),
+    source_session_id   INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
+    details_json        TEXT,
+    is_permanent        INTEGER NOT NULL DEFAULT 0,
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_gradebook_entries_student_id ON gradebook_entries(student_id);
+-- At most ONE automatic entry per student per Formal Test, enforced by
+-- the database itself — so the "test finished" event being processed
+-- more than once (auto-finish racing a teacher Stop, a retry, etc.) can
+-- never produce a duplicate (inserts use INSERT OR IGNORE against this).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gradebook_entries_formal_test_unique
+    ON gradebook_entries(student_id, source_session_id) WHERE source = 'formal_test';
 
 -- Schema version bookkeeping for future migrations
 CREATE TABLE IF NOT EXISTS schema_meta (

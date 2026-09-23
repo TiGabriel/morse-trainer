@@ -19,9 +19,11 @@
         const button = document.getElementById('theme-toggle-button');
         if (!button) return;
         const isDark = theme === 'dark';
+        const label = window.t ? window.t(isDark ? 'nav.themeToLight' : 'nav.themeToDark')
+            : (isDark ? 'Switch to light theme' : 'Switch to dark theme');
         button.textContent = isDark ? '☀️' : '🌙'; // sun / crescent moon
-        button.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
-        button.title = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+        button.setAttribute('aria-label', label);
+        button.title = label;
     }
 
     function wireThemeToggle() {
@@ -43,7 +45,74 @@
         });
     }
 
+    /**
+     * Language selector — same "already applied before this file runs"
+     * contract as the theme toggle: each page's inline <head> script
+     * sets document.documentElement.dataset.lang synchronously (see
+     * i18n.js's header comment), so by the time this runs the correct
+     * language is already showing; this just wires the two buttons and
+     * keeps them in sync, then does the one full-page translation pass
+     * every page needs (i18n.js itself never touches the DOM).
+     */
+    function applyLangButtonState(lang) {
+        const buttons = document.querySelectorAll('#lang-toggle [data-lang-btn]');
+        buttons.forEach((btn) => {
+            const isCurrent = btn.dataset.langBtn === lang;
+            btn.classList.toggle('is-active', isCurrent);
+            btn.setAttribute('aria-pressed', String(isCurrent));
+        });
+    }
+
+    function wireLanguageToggle() {
+        if (!window.I18N) return;
+        applyLangButtonState(window.I18N.getLanguage());
+        document.querySelectorAll('#lang-toggle [data-lang-btn]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                window.I18N.setLanguage(btn.dataset.langBtn);
+            });
+        });
+        document.addEventListener('morseTrainer:languageChanged', (e) => {
+            applyLangButtonState(e.detail.language);
+            applyThemeButtonLabel(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+        });
+    }
+
+    if (window.I18N) window.I18N.applyTranslations();
     wireThemeToggle();
+    wireLanguageToggle();
+
+    /**
+     * Role-based nav items. Anything marked `data-nav-role="teacher"`
+     * (the Teacher Panel and Catalog electronic links) ships `hidden` in
+     * the HTML and is only revealed once the logged-in user's ACTUAL role
+     * — from the server's /api/auth/me, never from anything cached
+     * client-side — is confirmed to be teacher; for a student it's
+     * removed outright. Purely cosmetic: those pages are also refused
+     * server-side for non-teachers, and every API behind them is
+     * requireRole('teacher').
+     */
+    function applyNavRole(role) {
+        document.querySelectorAll('[data-nav-role]').forEach((link) => {
+            link.hidden = link.dataset.navRole !== role;
+        });
+    }
+
+    async function loadNavRole() {
+        if (!document.querySelector('[data-nav-role]')) return;
+        try {
+            const res = await fetch('/api/auth/me');
+            if (!res.ok) return; // logged out — teacher-only links stay hidden
+            const data = await res.json();
+            applyNavRole(data.user && data.user.role);
+        } catch {
+            // Server unreachable — leave teacher-only links hidden.
+        }
+    }
+
+    // index.html logs in/out without a page reload, so it re-applies the
+    // role itself through this hook (see app.js's showLoggedIn/showLoggedOut).
+    window.AppNav = { applyRole: applyNavRole };
+    loadNavRole();
 
     const logoutButton = document.getElementById('logout-button');
     if (logoutButton) {
@@ -379,9 +448,15 @@
         const expected = ANSWER_SEQUENCE[answerProgress];
 
         if (key === expected) {
+            if (answerProgress === 0) rememberAnswerField(e.target);
             answerProgress += 1;
             if (answerTimeoutId) clearTimeout(answerTimeoutId);
             if (answerProgress === ANSWER_SEQUENCE.length) {
+                // Opening the popup must never change the student's
+                // answer: swallow the final key and put the field back
+                // exactly as it was before the sequence's first key.
+                e.preventDefault();
+                restoreAnswerField(e.target);
                 resetAnswerProgress();
                 openAnswerRevealPopup();
                 return;
@@ -392,8 +467,36 @@
 
         resetAnswerProgress();
         if (key === ANSWER_SEQUENCE[0]) {
+            rememberAnswerField(e.target);
             answerProgress = 1;
             answerTimeoutId = setTimeout(resetAnswerProgress, ANSWER_INACTIVITY_TIMEOUT_MS);
+        }
+    }
+
+    // Snapshot of the text field (if any) the sequence started in, taken at
+    // its first key — before that key is inserted — so completing the
+    // sequence can undo the sequence's own letters and nothing else.
+    let answerFieldSnapshot = null;
+
+    function isEditableTextField(target) {
+        return !!target && (target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && /^(text|search|)$/i.test(target.type || '')));
+    }
+
+    function rememberAnswerField(target) {
+        answerFieldSnapshot = isEditableTextField(target)
+            ? { target, value: target.value, selectionStart: target.selectionStart, selectionEnd: target.selectionEnd }
+            : null;
+    }
+
+    function restoreAnswerField(target) {
+        const snap = answerFieldSnapshot;
+        answerFieldSnapshot = null;
+        if (!snap || snap.target !== target) return;
+        target.value = snap.value;
+        try {
+            target.setSelectionRange(snap.selectionStart, snap.selectionEnd);
+        } catch {
+            // Some input types don't support selection — value is restored either way.
         }
     }
 

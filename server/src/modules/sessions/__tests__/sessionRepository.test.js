@@ -350,3 +350,91 @@ test('createSessionWithItems: if item insertion fails, the session row is rolled
     const countAfter = db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
     assert.equal(countAfter, countBefore, 'a failed item-insert must roll back the session row created in the same transaction');
 });
+
+// ---------------------------------------------------------------------
+// Morse Transmission integration: raw element-log storage, read-time
+// decoding, and refresh/reconnect persistence.
+// ---------------------------------------------------------------------
+const CLIENT_JS_DIR = path.resolve(__dirname, '../../../../../client/public/js');
+const { TransmissionEngine } = require(path.join(CLIENT_JS_DIR, 'morse-transmitter-core.js'));
+const { CHAR_TO_MORSE } = require(path.join(CLIENT_JS_DIR, 'morse-receiver-map.js'));
+
+function keyTextPerfectlyAsJson(text, wpm) {
+    const engine = new TransmissionEngine({ wpm, toleranceFactor: 0.35 });
+    const unitMs = 1200 / wpm;
+    [...text].forEach((ch, charIndex) => {
+        const morse = CHAR_TO_MORSE[ch.toUpperCase()];
+        [...morse].forEach((sym, i) => {
+            engine.feedTone(sym === '.' ? unitMs : 3 * unitMs);
+            if (i < morse.length - 1) engine.feedGap(unitMs);
+        });
+        if (charIndex < text.length - 1) engine.feedGap(3 * unitMs);
+    });
+    engine.flush();
+    return JSON.stringify(engine.elementLog);
+}
+
+function makeTransmissionSession(overrides = {}) {
+    const session = sessionRepository.createSession({
+        classId: 1,
+        type: 'test',
+        exerciseMode: 'transmission',
+        difficulty: 'easy',
+        exerciseCount: 1,
+        prepTimeMs: 5000,
+        answerTimeMs: 20000,
+        allowedAttempts: 1,
+        passThresholdPercent: 70,
+        createdBy: 1,
+        ...overrides,
+    });
+    const { items } = sessionEngine.generateItems({
+        exerciseMode: 'transmission',
+        difficulty: 'easy',
+        exerciseCount: 1,
+        characters: overrides.characters,
+        length: overrides.length,
+    });
+    sessionRepository.insertItems(session.id, 1, items);
+    return session;
+}
+
+test('listResultsForSession (transmission): never exposes the raw element log as submittedText — only the decoded transmittedText', () => {
+    const session = makeTransmissionSession({ characters: ['S', 'O'], length: 4 });
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+    const elementLogJson = keyTextPerfectlyAsJson(item.exercise.text, item.exercise.wpm);
+
+    sessionRepository.upsertAttempt({ sessionItemId: item.id, studentId: 2, submittedText: elementLogJson, durationMs: 3000 });
+
+    const rows = sessionRepository.listResultsForSession(session.id);
+    const row = rows.find((r) => r.sessionItemId === item.id && r.studentId === 2);
+    assert.equal(row.submittedText, null, 'the raw JSON element log must never be surfaced as if it were readable text');
+    assert.equal(row.transmittedText, item.exercise.text);
+    assert.ok(row.timingStats, 'timing statistics must be derivable for a transmission result');
+    assert.equal(row.timingStats.timingErrorCount, 0);
+});
+
+test('listResultsForSession (transmission): survives "refresh" — re-reading from the DB reproduces the identical decoded result', () => {
+    const session = makeTransmissionSession({ characters: ['A', 'B', 'C'], length: 5 });
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+    const elementLogJson = keyTextPerfectlyAsJson(item.exercise.text, item.exercise.wpm);
+    sessionRepository.upsertAttempt({ sessionItemId: item.id, studentId: 2, submittedText: elementLogJson, durationMs: 3000 });
+
+    const firstRead = sessionRepository.listResultsForSession(session.id).find((r) => r.studentId === 2);
+    const secondRead = sessionRepository.listResultsForSession(session.id).find((r) => r.studentId === 2); // simulates a page refresh / reconnect: an independent re-read
+    assert.equal(firstRead.transmittedText, secondRead.transmittedText);
+    assert.deepEqual(firstRead.timingStats, secondRead.timingStats);
+});
+
+test('listResultsForSession (transmission): an unsubmitted item has no transmittedText/timingStats yet, and other students are unaffected', () => {
+    const session = makeTransmissionSession({ characters: ['E'], length: 1 });
+    const item = sessionRepository.getItemByIndex(session.id, 0);
+    sessionRepository.upsertAttempt({ sessionItemId: item.id, studentId: 2, submittedText: keyTextPerfectlyAsJson('E', item.exercise.wpm), durationMs: 500 });
+
+    const rows = sessionRepository.listResultsForSession(session.id);
+    const submittedRow = rows.find((r) => r.studentId === 2);
+    const unsubmittedRow = rows.find((r) => r.studentId === 3);
+    assert.ok(submittedRow.transmittedText);
+    assert.equal(unsubmittedRow.transmittedText, null);
+    assert.equal(unsubmittedRow.timingStats, null);
+});

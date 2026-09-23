@@ -15,6 +15,7 @@
 const sessionRepository = require('./sessionRepository');
 const hub = require('../../realtime/hub');
 const logger = require('../../logger');
+const gradebookService = require('../gradebook/gradebookService');
 
 /** Used when a group session has no explicit answer-time configured, so it still auto-advances instead of stalling forever. */
 const DEFAULT_ANSWER_TIME_MS = 15000;
@@ -54,11 +55,12 @@ function scheduleTimer(sessionId, fn, delayMs) {
 
 /**
  * What a client is allowed to see about an item — never the expected
- * answer, UNLESS `includeAnswer` is explicitly passed (used only for a
- * Formal Test's *currently active* item, once it has actually gone live —
- * never for a future/upcoming item, and never for non-test session types,
- * which get their answer through the separate post-submission grading
- * response instead).
+ * answer, UNLESS `includeAnswer` is explicitly passed (used only for the
+ * *currently active* item's `item_active` payload, once it has actually
+ * gone live — never for a future/upcoming item's `scheduled_start`). Both
+ * Formal Tests and Group Practice include it there, so the hidden
+ * answer-reveal popup (see nav.js / group-session.js) can show the
+ * authoritative answer for the item on screen in either session type.
  */
 function publicItemPayload(item, { includeAnswer = false } = {}) {
     const ex = item.exercise;
@@ -76,6 +78,16 @@ function publicItemPayload(item, { includeAnswer = false } = {}) {
         payload.promptMorse = ex.morse;
     } else if (ex.mode === 'text_to_morse') {
         payload.promptText = ex.text;
+    } else if (ex.mode === 'transmission') {
+        // The target is meant to be visible the whole time — not withheld
+        // like other modes' answers — see transmissionEngine.js. Only the
+        // classification tolerance is included beyond the plain text, so
+        // the client's live TransmissionEngine uses the exact same bands
+        // the server will grade with; it's a display/timing knob, not the
+        // answer, so there's nothing to protect by omitting it.
+        payload.promptText = ex.text;
+        payload.groupSize = ex.groupSize;
+        payload.toleranceFactor = ex.toleranceFactor;
     }
     if (includeAnswer) {
         payload.expectedAnswer = ex.expectedAnswer;
@@ -130,8 +142,8 @@ function activateItem(sessionId, itemIndex) {
 
     // Includes the full item payload (not just the index) so a client that
     // reconnects mid-item — or whose earlier `scheduled_start` message was
-    // lost — can resync from this broadcast alone. For a Formal Test, the
-    // expected answer is deliberately included here (and only here — never
+    // lost — can resync from this broadcast alone. The expected answer is
+    // deliberately included here (and only here — never
     // in scheduleItem's earlier scheduled_start broadcast, which fires
     // before the item has actually begun) so it's already legitimately in
     // every connected client's own memory once that item goes live.
@@ -141,7 +153,7 @@ function activateItem(sessionId, itemIndex) {
         itemsTotal: sessionRepository.countItems(sessionId),
         deadlineAt,
         serverNow: Date.now(),
-        item: publicItemPayload(item, { includeAnswer: session.type === 'test' }),
+        item: publicItemPayload(item, { includeAnswer: true }),
     });
 
     scheduleTimer(sessionId, () => closeItem(sessionId, itemIndex), deadlineAt - Date.now());
@@ -170,6 +182,8 @@ function finalizeSession(sessionId) {
         hub.broadcast(sessionId, { type: 'session_finished', results: sessionRepository.listResultsForSession(sessionId) });
         hub.broadcastSessionState(sessionId);
         logger.info(`Session ${sessionId} finished (all items complete).`);
+        // A finished Formal Test gets TEMPORARY gradebook entries (no-op for group practice).
+        gradebookService.safeRecordFormalTestResults(sessionId);
     }
     runtimeStates.delete(sessionId);
 }

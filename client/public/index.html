@@ -10,6 +10,13 @@
             } catch (e) {
                 document.documentElement.dataset.theme = 'dark';
             }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,66 +27,71 @@
     <nav class="app-nav" aria-label="Main">
         <a href="/" class="app-nav-brand">Morse SMMMFN</a>
         <div class="app-nav-links" id="app-nav-links" hidden>
-            <a href="/" class="app-nav-link active">Home</a>
-            <a href="/teacher.html" class="app-nav-link">Dashboard</a>
-            <a href="/sessions.html" class="app-nav-link">Group Sessions</a>
-            <a href="/stats.html" class="app-nav-link">Statistics</a>
+            <a href="/" class="app-nav-link active" data-i18n="nav.home">Home</a>
+            <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+            <a href="/sessions.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
+            <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+            <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+            <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
         </div>
         <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+        <div class="app-nav-lang-toggle" id="lang-toggle">
+            <button type="button" data-lang-btn="ro">RO</button>
+            <button type="button" data-lang-btn="en">EN</button>
+        </div>
         <div class="app-nav-right" id="app-nav-right" hidden>
-            <button class="app-nav-logout" id="logout-button" type="button">Log out</button>
+            <button class="app-nav-logout" id="logout-button" type="button" data-i18n="nav.logout">Log out</button>
         </div>
     </nav>
 
-    <main class="dash-main">
-        <h1>Morse SMMMFN — <span class="accent">Server Online</span></h1>
-        <p class="subtitle">Phase 4 foundation. Full training/testing features arrive in later phases.</p>
-
-        <div id="status">Checking server status&hellip;</div>
+    <main class="dash-main home-main">
+        <!-- ONLINE/OFFLINE is live: set (and re-checked periodically) by app.js from /api/health. -->
+        <h1 class="home-title">Morse SMMMFN - <span id="server-status-header" class="home-status">Server &hellip;</span></h1>
 
         <div id="share-box" class="share-box" hidden>
-            <h2>Share this address with students</h2>
+            <h2 data-i18n="auth.shareTitle">Share this address with students</h2>
             <div id="share-url" class="share-url">&hellip;</div>
-            <p class="share-hint">Students on the same classroom network open this URL in any web browser.</p>
+            <p class="share-hint" data-i18n="auth.shareHint">Students on the same classroom network open this URL in any web browser.</p>
         </div>
 
         <div id="auth-box" class="auth-box">
             <div id="logged-out-view">
-                <h2>Log in</h2>
+                <h2 data-i18n="auth.login">Log in</h2>
                 <form id="login-form">
-                    <input type="text" id="login-username" placeholder="Username" autocomplete="username" required />
-                    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required />
-                    <button type="submit" class="btn btn-primary">Log in</button>
+                    <input type="text" id="login-username" placeholder="Username" data-i18n-placeholder="auth.username" autocomplete="username" required />
+                    <input type="password" id="login-password" placeholder="Password" data-i18n-placeholder="auth.password" autocomplete="current-password" required />
+                    <button type="submit" class="btn btn-primary" data-i18n="auth.signIn">Log in</button>
                 </form>
                 <div id="login-error" class="err" hidden></div>
             </div>
 
             <div id="logged-in-view" hidden>
-                <h2>Logged in</h2>
-                <p>Signed in as <strong id="current-user-name">&hellip;</strong> (<span id="current-user-role">&hellip;</span>)</p>
+                <h2 data-i18n="auth.loggedIn">Logged in</h2>
+                <p><span data-i18n="auth.signedInAs">Signed in as</span> <strong id="current-user-name">&hellip;</strong> (<span id="current-user-role">&hellip;</span>)</p>
 
                 <div id="teacher-link-box" hidden>
-                    <a href="/teacher.html" class="btn-link">Open Teacher Dashboard &rarr;</a>
+                    <a href="/teacher.html" class="btn-link"><span data-i18n="auth.openTeacherDashboard">Open Teacher Dashboard</span> &rarr;</a>
                 </div>
 
                 <div id="student-training-link-box" hidden>
-                    <a href="/practice.html" class="btn-link">Start Individual Training &rarr;</a>
-                    <a href="/group-session.html" class="btn-link">Join a Group Session &rarr;</a>
+                    <a href="/practice.html" class="btn-link"><span data-i18n="auth.startIndividualTraining">Start Individual Training</span> &rarr;</a>
+                    <a href="/group-session.html" class="btn-link"><span data-i18n="auth.joinGroupSession">Join a Group Session</span> &rarr;</a>
                 </div>
 
                 <div id="student-profile-box" class="profile-box" hidden>
-                    <h3>My Profile</h3>
+                    <h3 data-i18n="auth.myProfile">My Profile</h3>
                     <dl class="profile-list">
-                        <dt>Rank</dt><dd id="profile-rank">&mdash;</dd>
-                        <dt>Name</dt><dd id="profile-name">&mdash;</dd>
-                        <dt>Class</dt><dd id="profile-class">&mdash;</dd>
-                        <dt>Status</dt><dd id="profile-status">&mdash;</dd>
+                        <dt data-i18n="auth.rank">Rank</dt><dd id="profile-rank">&mdash;</dd>
+                        <dt data-i18n="common.name">Name</dt><dd id="profile-name">&mdash;</dd>
+                        <dt data-i18n="common.class">Class</dt><dd id="profile-class">&mdash;</dd>
+                        <dt data-i18n="common.status">Status</dt><dd id="profile-status">&mdash;</dd>
                     </dl>
-                    <p class="modal-note">Only your teacher can edit this information or reset your password.</p>
+                    <p class="modal-note" data-i18n="auth.profileNote">Only your teacher can edit this information or reset your password.</p>
                 </div>
             </div>
         </div>
     </main>
+    <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
     <script src="/js/app.js"></script>
 </body>

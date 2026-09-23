@@ -5,6 +5,7 @@
  */
 const db = require('../../db/client');
 const gradingService = require('../grading/gradingService');
+const { analyzeElementLog } = require('../practice/transmissionDecoding');
 
 function toPublicSession(row) {
     if (!row) return null;
@@ -421,40 +422,80 @@ function listResultsForSession(sessionId) {
         )
         .all(sessionId, sessionId, ...(restrict ? session.participantIds : []));
 
-    return rows.map((row) => ({
-        orderIndex: row.order_index,
-        sessionItemId: row.session_item_id,
-        // The exact exercise generated once at session-creation time (see
-        // session_items.exercise_json's own comment in schema.sql) — never
-        // regenerated, so this is always the literal sequence that was
-        // transmitted, not a fresh derivation. Null only if a row somehow
-        // predates that field ever being populated (defensive, not
-        // expected in practice — the column has always been written at
-        // item-creation time since it was introduced).
-        expectedAnswer: readExpectedAnswer(row.exercise_json),
-        studentId: row.student_id,
-        username: row.username,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        submittedText: row.submitted_text,
-        submittedAt: row.submitted_at,
-        durationMs: row.duration_ms,
-        attemptCount: row.attempt_count || 0,
-        score: row.score,
-        errorCount: row.error_count,
-        grade: row.grade,
-        characterGrade: characterGradeFor(row.correct_count, readExpectedAnswer(row.exercise_json)),
-    }));
+    return rows.map((row) => {
+        const exercise = readExercise(row.exercise_json);
+        const isTransmission = exercise.mode === 'transmission';
+        const { transmittedText, timingStats } = isTransmission
+            ? decodeTransmissionRow(exercise, row.submitted_text)
+            : { transmittedText: null, timingStats: null };
+
+        return {
+            orderIndex: row.order_index,
+            sessionItemId: row.session_item_id,
+            // The exact exercise generated once at session-creation time (see
+            // session_items.exercise_json's own comment in schema.sql) — never
+            // regenerated, so this is always the literal sequence that was
+            // transmitted, not a fresh derivation. Null only if a row somehow
+            // predates that field ever being populated (defensive, not
+            // expected in practice — the column has always been written at
+            // item-creation time since it was introduced).
+            expectedAnswer: typeof exercise.expectedAnswer === 'string' ? exercise.expectedAnswer : null,
+            studentId: row.student_id,
+            username: row.username,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            // For a transmission item, submittedText holds the raw
+            // element log (JSON), not readable text — expose the
+            // human-readable decoded text separately instead. Every
+            // other mode's submittedText is already plain typed text, so
+            // transmittedText stays null for those (nothing to derive).
+            submittedText: isTransmission ? null : row.submitted_text,
+            transmittedText,
+            timingStats,
+            submittedAt: row.submitted_at,
+            durationMs: row.duration_ms,
+            attemptCount: row.attempt_count || 0,
+            score: row.score,
+            errorCount: row.error_count,
+            grade: row.grade,
+            characterGrade: characterGradeFor(row.correct_count, typeof exercise.expectedAnswer === 'string' ? exercise.expectedAnswer : null),
+        };
+    });
 }
 
-/** Pulls just the expected-answer field out of a session_items.exercise_json blob, tolerating rows where it's missing/unparseable rather than throwing. */
-function readExpectedAnswer(exerciseJson) {
+/** Parses a session_items.exercise_json blob in full, tolerating missing/unparseable rows rather than throwing. */
+function readExercise(exerciseJson) {
     try {
-        const exercise = JSON.parse(exerciseJson || '{}');
-        return typeof exercise.expectedAnswer === 'string' ? exercise.expectedAnswer : null;
+        return JSON.parse(exerciseJson || '{}');
     } catch {
-        return null;
+        return {};
     }
+}
+
+/**
+ * For a 'transmission' item, `submittedText` isn't readable text — it's
+ * the student's raw key-press/gap element log, JSON-stringified (see
+ * sessionEngine.gradeTransmissionSubmission). Re-derives the actual
+ * transmitted text + timing stats from it on read, the exact same way
+ * grading did at submission time (never a second, divergent copy of that
+ * logic — both call analyzeElementLog). Returns null fields for any row
+ * that isn't a transmission item, isn't submitted yet, or fails to parse.
+ */
+function decodeTransmissionRow(exercise, submittedText) {
+    if (!exercise || exercise.mode !== 'transmission' || typeof submittedText !== 'string') {
+        return { transmittedText: null, timingStats: null };
+    }
+    let elementLog;
+    try {
+        elementLog = JSON.parse(submittedText);
+    } catch {
+        return { transmittedText: null, timingStats: null };
+    }
+    if (!Array.isArray(elementLog) || elementLog.length === 0) {
+        return { transmittedText: null, timingStats: null };
+    }
+    const { decodedText, stats } = analyzeElementLog(elementLog, { wpm: exercise.wpm, toleranceFactor: exercise.toleranceFactor });
+    return { transmittedText: decodedText, timingStats: stats };
 }
 
 /** Same shape, filtered to one student's own rows — student-facing. */

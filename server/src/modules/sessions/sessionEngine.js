@@ -24,7 +24,24 @@
 const crypto = require('crypto');
 const practiceEngine = require('../practice/practiceEngine');
 const radiogramEngine = require('../practice/radiogramEngine');
+const { buildTransmissionTarget } = require('../practice/transmissionEngine');
+const { analyzeElementLog } = require('../practice/transmissionDecoding');
 const engine = require('../morse-engine');
+
+// Same default every Individual Training Transmission exercise uses
+// (see receptionEngine.js's sibling, morse-transmitter-core.js's
+// DEFAULT_TOLERANCE_FACTOR) — a formal test doesn't currently expose a
+// teacher-facing control for this, so every transmission item uses the
+// same sensible default classification tolerance.
+const DEFAULT_TRANSMISSION_TOLERANCE_FACTOR = 0.35;
+
+// Every exercise mode a Group Session / Formal Test can be created with:
+// the four shared with Individual Practice's engine, plus 'transmission'
+// (Space-bar keying, see buildTransmissionExercise), which only exists
+// here — it has no practiceEngine.buildExercise counterpart, so it can't
+// simply live in practiceEngine.VALID_MODES. Matches the
+// sessions.exercise_mode CHECK constraint in schema.sql exactly.
+const SESSION_EXERCISE_MODES = [...practiceEngine.VALID_MODES, 'transmission'];
 
 // Real-procedure call-up sent immediately before every Group Session
 // radiogram, exactly like Individual Training's Radiogram Training does
@@ -140,6 +157,61 @@ function buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyH
 }
 
 /**
+ * Builds one Formal Test / Group Session "transmission" item: the student
+ * is shown a target sequence and keys it themselves (Space bar), exactly
+ * like Individual Training's Transmission Training — reuses
+ * transmissionEngine.buildTransmissionTarget() for the target text
+ * itself, never a second copy of that generation logic. Unlike
+ * buildRadiogramExercise, there is no audio plan/durationMs to compute —
+ * transmission has no playback phase at all, the item's entire answer
+ * window (`session.answer_time_ms`) IS the keying time.
+ *
+ * `length`, when given, overrides the difficulty preset's own drawn
+ * length (its own random length draw still happens unconditionally, per
+ * generateFromDifficulty's own reproducibility contract — see its doc
+ * comment); `characters` overrides the preset's own character pool.
+ * `toleranceFactor`, when given, overrides the default dot/dash/gap
+ * timing-classification tolerance (see morse-transmitter-core.js) —
+ * the teacher-facing "Timing tolerance" field in the session wizard.
+ */
+function buildTransmissionExercise({ difficulty, wpm, farnsworthWpm, length, characters, seed, toleranceFactor }) {
+    const preset = engine.findDifficultyPreset(difficulty);
+    if (!preset) {
+        throw new SessionError(`Unknown difficulty preset "${difficulty}".`);
+    }
+
+    const overrides = { seed };
+    if (wpm) overrides.wpm = wpm;
+    if (farnsworthWpm) overrides.farnsworthWpm = farnsworthWpm;
+    if (length) overrides.length = length;
+    const resolved = engine.generateFromDifficulty(difficulty, overrides);
+
+    const target = buildTransmissionTarget({
+        characters: characters && characters.length > 0 ? characters : preset.characters,
+        groupSize: 0,
+        groupCount: resolved.length,
+        seed,
+    });
+
+    return {
+        mode: 'transmission',
+        seed: target.seed,
+        difficulty,
+        wpm: resolved.wpm,
+        farnsworthWpm: resolved.farnsworthWpm,
+        toleranceFactor: Number.isFinite(toleranceFactor) && toleranceFactor > 0 ? toleranceFactor : DEFAULT_TRANSMISSION_TOLERANCE_FACTOR,
+        length: target.totalCharacters,
+        text: target.text,
+        expectedAnswer: target.text,
+        groups: target.groups,
+        groupSize: target.groupSize,
+        totalCharacters: target.totalCharacters,
+        morse: target.morse,
+        durationMs: 0,
+    };
+}
+
+/**
  * Generates `exerciseCount` fully pre-built exercises for a session, all
  * sharing the same mode/difficulty/timing configuration. "audio_to_text"
  * items are radiograms (see buildRadiogramExercise); every other mode
@@ -156,7 +228,7 @@ function buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyH
  * "use the difficulty preset's own pool", exactly as before this option
  * existed.
  */
-function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm, toneFrequencyHz, length, characters, exerciseCount }) {
+function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm, toneFrequencyHz, length, characters, exerciseCount, toleranceFactor }) {
     if (!Number.isInteger(exerciseCount) || exerciseCount < 1) {
         throw new SessionError('exerciseCount must be a positive integer.');
     }
@@ -165,19 +237,23 @@ function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm,
     const items = [];
     for (let i = 0; i < exerciseCount; i += 1) {
         const seed = `${resolvedBaseSeed}:${i}`;
-        const exercise =
-            exerciseMode === 'audio_to_text'
-                ? buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyHz, characters, seed })
-                : practiceEngine.buildExercise({
-                      mode: exerciseMode,
-                      difficulty,
-                      wpm,
-                      farnsworthWpm,
-                      toneFrequencyHz,
-                      length,
-                      characters: characters && characters.length > 0 ? characters : undefined,
-                      seed,
-                  });
+        let exercise;
+        if (exerciseMode === 'audio_to_text') {
+            exercise = buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyHz, characters, seed });
+        } else if (exerciseMode === 'transmission') {
+            exercise = buildTransmissionExercise({ difficulty, wpm, farnsworthWpm, length, characters, seed, toleranceFactor });
+        } else {
+            exercise = practiceEngine.buildExercise({
+                mode: exerciseMode,
+                difficulty,
+                wpm,
+                farnsworthWpm,
+                toneFrequencyHz,
+                length,
+                characters: characters && characters.length > 0 ? characters : undefined,
+                seed,
+            });
+        }
         items.push({ orderIndex: i, exercise });
     }
     return { baseSeed: resolvedBaseSeed, items };
@@ -197,9 +273,42 @@ function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm,
  * expected answer never had spaces to begin with.
  */
 function gradeSubmission(exercise, submittedAnswer) {
+    if (exercise.mode === 'transmission') {
+        return gradeTransmissionSubmission(exercise, submittedAnswer);
+    }
     const expected = exercise.expectedAnswer.replace(/\s+/g, '');
     const submitted = submittedAnswer.replace(/\s+/g, '');
     return engine.scoreAnswer(expected, submitted);
+}
+
+/**
+ * `submittedAnswer` for a 'transmission' item is not typed text — it's
+ * the student's raw key-press/gap element log (the same shape
+ * Individual Training's Transmission mode submits), JSON-stringified so
+ * it fits the existing `submittedAnswer: string` contract with no schema
+ * change. Never trusts a client-reported decoding: re-derives the
+ * transmitted text itself via analyzeElementLog (the exact same
+ * MorseTimingDecoder/MorseCharacterDecoder pipeline reused everywhere
+ * else in this app), then scores THAT against the target — same
+ * "server remains authoritative" rule every other exercise type follows.
+ */
+function gradeTransmissionSubmission(exercise, submittedAnswer) {
+    let elementLog;
+    try {
+        elementLog = JSON.parse(submittedAnswer);
+    } catch {
+        elementLog = [];
+    }
+    if (!Array.isArray(elementLog)) elementLog = [];
+
+    const { decodedText, stats } = analyzeElementLog(elementLog, {
+        wpm: exercise.wpm,
+        toleranceFactor: exercise.toleranceFactor,
+    });
+    const expected = exercise.expectedAnswer.replace(/\s+/g, '');
+    const submitted = decodedText.replace(/\s+/g, '');
+    const score = engine.scoreAnswer(expected, submitted);
+    return { ...score, decodedText, timingStats: stats };
 }
 
 /** Pass/fail against a configured threshold; null if the session has no threshold configured (ungraded group practice). */
@@ -214,10 +323,13 @@ module.exports = {
     TERMINAL_STATUSES,
     ACTIVE_STATUSES_FOR_STUDENTS,
     RADIOGRAM_PREAMBLE_TEXT,
+    DEFAULT_TRANSMISSION_TOLERANCE_FACTOR,
+    SESSION_EXERCISE_MODES,
     nextStatus,
     availableActions,
     generateItems,
     buildRadiogramExercise,
+    buildTransmissionExercise,
     gradeSubmission,
     computeGrade,
 };

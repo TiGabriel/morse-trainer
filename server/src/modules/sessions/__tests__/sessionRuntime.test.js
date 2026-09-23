@@ -213,3 +213,18 @@ test('server-authoritative check: a stale scheduled timer that fires after the s
     );
     assert.equal(sessionRepository.findByIdPublic(session.id).status, 'cancelled', 'the out-of-band cancellation must stick');
 });
+
+test('Group Practice: item_active also includes the live item\'s expectedAnswer (answer reveal), scheduled_start still never does', async () => {
+    const { session, items } = makeRunningSession({ prepTimeMs: 80, answerTimeMs: 80, type: 'group' });
+    const durationMs = items[0].exercise.durationMs;
+
+    sessionRuntime.startSession(session.id);
+    const scheduledStart = broadcasts.find((b) => b.type === 'scheduled_start');
+    assert.equal(scheduledStart.item.expectedAnswer, undefined, 'never before the item has begun');
+
+    await wait(80 + durationMs + 150);
+    const itemActive = broadcasts.find((b) => b.type === 'item_active');
+    assert.equal(itemActive.item.expectedAnswer, items[0].exercise.expectedAnswer);
+
+    sessionRuntime.haltSession(session.id);
+});

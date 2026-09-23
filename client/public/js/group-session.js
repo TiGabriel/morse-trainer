@@ -32,16 +32,15 @@ function showScreen(name) {
  * reveal popup (see nav.js) — or clears it — whenever this changes. Reuses
  * only data already legitimately in this script's own memory:
  *
- *   - Group Practice: pre-submission, the server never sends expectedAnswer
- *     (see sessionRuntime.js's publicItemPayload), so there is nothing safe
- *     to show yet. Post-submission, the server's own attempt response
- *     already included expectedAnswer (captured into lastRevealedAnswer by
- *     submitAnswer below).
- *   - Formal Test: the server includes expectedAnswer directly on
- *     `currentItem` once that item goes live (see publicItemPayload's
- *     includeAnswer, item_active-only) — the same field every connected
- *     student's client already legitimately holds in memory for the item
- *     on screen, so it's read straight off currentItem here.
+ *   - Formal Test AND Group Practice: the server includes expectedAnswer
+ *     directly on `currentItem` once that item goes live (see
+ *     publicItemPayload's includeAnswer, item_active-only — never on the
+ *     earlier scheduled_start) — the same authoritative, pre-generated
+ *     item every connected student's client already holds in memory for
+ *     the item on screen, so it's read straight off currentItem here.
+ *     Before the item goes live, nothing is shown.
+ *   - Fallback: a graded Group Practice attempt response also carries
+ *     expectedAnswer (captured into lastRevealedAnswer by submitAnswer).
  *
  * Never calls the server itself and never shows anything for any item
  * other than the one currently on screen.
@@ -54,19 +53,18 @@ function syncAnswerReveal() {
     }
 
     const modeLabel = MODE_LABELS[currentItem.mode] || currentItem.mode;
-    const isTest = latestSessionState && latestSessionState.session.type === 'test';
 
-    if (isTest && currentItem.expectedAnswer) {
+    if (currentItem.expectedAnswer) {
         window.AnswerReveal.publish({ label: modeLabel, answer: currentItem.expectedAnswer });
         return;
     }
 
-    if (!isTest && hasSubmittedCurrentItem && lastRevealedItemId === currentItem.itemId && lastRevealedAnswer) {
+    if (hasSubmittedCurrentItem && lastRevealedItemId === currentItem.itemId && lastRevealedAnswer) {
         window.AnswerReveal.publish({ label: modeLabel, answer: lastRevealedAnswer });
         return;
     }
 
-    window.AnswerReveal.publish({ label: modeLabel, answer: 'Correct answer is no longer available.' });
+    window.AnswerReveal.publish({ label: modeLabel, answer: t('groupSession.correctAnswerUnavailable') });
 }
 
 let toastTimer = null;
@@ -88,10 +86,11 @@ function escapeHtml(str) {
 }
 
 const MODE_LABELS = {
-    audio_to_text: 'Audio → Text',
-    morse_to_text: 'Morse → Text',
-    text_to_morse: 'Text → Morse',
-    character_recognition: 'Character Recognition',
+    get audio_to_text() { return t('groupSession.modeAudioToText'); },
+    get morse_to_text() { return t('groupSession.modeMorseToText'); },
+    get text_to_morse() { return t('groupSession.modeTextToMorse'); },
+    get character_recognition() { return t('groupSession.modeCharacterRecognition'); },
+    get transmission() { return t('groupSession.modeTransmission'); },
 };
 
 let currentUser = null;
@@ -124,6 +123,14 @@ let countdownTimer = null;
 // against a *different* item the moment the next one starts.
 let lastRevealedItemId = null;
 let lastRevealedAnswer = null;
+
+// Morse Transmission: one TransmissionEngine per item (recreated the
+// moment the item is revealed — see prepareItemDisplay), and Space-key
+// state so the global keydown/keyup listeners below never double-fire on
+// OS auto-repeat. Reuses the exact same engine Individual Training's
+// Transmission mode uses — see morse-transmitter-core.js.
+let gsTxEngine = null;
+let gsTxKeyPhysicallyDown = false;
 
 function ensurePlayer() {
     if (!player) {
@@ -171,23 +178,23 @@ async function loadAvailableSessions() {
 function renderSessionsList(sessions) {
     const container = el('sessions-list');
     if (sessions.length === 0) {
-        container.innerHTML = '<p class="muted">No open sessions right now. Check back once your teacher opens one.</p>';
+        container.innerHTML = `<p class="muted">${escapeHtml(t('groupSession.noOpenSessions'))}</p>`;
         return;
     }
     container.innerHTML = '';
     sessions.forEach((s) => {
         const card = document.createElement('div');
         card.className = 'gs-session-card';
-        const typeLabel = s.type === 'test' ? 'Formal Test' : 'Group Practice';
+        const typeLabel = s.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice');
         card.innerHTML = `
             <div class="gs-session-card-info">
                 <strong>${typeLabel} &middot; ${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</strong>
-                <span class="muted">${escapeHtml(s.difficulty || '—')} &middot; ${s.exerciseCount} item(s) &middot; <span class="badge status-${s.status}">${s.status}</span></span>
+                <span class="muted">${escapeHtml(s.difficulty || '—')} &middot; ${s.exerciseCount} ${escapeHtml(t('groupSession.itemsUnit'))} &middot; <span class="badge status-${s.status}">${s.status}</span></span>
             </div>
         `;
         const btn = document.createElement('button');
         btn.className = 'btn btn-primary btn-small';
-        btn.textContent = 'Join';
+        btn.textContent = t('groupSession.joinSession');
         btn.addEventListener('click', () => joinSession(s.id));
         card.appendChild(btn);
         container.appendChild(card);
@@ -285,7 +292,7 @@ function joinSession(sessionId) {
     sessionStorage.setItem('gs_joined_session_id', String(sessionId));
 
     showScreen('waiting');
-    el('waiting-config').textContent = 'Loading session…';
+    el('waiting-config').textContent = t('groupSession.loadingSession');
     connectWs(() => sendJoin(sessionId));
 }
 
@@ -311,7 +318,7 @@ function onSessionState(msg) {
     latestSessionState = msg;
 
     if (msg.session.status === 'cancelled') {
-        showToast('This session was cancelled by your teacher.', 'error');
+        showToast(t('groupSession.sessionCancelledToast'), 'error');
         leaveSession();
         return;
     }
@@ -332,16 +339,16 @@ function onSessionState(msg) {
 function renderWaitingRoom(session, roster) {
     showScreen('waiting');
     const modeLabel = MODE_LABELS[session.exerciseMode] || session.exerciseMode;
-    const typeLabel = session.type === 'test' ? 'Formal Test' : 'Group Practice';
-    el('waiting-config').textContent = `${typeLabel} · ${modeLabel} · ${session.difficulty || ''} · ${session.exerciseCount} item(s)`;
+    const typeLabel = session.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice');
+    el('waiting-config').textContent = `${typeLabel} · ${modeLabel} · ${session.difficulty || ''} · ${session.exerciseCount} ${t('groupSession.itemsUnit')}`;
 
     const badge = el('waiting-status-badge');
-    badge.textContent = session.status;
+    badge.textContent = t('groupSession.sessionStatus' + session.status.charAt(0).toUpperCase() + session.status.slice(1));
     badge.className = `badge status-${session.status}`;
 
     const readyCount = roster.filter((r) => r.isReady).length;
     const connectedCount = roster.filter((r) => r.connectionStatus === 'connected').length;
-    el('waiting-ready-count').textContent = `${readyCount} ready · ${connectedCount} connected of ${roster.length}`;
+    el('waiting-ready-count').textContent = t('groupSession.readyCount', { ready: readyCount, connected: connectedCount, total: roster.length });
 
     const instructionsBox = el('waiting-instructions-box');
     if (session.instructions) {
@@ -354,7 +361,7 @@ function renderWaitingRoom(session, roster) {
     const me = roster.find((r) => r.studentId === currentUser.id);
     const isReady = !!(me && me.isReady);
     const btn = el('ready-toggle-button');
-    btn.textContent = isReady ? 'Not Ready' : "I'm Ready";
+    btn.textContent = isReady ? t('groupSession.notReady') : t('groupSession.imReady');
     btn.className = 'btn btn-large ' + (isReady ? 'btn-secondary' : 'btn-primary');
 }
 
@@ -378,13 +385,13 @@ function onScheduledStart(msg) {
     sendPingBurst();
 
     showScreen('exercise');
-    el('exercise-item-progress').textContent = `Item ${msg.itemIndex + 1} of ${itemsTotal}`;
+    el('exercise-item-progress').textContent = t('groupSession.itemProgress', { current: msg.itemIndex + 1, total: itemsTotal });
     el('exercise-feedback').hidden = true;
     el('exercise-answer').value = '';
     el('exercise-answer').disabled = true;
     el('exercise-submit-button').disabled = true;
     el('exercise-countdown-banner').hidden = false;
-    el('exercise-countdown-banner').textContent = 'Get ready…';
+    el('exercise-countdown-banner').textContent = t('groupSession.getReady');
 
     prepareItemDisplay(currentItem, { reveal: false });
     startCountdownLoop();
@@ -413,7 +420,7 @@ function onItemActive(msg) {
     itemActivatedAt = Date.now();
 
     showScreen('exercise');
-    el('exercise-item-progress').textContent = `Item ${msg.itemIndex + 1} of ${itemsTotal || '?'}`;
+    el('exercise-item-progress').textContent = t('groupSession.itemProgress', { current: msg.itemIndex + 1, total: itemsTotal || '?' });
     el('exercise-feedback').hidden = true;
     el('exercise-countdown-banner').hidden = true;
 
@@ -436,9 +443,9 @@ function onItemActive(msg) {
             // the student's own earlier "I'm Ready" gesture.)
             const btn = el('exercise-replay-button');
             btn.hidden = false;
-            btn.textContent = '▶ Play';
+            btn.textContent = t('groupSession.play');
             el('exercise-feedback').hidden = false;
-            el('exercise-feedback').textContent = 'This item is already playing for the class — press Play to hear it.';
+            el('exercise-feedback').textContent = t('groupSession.itemAlreadyPlaying');
             hasPlayedCurrentItem = true;
         }
     }
@@ -455,10 +462,11 @@ function onItemClosed() {
     clearInterval(countdownTimer);
     el('exercise-answer').disabled = true;
     el('exercise-submit-button').disabled = true;
-    el('exercise-countdown').textContent = 'Time up';
+    el('exercise-countdown').textContent = t('groupSession.timeUp');
+    gsTxKeyPhysicallyDown = false;
     if (!hasSubmittedCurrentItem) {
         el('exercise-feedback').hidden = false;
-        el('exercise-feedback').textContent = "Time's up — no answer was recorded for this item.";
+        el('exercise-feedback').textContent = t('groupSession.timesUpNoAnswer');
     }
 }
 
@@ -473,6 +481,7 @@ function prepareItemDisplay(item, { reveal }) {
     const audioControls = el('exercise-audio-controls');
     const textPrompt = el('exercise-text-prompt');
     const needsAudio = item.mode === 'audio_to_text' || item.mode === 'character_recognition';
+    const isTransmission = item.mode === 'transmission';
     audioControls.hidden = !needsAudio;
     textPrompt.hidden = needsAudio;
     el('exercise-replay-button').hidden = true;
@@ -483,22 +492,83 @@ function prepareItemDisplay(item, { reveal }) {
         p.loadPlan(item.plan, { durationMs: item.durationMs });
     } else if (item.mode === 'morse_to_text') {
         textPrompt.textContent = reveal ? item.promptMorse : '•••';
-    } else if (item.mode === 'text_to_morse') {
+    } else if (item.mode === 'text_to_morse' || isTransmission) {
+        // Same masking discipline as every other mode: the target is
+        // already in this client's memory (sent unconditionally, since
+        // it isn't the graded "answer" the way expectedAnswer is — see
+        // sessionRuntime.js's publicItemPayload), but the UI still hides
+        // it with '•••' until the item is genuinely active, so there is
+        // no early reading/prep time before the clock starts.
         textPrompt.textContent = reveal ? item.promptText : '•••';
+    }
+
+    // Morse Transmission uses its own Space-bar keying panel instead of
+    // the plain text input every other mode types into.
+    el('exercise-transmission-panel').hidden = !isTransmission;
+    el('exercise-answer-field').hidden = isTransmission;
+    if (isTransmission && reveal) {
+        // A fresh engine per reveal — covers both the normal
+        // countdown->active transition and a resync straight into an
+        // already-active item, exactly like beginScheduledPlayback's
+        // audio-play/prompt-reveal already does for other modes.
+        gsTxEngine = new MorseTransmitterCore.TransmissionEngine({
+            wpm: item.wpm,
+            toleranceFactor: item.toleranceFactor,
+            onFeedback: (f) => showGsTxFeedback(f),
+            onCharacterDecoded: () => updateGsTxLiveDisplay(),
+            onSequenceChange: () => updateGsTxLiveDisplay(),
+        });
+        gsTxKeyPhysicallyDown = false;
+        el('gs-tx-current-morse').innerHTML = '&nbsp;';
+        el('gs-tx-decoded').textContent = '';
+        el('gs-tx-feedback').textContent = '';
+        el('gs-tx-feedback').className = 'tx-feedback';
     }
 
     const answerLabel = el('exercise-answer-label');
     const answerInput = el('exercise-answer');
     if (item.mode === 'text_to_morse') {
-        answerLabel.textContent = 'Your answer (Morse: use . and - , space between letters)';
+        answerLabel.textContent = t('groupSession.yourAnswerMorseHint');
         answerInput.removeAttribute('maxlength');
     } else if (item.mode === 'character_recognition') {
-        answerLabel.textContent = 'Which character did you hear?';
+        answerLabel.textContent = t('groupSession.whichCharacterHeard');
         answerInput.maxLength = 1;
     } else {
-        answerLabel.textContent = 'Your answer';
+        answerLabel.textContent = t('groupSession.yourAnswer');
         answerInput.removeAttribute('maxlength');
     }
+}
+
+function updateGsTxLiveDisplay() {
+    el('gs-tx-current-morse').textContent = gsTxEngine.currentMorse || ' ';
+    el('gs-tx-decoded').textContent = gsTxEngine.decodedText || ' ';
+}
+
+function showGsTxFeedback(feedback) {
+    const box = el('gs-tx-feedback');
+    box.textContent = t(`transmission.fb.${feedback.messageKey}`);
+    box.className = 'tx-feedback' + (feedback.verdict === 'correct' ? ' state-correct' : feedback.verdict === 'irregular' ? ' state-warning' : '');
+}
+
+/** Gated to an active, unsubmitted Transmission item only — every other screen's Space presses (including every other exercise mode) are completely untouched. */
+function onGsTransmissionKeydown(e) {
+    if (el('screen-exercise').hidden || !currentItem || currentItem.mode !== 'transmission') return;
+    if (!gsTxEngine || itemDeadlineAt === null || hasSubmittedCurrentItem) return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    e.preventDefault();
+    if (gsTxKeyPhysicallyDown) return;
+    gsTxKeyPhysicallyDown = true;
+    gsTxEngine.keyDown(performance.now());
+}
+
+function onGsTransmissionKeyup(e) {
+    if (el('screen-exercise').hidden || !currentItem || currentItem.mode !== 'transmission') return;
+    if (!gsTxEngine || !gsTxKeyPhysicallyDown) return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    e.preventDefault();
+    gsTxKeyPhysicallyDown = false;
+    gsTxEngine.keyUp(performance.now());
+    updateGsTxLiveDisplay();
 }
 
 /** Triggers local playback/reveal once our own corrected clock reaches the server's scheduled instant — never on message arrival. */
@@ -509,7 +579,7 @@ function beginScheduledPlayback() {
         ensurePlayer().play();
         const btn = el('exercise-replay-button');
         btn.hidden = false;
-        btn.textContent = '↻ Replay';
+        btn.textContent = '↻ ' + t('groupSession.replay');
     } else {
         prepareItemDisplay(currentItem, { reveal: true });
     }
@@ -533,20 +603,20 @@ function startCountdownLoop() {
         if (scheduledStartAt !== null && !hasPlayedCurrentItem) {
             const remaining = scheduledStartAt - now;
             if (remaining > 0) {
-                el('exercise-countdown').textContent = `Starting in ${(remaining / 1000).toFixed(1)}s`;
+                el('exercise-countdown').textContent = t('groupSession.startingIn', { seconds: (remaining / 1000).toFixed(1) });
             } else {
                 el('exercise-countdown-banner').hidden = true;
                 beginScheduledPlayback();
-                el('exercise-countdown').textContent = 'Playing…';
+                el('exercise-countdown').textContent = t('groupSession.playingStatus');
             }
         }
 
         if (itemDeadlineAt !== null && hasPlayedCurrentItem) {
             const remaining = itemDeadlineAt - now;
             if (remaining > 0) {
-                el('exercise-countdown').textContent = `Time left: ${Math.ceil(remaining / 1000)}s`;
+                el('exercise-countdown').textContent = t('groupSession.timeLeft', { seconds: Math.ceil(remaining / 1000) });
             } else {
-                el('exercise-countdown').textContent = 'Time up';
+                el('exercise-countdown').textContent = t('groupSession.timeUp');
                 clearInterval(countdownTimer);
             }
         }
@@ -555,8 +625,24 @@ function startCountdownLoop() {
 
 async function submitAnswer() {
     if (hasSubmittedCurrentItem || !currentItem) return;
-    const submittedAnswer = el('exercise-answer').value;
-    if (!submittedAnswer) return;
+
+    let submittedAnswer;
+    if (currentItem.mode === 'transmission') {
+        if (!gsTxEngine) return;
+        if (gsTxKeyPhysicallyDown) {
+            gsTxEngine.keyUp(performance.now()); // account for a still-held key at submit time
+            gsTxKeyPhysicallyDown = false;
+        }
+        gsTxEngine.flush();
+        if (gsTxEngine.elementLog.length === 0) {
+            showToast(t('groupSession.keyAtLeastOne'), 'error');
+            return;
+        }
+        submittedAnswer = JSON.stringify(gsTxEngine.elementLog);
+    } else {
+        submittedAnswer = el('exercise-answer').value;
+        if (!submittedAnswer) return;
+    }
 
     const durationMs = itemActivatedAt ? Date.now() - itemActivatedAt : undefined;
     try {
@@ -571,10 +657,10 @@ async function submitAnswer() {
         if (result.score) {
             lastRevealedItemId = currentItem.itemId;
             lastRevealedAnswer = result.expectedAnswer;
-            const markNote = result.characterGrade ? ` Mark: ${result.characterGrade.grade}.` : '';
-            el('exercise-feedback').textContent = `Submitted — accuracy ${result.score.accuracyPercent}%.${markNote} Correct answer: ${result.expectedAnswer}`;
+            const markNote = result.characterGrade ? t('groupSession.markLabel', { grade: result.characterGrade.grade }) : '';
+            el('exercise-feedback').textContent = t('groupSession.submittedAccuracy', { percent: result.score.accuracyPercent }) + markNote + t('groupSession.correctAnswerLabel', { answer: result.expectedAnswer });
         } else {
-            el('exercise-feedback').textContent = 'Answer submitted. Results will be available once the test ends.';
+            el('exercise-feedback').textContent = t('groupSession.answerSubmittedPending');
         }
         syncAnswerReveal();
     } catch (err) {
@@ -589,8 +675,8 @@ async function showFinishedScreen() {
     showScreen('finished');
     const isTest = latestSessionState && latestSessionState.session.type === 'test';
     el('finished-subtitle').textContent = isTest
-        ? 'Your test has been submitted for grading.'
-        : 'Nice work — here is how you did.';
+        ? t('groupSession.testSubmittedForGrading')
+        : t('groupSession.niceWorkResults');
 
     try {
         const { results } = await api(`/api/sessions/${joinedSessionId}/results`);
@@ -610,7 +696,7 @@ function renderMarkBadge(characterGrade) {
 function renderFinishedResults(results) {
     const tbody = el('finished-results-tbody');
     if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="muted">No results.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(t('groupSession.noResults'))}</td></tr>`;
         return;
     }
     tbody.innerHTML = '';
@@ -618,7 +704,7 @@ function renderFinishedResults(results) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${r.orderIndex + 1}</td>
-            <td>${escapeHtml(r.submittedText || '—')}</td>
+            <td>${escapeHtml(r.transmittedText || r.submittedText || '—')}</td>
             <td>${r.score !== undefined && r.score !== null ? r.score + '%' : '—'}</td>
             <td>${r.grade || '—'}</td>
             <td>${renderMarkBadge(r.characterGrade)}</td>
@@ -669,12 +755,18 @@ async function init() {
     el('exercise-answer').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitAnswer();
     });
+    // Morse Transmission keying — gated inside the handlers themselves to
+    // an active, unsubmitted Transmission item only (see
+    // onGsTransmissionKeydown), so every other mode/screen's Space
+    // presses are completely unaffected.
+    document.addEventListener('keydown', onGsTransmissionKeydown);
+    document.addEventListener('keyup', onGsTransmissionKeyup);
 
     const storedSessionId = sessionStorage.getItem('gs_joined_session_id');
     if (storedSessionId) {
         joinedSessionId = Number(storedSessionId);
         showScreen('waiting');
-        el('waiting-config').textContent = 'Reconnecting…';
+        el('waiting-config').textContent = t('groupSession.reconnecting');
         connectWs(() => sendJoin(joinedSessionId));
     } else {
         showScreen('list');

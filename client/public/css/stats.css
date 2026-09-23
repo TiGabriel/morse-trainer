@@ -1,0 +1,116 @@
+/* Page-specific layout only — shared primitives (.btn, .panel, .data-table,
+   .profile-list, .modal-field, etc.) live in styles.css. This file covers
+   the student-facing History & Progress view and its small inline-SVG
+   charts (see mini-chart.js). */
+
+.stats-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    align-items: flex-end;
+    margin-bottom: 1.25rem;
+}
+.stats-filter-bar .modal-field {
+    max-width: 180px;
+    margin-bottom: 0;
+}
+
+.stats-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+}
+
+.stats-chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+}
+.stats-chart-card h3 {
+    margin: 0 0 0.6rem 0;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.mini-chart-svg {
+    display: block;
+    color: var(--text-muted);
+    overflow: visible;
+}
+.mini-chart-axis-label {
+    font-size: 8px;
+    fill: var(--text-faint);
+}
+.mini-chart-value-label {
+    font-size: 8px;
+    fill: var(--text-muted);
+}
+.mini-chart-empty {
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 2rem 0;
+    margin: 0;
+}
+
+.weak-char-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.3rem;
+    border-radius: 6px;
+    background: var(--error-soft);
+    color: var(--error);
+    font-weight: 700;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+.direction-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.direction-badge.direction-reception {
+    background: var(--accent-soft);
+    color: var(--accent-hover);
+}
+.direction-badge.direction-transmission {
+    background: var(--info-soft);
+    color: var(--info);
+}
+
+@media (max-width: 640px) {
+    .stats-filter-bar .modal-field {
+        max-width: none;
+        flex: 1 1 45%;
+    }
+}
+
+/* Printable results (teacher's per-student/class results table): hide
+   navigation, controls, and anything else not part of the actual results
+   when printing, rather than building a second dedicated print page. */
+@media print {
+    .app-nav,
+    .no-print,
+    #teacher-view > .panel:not(#student-detail-panel),
+    #student-view .stats-chart-grid,
+    #student-view #weak-areas-panel {
+        display: none !important;
+    }
+    body {
+        background: #fff;
+        color: #000;
+    }
+    .data-table th,
+    .data-table td {
+        color: #000;
+        border-color: #999;
+    }
+}

@@ -26,6 +26,11 @@ const PRESET_CATEGORIES = {
 function createPoolPicker(idPrefix) {
     const selected = new Set();
     const domId = (id) => (idPrefix ? `${idPrefix}-${id}` : id);
+    // The standard Koch-method learning order, read from the server's
+    // /api/practice/charsets response (see buildAllGrids) — one source of
+    // truth (server/src/modules/morse-engine/morseMap.js's KOCH_ORDER),
+    // never a second copy of the sequence itself.
+    let kochOrder = [];
 
     function categoryCheckboxes(category) {
         return Array.from(el(domId(`char-grid-${category}`)).querySelectorAll('input[type="checkbox"]'));
@@ -56,11 +61,12 @@ function createPoolPicker(idPrefix) {
         const summary = el(domId('pool-summary'));
         const count = selected.size;
         if (count === 0) {
-            summary.textContent = 'No characters selected yet.';
+            summary.textContent = window.t ? window.t('pool.noneSelected') : 'No characters selected yet.';
             return;
         }
         const sorted = [...selected].sort();
-        summary.textContent = `${count} character${count === 1 ? '' : 's'} selected: ${sorted.join(' ')}`;
+        const label = window.t ? window.t('pool.charactersSelected', { count }) : `${count} character${count === 1 ? '' : 's'} selected`;
+        summary.textContent = `${label}: ${sorted.join(' ')}`;
     }
 
     function buildGrid(category, chars) {
@@ -90,6 +96,7 @@ function createPoolPicker(idPrefix) {
 
     function buildAllGrids(sets) {
         CATEGORIES.forEach((cat) => buildGrid(cat, sets[cat] || []));
+        kochOrder = sets.koch || [];
     }
 
     function applyPreset(preset) {
@@ -135,5 +142,23 @@ function createPoolPicker(idPrefix) {
         updateSummary();
     }
 
-    return { buildAllGrids, wireEvents, applyPreset, getSelected, setSelected, updateSummary };
+    /**
+     * "Learned Letters" preset: the first `count` characters of the
+     * standard Koch learning order (see buildAllGrids) — the same
+     * "characters introduced so far" pool concept real progressive Morse
+     * instruction uses, reused identically wherever this picker is used
+     * (Reception, Transmission, Radiogram, Character Training, Group
+     * Session) rather than a UI-hardcoded rule. Clamped to how many
+     * characters the server actually sent.
+     */
+    function applyLearnedPreset(count) {
+        const n = Math.max(0, Math.min(Math.round(count) || 0, kochOrder.length));
+        setSelected(kochOrder.slice(0, n));
+    }
+
+    function maxLearnedCount() {
+        return kochOrder.length;
+    }
+
+    return { buildAllGrids, wireEvents, applyPreset, applyLearnedPreset, maxLearnedCount, getSelected, setSelected, updateSummary };
 }

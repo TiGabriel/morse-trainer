@@ -10,6 +10,13 @@
             } catch (e) {
                 document.documentElement.dataset.theme = 'dark';
             }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,29 +25,35 @@
     <link rel="stylesheet" href="/css/practice.css" />
 </head>
 <body class="practice-body">
-    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+    <div id="auth-gate" class="auth-gate" data-i18n="auth.checkingAccess">Checking access&hellip;</div>
 
     <div id="app" hidden>
         <nav class="app-nav" aria-label="Main">
             <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
-                <a href="/" class="app-nav-link">Home</a>
-                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
-                <a href="/group-session.html" class="app-nav-link">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link">Statistics</a>
+                <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
+                <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+                <a href="/group-session.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+                <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
             <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+            <div class="app-nav-lang-toggle" id="lang-toggle">
+                <button type="button" data-lang-btn="ro">RO</button>
+                <button type="button" data-lang-btn="en">EN</button>
+            </div>
             <div class="app-nav-right">
                 <span id="user-name" class="app-nav-user"></span>
-                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+                <button id="logout-button" class="app-nav-logout" type="button" data-i18n="nav.logout">Log out</button>
             </div>
         </nav>
 
         <main class="practice-main">
             <!-- ================= HUB ================= -->
             <section id="screen-hub" class="practice-screen">
-                <h1>Individual Training</h1>
-                <p class="subtitle">Practice at your own pace. This never affects official test results.</p>
+                <h1 data-i18n="nav.individualTraining">Individual Training</h1>
+                <p class="subtitle" data-i18n="hub.subtitle">Practice at your own pace. This never affects official test results.</p>
 
                 <div class="hub-cards">
                     <button type="button" class="hub-card" id="hub-card-radiogram">
@@ -51,8 +64,8 @@
                             </svg>
                         </span>
                         <span class="hub-card-body">
-                            <span class="hub-card-title">Radiogram Training</span>
-                            <span class="hub-card-desc">Generate a full radiogram — 3 rows of 10 four-character groups — and copy it by ear as it's transmitted.</span>
+                            <span class="hub-card-title" data-i18n="hub.radiogramTitle">Radiogram Training</span>
+                            <span class="hub-card-desc" data-i18n="hub.radiogramDesc">Generate a full radiogram — 3 rows of 10 four-character groups — and copy it by ear as it's transmitted.</span>
                         </span>
                         <span class="hub-card-arrow" aria-hidden="true">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -67,8 +80,39 @@
                             </svg>
                         </span>
                         <span class="hub-card-body">
-                            <span class="hub-card-title">Character Training</span>
-                            <span class="hub-card-desc">Single-character recognition drills with live feedback after every answer.</span>
+                            <span class="hub-card-title" data-i18n="hub.characterTrainingTitle">Character Training</span>
+                            <span class="hub-card-desc" data-i18n="hub.characterTrainingDesc">Single-character recognition drills with live feedback after every answer.</span>
+                        </span>
+                        <span class="hub-card-arrow" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                        </span>
+                    </button>
+
+                    <button type="button" class="hub-card" id="hub-card-reception">
+                        <span class="hub-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 10v4" /><path d="M8 7v10" /><path d="M12 4v16" /><path d="M16 7v10" /><path d="M20 10v4" />
+                            </svg>
+                        </span>
+                        <span class="hub-card-body">
+                            <span class="hub-card-title" data-i18n="hub.receptionTitle">Reception Training</span>
+                            <span class="hub-card-desc" data-i18n="hub.receptionDesc">Blind copy: listen to Morse audio and type what you hear, with no reference shown until you're graded.</span>
+                        </span>
+                        <span class="hub-card-arrow" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                        </span>
+                    </button>
+
+                    <button type="button" class="hub-card" id="hub-card-transmission">
+                        <span class="hub-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="15" width="20" height="5" rx="1.5" />
+                                <path d="M6 15V9M10 15V6M14 15V9M18 15V11" />
+                            </svg>
+                        </span>
+                        <span class="hub-card-body">
+                            <span class="hub-card-title" data-i18n="groupSession.modeTransmission">Morse Transmission</span>
+                            <span class="hub-card-desc" data-i18n="hub.transmissionDesc">Key a target sequence yourself using the Space bar — real-time decoding and timing feedback as you send.</span>
                         </span>
                         <span class="hub-card-arrow" aria-hidden="true">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -79,27 +123,27 @@
 
             <!-- ================= CHARACTER TRAINING SETTINGS ================= -->
             <section id="screen-character-training-settings" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="hub">&larr; Back to Individual Training</button>
-                <h1>Character Training</h1>
-                <p class="subtitle">Listen to one character at a time and type what you heard. Choose a pool and settings, then start.</p>
+                <button type="button" class="link-button back-link" data-back-to="hub" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="hub.characterTrainingTitle">Character Training</h1>
+                <p class="subtitle" data-i18n="characterTraining.settingsSubtitle">Listen to one character at a time and type what you heard. Choose a pool and settings, then start.</p>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Character pool</h2>
+                    <h2 class="settings-group-title" data-i18n="pool.characterPoolHeading">Character pool</h2>
 
                     <div class="pool-quick-actions" id="ct-pool-quick-actions">
-                        <button type="button" class="chip-button" data-preset="letters">All Letters</button>
-                        <button type="button" class="chip-button" data-preset="numbers">All Numbers</button>
-                        <button type="button" class="chip-button" data-preset="punctuation">All Special</button>
-                        <button type="button" class="chip-button" data-preset="alphanumeric">Letters + Numbers</button>
-                        <button type="button" class="chip-button" data-preset="all">All Characters</button>
-                        <button type="button" class="chip-button chip-button-clear" data-preset="clear">Clear</button>
+                        <button type="button" class="chip-button" data-preset="letters" data-i18n="pool.allLetters">All Letters</button>
+                        <button type="button" class="chip-button" data-preset="numbers" data-i18n="pool.allNumbers">All Numbers</button>
+                        <button type="button" class="chip-button" data-preset="punctuation" data-i18n="pool.allSpecial">All Special</button>
+                        <button type="button" class="chip-button" data-preset="alphanumeric" data-i18n="pool.lettersPlusNumbers">Letters + Numbers</button>
+                        <button type="button" class="chip-button" data-preset="all" data-i18n="pool.allCharacters">All Characters</button>
+                        <button type="button" class="chip-button chip-button-clear" data-preset="clear" data-i18n="common.clear">Clear</button>
                     </div>
 
                     <div class="char-category" id="ct-char-category-letters">
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="ct-category-select-all-letters" />
-                                Letters
+                                <span data-i18n="sessions.letters">Letters</span>
                             </label>
                         </div>
                         <div class="char-grid" id="ct-char-grid-letters"></div>
@@ -109,7 +153,7 @@
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="ct-category-select-all-numbers" />
-                                Numbers
+                                <span data-i18n="sessions.numbers">Numbers</span>
                             </label>
                         </div>
                         <div class="char-grid" id="ct-char-grid-numbers"></div>
@@ -119,17 +163,25 @@
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="ct-category-select-all-punctuation" />
-                                Special characters
+                                <span data-i18n="sessions.specialChars">Special characters</span>
                             </label>
                         </div>
                         <div class="char-grid" id="ct-char-grid-punctuation"></div>
                     </div>
 
-                    <p class="pool-summary" id="ct-pool-summary">No characters selected yet.</p>
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="ct-learned-count"><span data-i18n="pool.learnedLettersOnly">Learned letters only</span> <span class="muted" data-i18n="pool.standardLearningOrder">(standard learning order)</span></label>
+                            <input type="number" id="ct-learned-count" min="1" max="40" placeholder="e.g. 10" />
+                        </div>
+                        <button type="button" id="ct-learned-apply-button" class="btn btn-secondary" style="align-self:flex-end;" data-i18n="common.apply">Apply</button>
+                    </div>
+
+                    <p class="pool-summary" id="ct-pool-summary" data-i18n="pool.noneSelected">No characters selected yet.</p>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Session length</h2>
+                    <h2 class="settings-group-title" data-i18n="characterTraining.sessionLength">Session length</h2>
 
                     <div class="pool-quick-actions" id="ct-length-quick-actions">
                         <button type="button" class="chip-button" data-length="10">10</button>
@@ -139,60 +191,62 @@
                     </div>
 
                     <div class="modal-field">
-                        <label for="ct-setting-length">Number of characters</label>
+                        <label for="ct-setting-length" data-i18n="characterTraining.numberOfCharacters">Number of characters</label>
                         <input type="number" id="ct-setting-length" min="1" max="500" value="20" />
                     </div>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Morse settings</h2>
+                    <h2 class="settings-group-title" data-i18n="pool.morseSettingsHeading">Morse settings</h2>
+
+                    <div class="pool-quick-actions" id="ct-speed-progression"></div>
 
                     <div class="settings-row">
                         <div class="modal-field">
-                            <label for="ct-setting-wpm">WPM (character speed)</label>
+                            <label for="ct-setting-wpm" data-i18n="common.wpm">WPM (character speed)</label>
                             <input type="number" id="ct-setting-wpm" min="1" max="60" value="15" />
                         </div>
                         <div class="modal-field">
-                            <label for="ct-setting-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                            <label for="ct-setting-farnsworth"><span data-i18n="common.farnsworth">Farnsworth WPM</span> <span class="muted" data-i18n="teacher.blankSameAsWpm">(blank = same as WPM)</span></label>
                             <input type="number" id="ct-setting-farnsworth" min="1" max="60" placeholder="&mdash;" />
                         </div>
                     </div>
 
                     <div class="settings-row">
                         <div class="modal-field">
-                            <label for="ct-setting-tone">Tone frequency (Hz)</label>
+                            <label for="ct-setting-tone" data-i18n="common.tone">Tone frequency (Hz)</label>
                             <input type="number" id="ct-setting-tone" min="200" max="1200" value="600" />
                         </div>
                         <div class="modal-field">
-                            <label for="ct-setting-volume">Volume</label>
+                            <label for="ct-setting-volume" data-i18n="common.volume">Volume</label>
                             <input type="range" id="ct-setting-volume" min="0" max="100" value="60" />
                         </div>
                     </div>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Visual aid</h2>
+                    <h2 class="settings-group-title" data-i18n="characterTraining.visualAid">Visual aid</h2>
                     <label class="ct-aid-toggle" for="ct-setting-visual-aid">
                         <span class="ct-aid-toggle-switch">
                             <input type="checkbox" id="ct-setting-visual-aid" />
                             <span class="ct-aid-toggle-track"><span class="ct-aid-toggle-thumb"></span></span>
                         </span>
                         <span class="ct-aid-toggle-copy">
-                            <strong>Visual Morse Aid</strong>
-                            <span class="muted">Show the Morse rhythm and dot/dash pattern while the character is being played.</span>
+                            <strong data-i18n="characterTraining.visualMorseAid">Visual Morse Aid</strong>
+                            <span class="muted" data-i18n="characterTraining.visualMorseAidHint">Show the Morse rhythm and dot/dash pattern while the character is being played.</span>
                         </span>
                     </label>
                 </div>
 
                 <div id="ct-settings-error" class="form-error" hidden></div>
 
-                <button id="ct-start-button" class="btn btn-primary btn-large" type="button">Start Session</button>
+                <button id="ct-start-button" class="btn btn-primary btn-large" type="button" data-i18n="characterTraining.startSession">Start Session</button>
             </section>
 
             <!-- ================= CHARACTER TRAINING SESSION (gameplay) ================= -->
             <section id="screen-character-training-session" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="character-training-settings">&larr; Back to settings</button>
-                <h1 class="ct-session-heading">Character Training</h1>
+                <button type="button" class="link-button back-link" data-back-to="character-training-settings" data-i18n="common.backToSettings">&larr; Back to settings</button>
+                <h1 class="ct-session-heading" data-i18n="hub.characterTrainingTitle">Character Training</h1>
 
                 <div class="ct-progress">
                     <div class="ct-progress-text" id="ct-progress-text">Character 1 / 20</div>
@@ -213,73 +267,74 @@
                     <div class="ct-morse-aid-row ct-morse-aid-symbols" id="ct-morse-aid-symbols"></div>
                 </div>
 
-                <p class="ct-hint" id="ct-hint">Listen, then type the character you heard.</p>
+                <p class="ct-hint" id="ct-hint" data-i18n="characterTraining.listenAndType">Listen, then type the character you heard.</p>
 
                 <div class="ct-live-stats">
-                    Correct: <span id="ct-live-correct" class="count-correct">0</span>
-                    &middot; Incorrect: <span id="ct-live-incorrect" class="count-incorrect">0</span>
+                    <span data-i18n="common.correct">Correct</span>: <span id="ct-live-correct" class="count-correct">0</span>
+                    &middot; <span data-i18n="common.incorrect">Incorrect</span>: <span id="ct-live-incorrect" class="count-incorrect">0</span>
                 </div>
             </section>
 
             <!-- ================= CHARACTER TRAINING RESULTS ================= -->
             <section id="screen-character-training-results" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="hub">&larr; Back to Individual Training</button>
-                <h1>Session Results</h1>
+                <button type="button" class="link-button back-link" data-back-to="hub" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="characterTraining.sessionResults">Session Results</h1>
                 <p class="subtitle" id="ctr-subtitle"></p>
+                <div id="ctr-save-error" class="form-error" hidden></div>
 
                 <div class="result-accuracy" id="ctr-accuracy">&mdash;</div>
                 <div class="result-grade-badge">
-                    <span class="result-grade-label">Grade</span>
+                    <span class="result-grade-label" data-i18n="common.grade">Grade</span>
                     <span class="result-grade-value" id="ctr-grade">&mdash;</span>
                 </div>
 
                 <div class="stat-grid" id="ctr-summary-grid">
                     <div class="stat-tile">
-                        <span class="stat-label">Total</span>
+                        <span class="stat-label" data-i18n="common.total">Total</span>
                         <span class="stat-value" id="ctr-total">0</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Correct</span>
+                        <span class="stat-label" data-i18n="common.correct">Correct</span>
                         <span class="stat-value count-correct" id="ctr-correct">0</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Incorrect</span>
+                        <span class="stat-label" data-i18n="common.incorrect">Incorrect</span>
                         <span class="stat-value count-incorrect" id="ctr-incorrect">0</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Avg. response</span>
+                        <span class="stat-label" data-i18n="characterTraining.avgResponse">Avg. response</span>
                         <span class="stat-value" id="ctr-avg-time">&mdash;</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Fastest</span>
+                        <span class="stat-label" data-i18n="characterTraining.fastest">Fastest</span>
                         <span class="stat-value" id="ctr-fastest">&mdash;</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Slowest</span>
+                        <span class="stat-label" data-i18n="characterTraining.slowest">Slowest</span>
                         <span class="stat-value" id="ctr-slowest">&mdash;</span>
                     </div>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Weak characters</h2>
-                    <p class="ct-weak-hint">Characters below 80% accuracy, or answered consistently slower than the session average.</p>
+                    <h2 class="settings-group-title" data-i18n="characterTraining.weakCharacters">Weak characters</h2>
+                    <p class="ct-weak-hint" data-i18n="characterTraining.weakCharactersHint">Characters below 80% accuracy, or answered consistently slower than the session average.</p>
                     <div id="ctr-weak-list" class="weak-char-list"></div>
-                    <p id="ctr-weak-empty" class="pool-summary" hidden>No weak characters this session — nice work!</p>
-                    <button id="ctr-practice-weak-button" class="btn btn-primary btn-large" type="button" hidden>Practice Weak Characters</button>
+                    <p id="ctr-weak-empty" class="pool-summary" hidden data-i18n="characterTraining.noWeakChars">No weak characters this session — nice work!</p>
+                    <button id="ctr-practice-weak-button" class="btn btn-primary btn-large" type="button" hidden data-i18n="characterTraining.practiceWeakCharacters">Practice Weak Characters</button>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Per-character breakdown</h2>
+                    <h2 class="settings-group-title" data-i18n="characterTraining.perCharacterBreakdown">Per-character breakdown</h2>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Char</th>
-                                    <th>Attempts</th>
-                                    <th>Correct</th>
-                                    <th>Incorrect</th>
-                                    <th>Accuracy</th>
-                                    <th>Avg. time</th>
+                                    <th data-i18n="characterTraining.char">Char</th>
+                                    <th data-i18n="sessions.attempts">Attempts</th>
+                                    <th data-i18n="common.correct">Correct</th>
+                                    <th data-i18n="common.incorrect">Incorrect</th>
+                                    <th data-i18n="common.accuracy">Accuracy</th>
+                                    <th data-i18n="characterTraining.avgTime">Avg. time</th>
                                 </tr>
                             </thead>
                             <tbody id="ctr-breakdown-tbody"></tbody>
@@ -288,34 +343,34 @@
                 </div>
 
                 <div class="exercise-actions">
-                    <button id="ctr-practice-again-button" class="btn btn-primary btn-large" type="button">Practice Again</button>
-                    <button type="button" class="link-button back-link" data-back-to="character-training-settings">Change settings</button>
+                    <button id="ctr-practice-again-button" class="btn btn-primary btn-large" type="button" data-i18n="characterTraining.practiceAgain">Practice Again</button>
+                    <button type="button" class="link-button back-link" data-back-to="character-training-settings" data-i18n="characterTraining.changeSettings">Change settings</button>
                 </div>
             </section>
 
             <!-- ================= RADIOGRAM SETTINGS ================= -->
             <section id="screen-radiogram-settings" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="hub">&larr; Back to Individual Training</button>
-                <h1>Radiogram Training</h1>
-                <p class="subtitle">Choose a character pool and Morse settings, then generate a radiogram to copy.</p>
+                <button type="button" class="link-button back-link" data-back-to="hub" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="hub.radiogramTitle">Radiogram Training</h1>
+                <p class="subtitle" data-i18n="radiogram.settingsSubtitle">Choose a character pool and Morse settings, then generate a radiogram to copy.</p>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Character pool</h2>
+                    <h2 class="settings-group-title" data-i18n="pool.characterPoolHeading">Character pool</h2>
 
                     <div class="pool-quick-actions" id="pool-quick-actions">
-                        <button type="button" class="chip-button" data-preset="letters">All Letters</button>
-                        <button type="button" class="chip-button" data-preset="numbers">All Numbers</button>
-                        <button type="button" class="chip-button" data-preset="punctuation">All Special</button>
-                        <button type="button" class="chip-button" data-preset="alphanumeric">Letters + Numbers</button>
-                        <button type="button" class="chip-button" data-preset="all">All Characters</button>
-                        <button type="button" class="chip-button chip-button-clear" data-preset="clear">Clear</button>
+                        <button type="button" class="chip-button" data-preset="letters" data-i18n="pool.allLetters">All Letters</button>
+                        <button type="button" class="chip-button" data-preset="numbers" data-i18n="pool.allNumbers">All Numbers</button>
+                        <button type="button" class="chip-button" data-preset="punctuation" data-i18n="pool.allSpecial">All Special</button>
+                        <button type="button" class="chip-button" data-preset="alphanumeric" data-i18n="pool.lettersPlusNumbers">Letters + Numbers</button>
+                        <button type="button" class="chip-button" data-preset="all" data-i18n="pool.allCharacters">All Characters</button>
+                        <button type="button" class="chip-button chip-button-clear" data-preset="clear" data-i18n="common.clear">Clear</button>
                     </div>
 
                     <div class="char-category" id="char-category-letters">
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="category-select-all-letters" />
-                                Letters
+                                <span data-i18n="sessions.letters">Letters</span>
                             </label>
                         </div>
                         <div class="char-grid" id="char-grid-letters"></div>
@@ -325,7 +380,7 @@
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="category-select-all-numbers" />
-                                Numbers
+                                <span data-i18n="sessions.numbers">Numbers</span>
                             </label>
                         </div>
                         <div class="char-grid" id="char-grid-numbers"></div>
@@ -335,79 +390,89 @@
                         <div class="char-category-header">
                             <label class="char-category-select-all">
                                 <input type="checkbox" id="category-select-all-punctuation" />
-                                Special characters
+                                <span data-i18n="sessions.specialChars">Special characters</span>
                             </label>
                         </div>
                         <div class="char-grid" id="char-grid-punctuation"></div>
                     </div>
 
-                    <p class="pool-summary" id="pool-summary">No characters selected yet.</p>
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="learned-count"><span data-i18n="pool.learnedLettersOnly">Learned letters only</span> <span class="muted" data-i18n="pool.standardLearningOrder">(standard learning order)</span></label>
+                            <input type="number" id="learned-count" min="1" max="40" placeholder="e.g. 10" />
+                        </div>
+                        <button type="button" id="learned-apply-button" class="btn btn-secondary" style="align-self:flex-end;" data-i18n="common.apply">Apply</button>
+                    </div>
+
+                    <p class="pool-summary" id="pool-summary" data-i18n="pool.noneSelected">No characters selected yet.</p>
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Morse settings</h2>
+                    <h2 class="settings-group-title" data-i18n="pool.morseSettingsHeading">Morse settings</h2>
+
+                    <div class="pool-quick-actions" id="speed-progression"></div>
 
                     <div class="settings-row">
                         <div class="modal-field">
-                            <label for="setting-wpm">WPM (character speed)</label>
+                            <label for="setting-wpm" data-i18n="common.wpm">WPM (character speed)</label>
                             <input type="number" id="setting-wpm" min="1" max="60" value="15" />
                         </div>
                         <div class="modal-field">
-                            <label for="setting-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                            <label for="setting-farnsworth"><span data-i18n="common.farnsworth">Farnsworth WPM</span> <span class="muted" data-i18n="teacher.blankSameAsWpm">(blank = same as WPM)</span></label>
                             <input type="number" id="setting-farnsworth" min="1" max="60" placeholder="&mdash;" />
                         </div>
                     </div>
 
                     <div class="modal-field">
-                        <label for="setting-tone">Tone frequency (Hz)</label>
+                        <label for="setting-tone" data-i18n="common.tone">Tone frequency (Hz)</label>
                         <input type="number" id="setting-tone" min="200" max="1200" value="600" />
                     </div>
                 </div>
 
                 <div id="radiogram-error" class="form-error" hidden></div>
 
-                <button id="generate-button" class="btn btn-primary btn-large" type="button">Generate Radiogram</button>
+                <button id="generate-button" class="btn btn-primary btn-large" type="button" data-i18n="radiogram.generateRadiogram">Generate Radiogram</button>
             </section>
 
             <!-- ================= RADIOGRAM DISPLAY / PLAYBACK ================= -->
             <section id="screen-radiogram-play" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="radiogram-settings">&larr; Back to settings</button>
-                <h1>Radiogram</h1>
+                <button type="button" class="link-button back-link" data-back-to="radiogram-settings" data-i18n="common.backToSettings">&larr; Back to settings</button>
+                <h1 data-i18n="radiogram.radiogramWord">Radiogram</h1>
                 <p class="subtitle" id="radiogram-meta"></p>
 
                 <div class="radiogram-panel-header">
-                    <h2 class="settings-group-title">Live reference</h2>
+                    <h2 class="settings-group-title" data-i18n="radiogram.liveReference">Live reference</h2>
                     <button id="radiogram-hide-button" class="link-button" type="button">Hide Radiogram</button>
                 </div>
-                <p class="radiogram-hint">Characters appear here as they're transmitted — nothing is shown in advance.</p>
+                <p class="radiogram-hint" data-i18n="radiogram.charactersAppearHint">Characters appear here as they're transmitted — nothing is shown in advance.</p>
 
                 <div class="radiogram-display" id="radiogram-display"></div>
 
                 <div class="radiogram-playback-controls">
                     <button id="radiogram-play-button" class="btn btn-primary btn-large" type="button">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7V5z" /></svg>
-                        Play
+                        <span data-i18n="common.play">Play</span>
                     </button>
                     <button id="radiogram-replay-button" class="btn btn-secondary" type="button" hidden>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
-                        Replay
+                        <span data-i18n="groupSession.replay">Replay</span>
                     </button>
                     <button id="radiogram-stop-button" class="btn btn-secondary" type="button" hidden>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5" /></svg>
-                        Stop
+                        <span data-i18n="common.stop">Stop</span>
                     </button>
                 </div>
 
                 <div class="modal-field radiogram-volume-field">
-                    <label for="radiogram-play-volume">Volume</label>
+                    <label for="radiogram-play-volume" data-i18n="common.volume">Volume</label>
                     <input type="range" id="radiogram-play-volume" min="0" max="100" value="60" />
                 </div>
 
-                <p class="radiogram-status" id="radiogram-status">Not started yet.</p>
+                <p class="radiogram-status" id="radiogram-status" data-i18n="radiogram.statusNotStarted">Not started yet.</p>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Your transcription</h2>
-                    <p class="radiogram-hint">Type what you hear. This is your own answer, kept separate from the reference above.</p>
+                    <h2 class="settings-group-title" data-i18n="radiogram.yourTranscription">Your transcription</h2>
+                    <p class="radiogram-hint" data-i18n="radiogram.typeWhatYouHear">Type what you hear. This is your own answer, kept separate from the reference above.</p>
                     <textarea
                         id="radiogram-answer"
                         class="radiogram-answer-input"
@@ -416,38 +481,39 @@
                         autocomplete="off"
                         autocapitalize="characters"
                         placeholder="Your transcription will appear here as you type&hellip;"
+                        data-i18n-placeholder="radiogram.transcriptionPlaceholder"
                     ></textarea>
                 </div>
 
                 <div class="exercise-actions">
-                    <button id="radiogram-analyze-button" class="btn btn-primary btn-large" type="button" disabled>Analyze Answer</button>
-                    <button id="radiogram-generate-another-button" class="btn btn-secondary btn-large" type="button">Generate Another</button>
+                    <button id="radiogram-analyze-button" class="btn btn-primary btn-large" type="button" disabled data-i18n="radiogram.analyzeAnswer">Analyze Answer</button>
+                    <button id="radiogram-generate-another-button" class="btn btn-secondary btn-large" type="button" data-i18n="radiogram.generateAnother">Generate Another</button>
                 </div>
             </section>
 
             <!-- ================= RADIOGRAM RESULTS ================= -->
             <section id="screen-radiogram-results" class="practice-screen" hidden>
-                <button type="button" class="link-button back-link" data-back-to="radiogram-settings">&larr; Back to Individual Training</button>
-                <h1>Radiogram Results</h1>
+                <button type="button" class="link-button back-link" data-back-to="radiogram-settings" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="radiogram.radiogramResults">Radiogram Results</h1>
                 <p class="subtitle" id="rgr-subtitle"></p>
 
                 <div class="result-accuracy" id="rgr-accuracy">&mdash;</div>
                 <div class="result-grade-badge">
-                    <span class="result-grade-label">Grade</span>
+                    <span class="result-grade-label" data-i18n="common.grade">Grade</span>
                     <span class="result-grade-value" id="rgr-grade">&mdash;</span>
                 </div>
 
                 <div class="stat-grid" id="rgr-summary-grid">
                     <div class="stat-tile">
-                        <span class="stat-label">Total</span>
+                        <span class="stat-label" data-i18n="common.total">Total</span>
                         <span class="stat-value" id="rgr-total">0</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Correct</span>
+                        <span class="stat-label" data-i18n="common.correct">Correct</span>
                         <span class="stat-value count-correct" id="rgr-correct">0</span>
                     </div>
                     <div class="stat-tile">
-                        <span class="stat-label">Incorrect</span>
+                        <span class="stat-label" data-i18n="common.incorrect">Incorrect</span>
                         <span class="stat-value count-incorrect" id="rgr-incorrect">0</span>
                     </div>
                     <div class="stat-tile">
@@ -465,12 +531,12 @@
                 </div>
 
                 <div class="settings-group">
-                    <h2 class="settings-group-title">Comparison</h2>
+                    <h2 class="settings-group-title" data-i18n="radiogram.comparison">Comparison</h2>
                     <p class="radiogram-hint">
-                        <span class="rg-legend-swatch rg-op-match"></span> correct &middot;
-                        <span class="rg-legend-swatch rg-op-substitution"></span> wrong &middot;
-                        <span class="rg-legend-swatch rg-op-missing"></span> missing &middot;
-                        <span class="rg-legend-swatch rg-op-extra"></span> extra
+                        <span class="rg-legend-swatch rg-op-match"></span> <span data-i18n="common.correct2">correct</span> &middot;
+                        <span class="rg-legend-swatch rg-op-substitution"></span> <span data-i18n="radiogram.wrong">wrong</span> &middot;
+                        <span class="rg-legend-swatch rg-op-missing"></span> <span data-i18n="common.missing2">missing</span> &middot;
+                        <span class="rg-legend-swatch rg-op-extra"></span> <span data-i18n="common.extra2">extra</span>
                     </p>
                     <div class="radiogram-compare" id="rgr-compare"></div>
                 </div>
@@ -480,16 +546,527 @@
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
                         Replay Radiogram
                     </button>
-                    <button id="rgr-generate-another-button" class="btn btn-primary btn-large" type="button">Generate Another</button>
-                    <button type="button" class="link-button back-link" data-back-to="radiogram-settings">Change settings</button>
+                    <button id="rgr-generate-another-button" class="btn btn-primary btn-large" type="button" data-i18n="radiogram.generateAnother">Generate Another</button>
+                    <button type="button" class="link-button back-link" data-back-to="radiogram-settings" data-i18n="common.backToSettingsShort">Change settings</button>
+                </div>
+            </section>
+
+            <!-- ================= RECEPTION SETTINGS ================= -->
+            <section id="screen-reception-settings" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="hub" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="hub.receptionTitle">Reception Training</h1>
+                <p class="subtitle" data-i18n="reception.settingsSubtitle">Blind copy: no text is shown before or during playback. Choose a pool and settings, then start.</p>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="pool.characterPoolHeading">Character pool</h2>
+
+                    <div class="pool-quick-actions" id="rcp-pool-quick-actions">
+                        <button type="button" class="chip-button" data-preset="letters" data-i18n="pool.allLetters">All Letters</button>
+                        <button type="button" class="chip-button" data-preset="numbers" data-i18n="pool.allNumbers">All Numbers</button>
+                        <button type="button" class="chip-button" data-preset="punctuation" data-i18n="pool.allSpecial">All Special</button>
+                        <button type="button" class="chip-button" data-preset="alphanumeric" data-i18n="pool.lettersPlusNumbers">Letters + Numbers</button>
+                        <button type="button" class="chip-button" data-preset="all" data-i18n="pool.allCharacters">All Characters</button>
+                        <button type="button" class="chip-button chip-button-clear" data-preset="clear" data-i18n="common.clear">Clear</button>
+                    </div>
+
+                    <div class="char-category" id="rcp-char-category-letters">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="rcp-category-select-all-letters" />
+                                <span data-i18n="sessions.letters">Letters</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="rcp-char-grid-letters"></div>
+                    </div>
+
+                    <div class="char-category" id="rcp-char-category-numbers">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="rcp-category-select-all-numbers" />
+                                <span data-i18n="sessions.numbers">Numbers</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="rcp-char-grid-numbers"></div>
+                    </div>
+
+                    <div class="char-category" id="rcp-char-category-punctuation">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="rcp-category-select-all-punctuation" />
+                                <span data-i18n="sessions.specialChars">Special characters</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="rcp-char-grid-punctuation"></div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="rcp-learned-count"><span data-i18n="pool.learnedLettersOnly">Learned letters only</span> <span class="muted" data-i18n="pool.standardLearningOrder">(standard learning order)</span></label>
+                            <input type="number" id="rcp-learned-count" min="1" max="40" placeholder="e.g. 10" />
+                        </div>
+                        <button type="button" id="rcp-learned-apply-button" class="btn btn-secondary" style="align-self:flex-end;" data-i18n="common.apply">Apply</button>
+                    </div>
+
+                    <p class="pool-summary" id="rcp-pool-summary" data-i18n="pool.noneSelected">No characters selected yet.</p>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="radiogram.exerciseSize">Exercise size</h2>
+
+                    <div class="pool-quick-actions" id="rcp-length-quick-actions">
+                        <button type="button" class="chip-button" data-groups="5">5 groups</button>
+                        <button type="button" class="chip-button" data-groups="10">10 groups</button>
+                        <button type="button" class="chip-button" data-groups="20">20 groups</button>
+                        <button type="button" class="chip-button" data-groups="24">24 groups (120 chars)</button>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="rcp-setting-group-size">Characters per group <span class="muted">(0 = ungrouped)</span></label>
+                            <input type="number" id="rcp-setting-group-size" min="0" max="10" value="5" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="rcp-setting-group-count">Number of groups</label>
+                            <input type="number" id="rcp-setting-group-count" min="1" max="60" value="10" />
+                        </div>
+                    </div>
+                    <p class="pool-summary" id="rcp-length-summary">50 characters total.</p>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="pool.morseSettingsHeading">Morse settings</h2>
+
+                    <div class="pool-quick-actions" id="rcp-speed-progression"></div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="rcp-setting-wpm" data-i18n="common.wpm">WPM (character speed)</label>
+                            <input type="number" id="rcp-setting-wpm" min="1" max="60" value="15" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="rcp-setting-farnsworth"><span data-i18n="common.farnsworth">Farnsworth WPM</span> <span class="muted" data-i18n="teacher.blankSameAsWpm">(blank = same as WPM)</span></label>
+                            <input type="number" id="rcp-setting-farnsworth" min="1" max="60" placeholder="&mdash;" />
+                        </div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="rcp-setting-tone" data-i18n="common.tone">Tone frequency (Hz)</label>
+                        <input type="number" id="rcp-setting-tone" min="200" max="1200" value="600" />
+                    </div>
+                </div>
+
+                <div id="rcp-settings-error" class="form-error" hidden></div>
+
+                <button id="rcp-start-button" class="btn btn-primary btn-large" type="button" data-i18n="reception.startExercise">Start Exercise</button>
+            </section>
+
+            <!-- ================= RECEPTION PLAYBACK (blind copy) ================= -->
+            <section id="screen-reception-play" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="reception-settings" data-i18n="common.backToSettings">&larr; Back to settings</button>
+                <h1 data-i18n="hub.receptionTitle">Reception Training</h1>
+                <p class="subtitle" id="rcp-meta"></p>
+
+                <div class="ct-progress">
+                    <div class="ct-progress-text" id="rcp-progress-text">0:00 / 0:00</div>
+                    <div class="ct-progress-bar"><div class="ct-progress-fill" id="rcp-progress-fill"></div></div>
+                </div>
+
+                <div class="radiogram-playback-controls">
+                    <button id="rcp-play-button" class="btn btn-primary btn-large" type="button">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7V5z" /></svg>
+                        <span data-i18n="common.start">Start</span>
+                    </button>
+                    <button id="rcp-pause-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
+                        <span data-i18n="common.pause">Pause</span>
+                    </button>
+                    <button id="rcp-resume-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7V5z" /></svg>
+                        <span data-i18n="common.resume">Resume</span>
+                    </button>
+                    <button id="rcp-stop-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5" /></svg>
+                        <span data-i18n="common.stop">Stop</span>
+                    </button>
+                    <button id="rcp-replay-button" class="btn btn-secondary" type="button" hidden>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
+                        <span data-i18n="groupSession.replay">Replay</span>
+                    </button>
+                    <button id="rcp-restart-button" class="btn btn-secondary" type="button">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
+                        <span data-i18n="common.restart">Restart</span>
+                    </button>
+                </div>
+
+                <div class="modal-field radiogram-volume-field">
+                    <label for="rcp-play-volume" data-i18n="common.volume">Volume</label>
+                    <input type="range" id="rcp-play-volume" min="0" max="100" value="60" />
+                </div>
+
+                <p class="radiogram-status" id="rcp-status" data-i18n="reception.statusNotStarted">Not started yet. Nothing is revealed until you submit.</p>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="radiogram.yourTranscription">Your transcription</h2>
+                    <p class="radiogram-hint" data-i18n="reception.typeExactlyHint">Type exactly what you hear. Nothing you type is auto-corrected.</p>
+                    <textarea
+                        id="rcp-answer"
+                        class="radiogram-answer-input"
+                        rows="5"
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocapitalize="characters"
+                        placeholder="Your transcription will appear here as you type&hellip;" data-i18n-placeholder="radiogram.transcriptionPlaceholder"
+                    ></textarea>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="rcp-submit-button" class="btn btn-primary btn-large" type="button" data-i18n="reception.submitAndGrade">Submit &amp; Grade</button>
+                    <button id="rcp-generate-another-button" class="btn btn-secondary btn-large" type="button" data-i18n="radiogram.newExercise">New Exercise</button>
+                </div>
+            </section>
+
+            <!-- ================= RECEPTION RESULTS ================= -->
+            <section id="screen-reception-results" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="reception-settings" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="reception.receptionResults">Reception Results</h1>
+                <p class="subtitle" id="rcpr-subtitle"></p>
+                <div id="rcpr-save-error" class="form-error" hidden></div>
+
+                <div class="result-accuracy" id="rcpr-accuracy">&mdash;</div>
+                <div class="result-grade-badge">
+                    <span class="result-grade-label" data-i18n="common.grade">Grade</span>
+                    <span class="result-grade-value" id="rcpr-grade">&mdash;</span>
+                </div>
+
+                <div class="stat-grid" id="rcpr-summary-grid">
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.total">Total</span>
+                        <span class="stat-value" id="rcpr-total">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.correct">Correct</span>
+                        <span class="stat-value count-correct" id="rcpr-correct">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.incorrect">Incorrect</span>
+                        <span class="stat-value count-incorrect" id="rcpr-incorrect">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Missing</span>
+                        <span class="stat-value count-incorrect" id="rcpr-missing">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Extra</span>
+                        <span class="stat-value count-incorrect" id="rcpr-extra">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label">Total errors</span>
+                        <span class="stat-value count-incorrect" id="rcpr-errors">0</span>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="radiogram.comparison">Comparison</h2>
+                    <p class="radiogram-hint">
+                        <span class="rg-legend-swatch rg-op-match"></span> <span data-i18n="common.correct2">correct</span> &middot;
+                        <span class="rg-legend-swatch rg-op-substitution"></span> <span data-i18n="radiogram.wrong">wrong</span> &middot;
+                        <span class="rg-legend-swatch rg-op-missing"></span> <span data-i18n="common.missing2">missing</span> &middot;
+                        <span class="rg-legend-swatch rg-op-extra"></span> <span data-i18n="common.extra2">extra</span>
+                    </p>
+                    <div class="radiogram-compare" id="rcpr-compare"></div>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="rcpr-generate-another-button" class="btn btn-primary btn-large" type="button" data-i18n="radiogram.newExercise">New Exercise</button>
+                    <button type="button" class="link-button back-link" data-back-to="reception-settings" data-i18n="common.backToSettingsShort">Change settings</button>
+                </div>
+            </section>
+
+            <!-- ================= TRANSMISSION SETTINGS ================= -->
+            <section id="screen-transmission-settings" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="hub" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="groupSession.modeTransmission">Morse Transmission</h1>
+                <p class="subtitle" data-i18n="transmission.settingsSubtitle">Choose a character pool and settings, then key the target sequence yourself using the Space bar.</p>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.freeTransmission">Free Transmission</h2>
+                    <p class="radiogram-hint">No target, no grading — just key anything and watch it decode in real time. Uses only the WPM/tolerance settings below.</p>
+                    <button id="tx-free-start-button" class="btn btn-secondary btn-large" type="button">Start Free Transmission</button>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="pool.characterPoolHeading">Character pool</h2> <span class="muted" data-i18n="transmission.exerciseModeOnly">(Exercise mode only)</span>
+
+                    <div class="pool-quick-actions" id="tx-pool-quick-actions">
+                        <button type="button" class="chip-button" data-preset="letters" data-i18n="pool.allLetters">All Letters</button>
+                        <button type="button" class="chip-button" data-preset="numbers" data-i18n="pool.allNumbers">All Numbers</button>
+                        <button type="button" class="chip-button" data-preset="punctuation" data-i18n="pool.allSpecial">All Special</button>
+                        <button type="button" class="chip-button" data-preset="alphanumeric" data-i18n="pool.lettersPlusNumbers">Letters + Numbers</button>
+                        <button type="button" class="chip-button" data-preset="all" data-i18n="pool.allCharacters">All Characters</button>
+                        <button type="button" class="chip-button chip-button-clear" data-preset="clear" data-i18n="common.clear">Clear</button>
+                    </div>
+
+                    <div class="char-category" id="tx-char-category-letters">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="tx-category-select-all-letters" />
+                                <span data-i18n="sessions.letters">Letters</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="tx-char-grid-letters"></div>
+                    </div>
+
+                    <div class="char-category" id="tx-char-category-numbers">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="tx-category-select-all-numbers" />
+                                <span data-i18n="sessions.numbers">Numbers</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="tx-char-grid-numbers"></div>
+                    </div>
+
+                    <div class="char-category" id="tx-char-category-punctuation">
+                        <div class="char-category-header">
+                            <label class="char-category-select-all">
+                                <input type="checkbox" id="tx-category-select-all-punctuation" />
+                                <span data-i18n="sessions.specialChars">Special characters</span>
+                            </label>
+                        </div>
+                        <div class="char-grid" id="tx-char-grid-punctuation"></div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="tx-learned-count"><span data-i18n="pool.learnedLettersOnly">Learned letters only</span> <span class="muted" data-i18n="pool.standardLearningOrder">(standard learning order)</span></label>
+                            <input type="number" id="tx-learned-count" min="1" max="40" placeholder="e.g. 10" />
+                        </div>
+                        <button type="button" id="tx-learned-apply-button" class="btn btn-secondary" style="align-self:flex-end;" data-i18n="common.apply">Apply</button>
+                    </div>
+
+                    <p class="pool-summary" id="tx-pool-summary" data-i18n="pool.noneSelected">No characters selected yet.</p>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="radiogram.exerciseSize">Exercise size</h2>
+
+                    <div class="pool-quick-actions" id="tx-length-quick-actions">
+                        <button type="button" class="chip-button" data-groups="5">5 characters</button>
+                        <button type="button" class="chip-button" data-groups="10">10 characters</button>
+                        <button type="button" class="chip-button" data-groups="20">20 characters</button>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="tx-setting-group-size">Characters per group <span class="muted">(0 = ungrouped)</span></label>
+                            <input type="number" id="tx-setting-group-size" min="0" max="10" value="0" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="tx-setting-group-count">Number of groups <span class="muted">(= character count when ungrouped)</span></label>
+                            <input type="number" id="tx-setting-group-count" min="1" max="60" value="5" />
+                        </div>
+                    </div>
+                    <p class="pool-summary" id="tx-length-summary">5 characters total.</p>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.timingSettings">Timing settings</h2>
+
+                    <div class="pool-quick-actions" id="tx-speed-progression"></div>
+
+                    <div class="settings-row">
+                        <div class="modal-field">
+                            <label for="tx-setting-wpm">Target WPM</label>
+                            <input type="number" id="tx-setting-wpm" min="1" max="40" value="15" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="tx-setting-tolerance">Timing tolerance <span class="muted">(higher = more forgiving)</span></label>
+                            <input type="number" id="tx-setting-tolerance" min="0.1" max="0.8" step="0.05" value="0.35" />
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tx-settings-error" class="form-error" hidden></div>
+
+                <button id="tx-start-button" class="btn btn-primary btn-large" type="button" data-i18n="reception.startExercise">Start Exercise</button>
+            </section>
+
+            <!-- ================= TRANSMISSION KEYING (gameplay) ================= -->
+            <section id="screen-transmission-play" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="transmission-settings" data-i18n="common.backToSettings">&larr; Back to settings</button>
+                <h1 data-i18n="groupSession.modeTransmission">Morse Transmission</h1>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.targetSequence">Target sequence</h2>
+                    <div class="tx-target" id="tx-target"></div>
+                </div>
+
+                <div class="ct-progress">
+                    <div class="ct-progress-text" id="tx-progress-text">0:00 · 0 / 5 characters</div>
+                    <div class="ct-progress-bar"><div class="ct-progress-fill" id="tx-progress-fill"></div></div>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.status">Status</span>
+                        <span class="stat-value" id="tx-status">Ready</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="transmission.targetWpm">Target WPM</span>
+                        <span class="stat-value" id="tx-target-wpm">15</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="stats.actualWpm">Actual WPM</span>
+                        <span class="stat-value" id="tx-actual-wpm">&mdash;</span>
+                    </div>
+                </div>
+
+                <div class="tx-key-area" id="tx-key-area" tabindex="0">
+                    <div class="tx-key-hint" data-i18n-html="transmission.holdSpaceHintFull">Hold <kbd>Space</kbd> to key a dot or dash. Release to complete it.</div>
+                    <div class="tx-current-morse" id="tx-current-morse">&nbsp;</div>
+                    <div class="tx-feedback" id="tx-feedback"></div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.decodedTransmission">Decoded transmission</h2>
+                    <div class="tx-decoded" id="tx-decoded"></div>
+                </div>
+
+                <div id="tx-play-error" class="form-error" hidden></div>
+
+                <div class="exercise-actions">
+                    <button id="tx-submit-button" class="btn btn-primary btn-large" type="button" data-i18n="transmission.finishAndGrade">Finish &amp; Grade</button>
+                    <button id="tx-restart-button" class="btn btn-secondary btn-large" type="button" data-i18n="common.restart">Restart</button>
+                    <button id="tx-generate-another-button" class="btn btn-secondary btn-large" type="button" data-i18n="radiogram.newExercise">New Exercise</button>
+                </div>
+            </section>
+
+            <!-- ================= TRANSMISSION RESULTS ================= -->
+            <section id="screen-transmission-results" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="transmission-settings" data-i18n="hub.backToHub">&larr; Back to Individual Training</button>
+                <h1 data-i18n="transmission.transmissionResults">Transmission Results</h1>
+                <p class="subtitle" id="txr-subtitle"></p>
+
+                <div class="result-accuracy" id="txr-accuracy">&mdash;</div>
+                <div class="result-grade-badge">
+                    <span class="result-grade-label" data-i18n="common.grade">Grade</span>
+                    <span class="result-grade-value" id="txr-grade">&mdash;</span>
+                </div>
+
+                <div class="stat-grid" id="txr-summary-grid">
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.total">Total</span>
+                        <span class="stat-value" id="txr-total">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.correct">Correct</span>
+                        <span class="stat-value count-correct" id="txr-correct">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.incorrect">Incorrect</span>
+                        <span class="stat-value count-incorrect" id="txr-incorrect">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.missing">Missing</span>
+                        <span class="stat-value count-incorrect" id="txr-missing">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.extra">Extra</span>
+                        <span class="stat-value count-incorrect" id="txr-extra">0</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="transmission.totalErrors">Total errors</span>
+                        <span class="stat-value count-incorrect" id="txr-errors">0</span>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="radiogram.comparison">Comparison</h2>
+                    <p class="radiogram-hint">
+                        <span class="rg-legend-swatch rg-op-match"></span> <span data-i18n="common.correct2">correct</span> &middot;
+                        <span class="rg-legend-swatch rg-op-substitution"></span> <span data-i18n="radiogram.wrong">wrong</span> &middot;
+                        <span class="rg-legend-swatch rg-op-missing"></span> <span data-i18n="common.missing2">missing</span> &middot;
+                        <span class="rg-legend-swatch rg-op-extra"></span> <span data-i18n="common.extra2">extra</span>
+                    </p>
+                    <div class="radiogram-compare" id="txr-compare"></div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.timingAnalysis">Timing analysis</h2>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <tbody id="txr-timing-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="txr-generate-another-button" class="btn btn-primary btn-large" type="button" data-i18n="radiogram.newExercise">New Exercise</button>
+                    <button type="button" class="link-button back-link" data-back-to="transmission-settings" data-i18n="common.backToSettingsShort">Change settings</button>
+                </div>
+            </section>
+
+            <!-- ================= FREE TRANSMISSION (no target, no grading) ================= -->
+            <section id="screen-transmission-free" class="practice-screen" hidden>
+                <button type="button" class="link-button back-link" data-back-to="transmission-settings" data-i18n="common.backToSettings">&larr; Back to settings</button>
+                <h1 data-i18n="transmission.freeTransmission">Free Transmission</h1>
+                <p class="subtitle" data-i18n="transmission.freeTransmissionSubtitle">No target, no grading — key anything you like. Nothing here is saved.</p>
+
+                <div class="stat-grid">
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="common.status">Status</span>
+                        <span class="stat-value" id="txf-status">Ready</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="transmission.elapsed">Elapsed</span>
+                        <span class="stat-value" id="txf-elapsed">0:00</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="stats.actualWpm">Actual WPM</span>
+                        <span class="stat-value" id="txf-actual-wpm">&mdash;</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-label" data-i18n="transmission.rhythmConsistency">Rhythm consistency</span>
+                        <span class="stat-value" id="txf-rhythm">&mdash;</span>
+                    </div>
+                </div>
+
+                <div class="tx-key-area" id="txf-key-area" tabindex="0">
+                    <div class="tx-key-hint" data-i18n-html="transmission.holdSpaceHint">Hold <kbd>Space</kbd> to key a dot or dash.</div>
+                    <div class="tx-current-morse" id="txf-current-morse">&nbsp;</div>
+                    <div class="tx-feedback" id="txf-feedback"></div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.decodedTransmission">Decoded transmission</h2>
+                    <div class="tx-decoded" id="txf-decoded"></div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-group-title" data-i18n="transmission.timingStatistics">Timing statistics</h2>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <tbody id="txf-timing-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="exercise-actions">
+                    <button id="txf-clear-button" class="btn btn-secondary btn-large" type="button" data-i18n="common.clear">Clear</button>
+                    <button type="button" class="link-button back-link" data-back-to="transmission-settings" data-i18n="common.done">Done</button>
                 </div>
             </section>
         </main>
     </div>
 
+    <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
     <script src="/js/character-pool.js"></script>
     <script src="/js/morse-audio-player.js"></script>
+    <script src="/js/morse-receiver-map.js"></script>
+    <script src="/js/morse-receiver-core.js"></script>
+    <script src="/js/morse-transmitter-core.js"></script>
+    <script src="/js/speed-progression.js"></script>
     <script src="/js/grading.js"></script>
     <script src="/js/practice.js"></script>
 </body>

@@ -1,0 +1,303 @@
+/* Electronic gradebook ("Catalog electronic") — page layout only. Shared
+   primitives (.panel, .btn, .badge, .modal-field, .toast, nav, tokens)
+   come from styles.css, so Light/Dark themes apply automatically. */
+
+.gb-layout {
+    display: grid;
+    grid-template-columns: minmax(250px, 320px) 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+/* ---------- Student picker ---------- */
+.gb-students-panel {
+    position: sticky;
+    top: 1rem;
+}
+.gb-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+.gb-filters input,
+.gb-filters select {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+.gb-filters input:focus,
+.gb-filters select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.gb-student-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+.gb-list-empty {
+    padding: 0.5rem 0.25rem;
+}
+.gb-student-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    transition: background var(--transition), border-color var(--transition);
+}
+.gb-student-item:hover {
+    background: var(--surface-alt);
+}
+.gb-student-item.is-selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+.gb-student-item-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.gb-student-item-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.gb-student-item-meta {
+    font-size: var(--fs-helper);
+    color: var(--text-muted);
+}
+.gb-pending-badge {
+    flex-shrink: 0;
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+/* ---------- Selected student ---------- */
+.gb-detail-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+}
+.gb-student-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+}
+.gb-student-header h2 {
+    font-size: 1.2rem;
+}
+.gb-student-meta {
+    margin: 0.2rem 0 0;
+}
+
+.gb-add-form {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface-alt);
+    margin-bottom: 1.5rem;
+}
+.gb-type-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    margin-bottom: 0.85rem;
+}
+.gb-type-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 0.4rem 0.95rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.gb-type-btn.is-active {
+    background: var(--accent);
+    color: #fff;
+}
+.gb-add-fields {
+    display: flex;
+    gap: 0.85rem;
+}
+.gb-grade-field {
+    flex: 0 0 150px;
+}
+.gb-note-field {
+    flex: 1;
+    min-width: 0;
+}
+.gb-add-fields .modal-field,
+.gb-edit-form .modal-field {
+    margin-bottom: 0;
+}
+.gb-add-fields textarea,
+.gb-edit-form textarea {
+    width: 100%;
+    resize: vertical;
+    font: inherit;
+}
+.gb-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+}
+
+.gb-section + .gb-section {
+    margin-top: 1.5rem;
+}
+.gb-section-title {
+    margin: 0 0 0.3rem;
+    font-size: var(--fs-helper);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 650;
+}
+.gb-section-hint {
+    margin: 0 0 0.75rem;
+}
+
+.gb-entry-list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+.gb-entry {
+    display: flex;
+    gap: 0.9rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+.gb-entry.is-temporary {
+    border-style: dashed;
+    border-color: var(--warning);
+    background: var(--warning-soft);
+}
+.gb-entry-grade {
+    flex-shrink: 0;
+}
+.gb-grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: var(--r-md);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.gb-grade-none,
+.gb-grade-note {
+    background: var(--neutral-soft);
+    color: var(--neutral);
+}
+.gb-entry-body {
+    flex: 1;
+    min-width: 0;
+}
+.gb-entry-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+.gb-entry-type {
+    font-weight: 650;
+    font-size: 0.92rem;
+    margin-right: 0.15rem;
+}
+.gb-badge-manual { background: var(--neutral-soft); color: var(--neutral); }
+.gb-badge-formal { background: var(--accent-soft); color: var(--accent-hover); }
+.gb-badge-temporary { background: var(--warning-soft); color: var(--warning); }
+.gb-badge-permanent { background: var(--success-soft); color: var(--success); }
+.gb-entry-meta {
+    margin-top: 0.2rem;
+}
+.gb-entry-summary {
+    margin: 0.45rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text);
+}
+.gb-entry-note {
+    margin: 0.45rem 0 0;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.gb-entry-locked {
+    margin: 0.35rem 0 0;
+}
+.gb-entry-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+}
+.gb-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+.gb-edit-form input[type="number"] {
+    max-width: 120px;
+}
+
+@media (max-width: 860px) {
+    .gb-layout {
+        grid-template-columns: 1fr;
+    }
+    .gb-students-panel {
+        position: static;
+    }
+    .gb-student-list {
+        max-height: 40vh;
+    }
+}
+@media (max-width: 520px) {
+    .gb-add-fields {
+        flex-direction: column;
+    }
+    .gb-grade-field {
+        flex-basis: auto;
+    }
+    .gb-entry {
+        padding: 0.75rem;
+        gap: 0.65rem;
+    }
+}

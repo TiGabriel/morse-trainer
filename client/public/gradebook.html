@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('morseTrainerTheme');
+                document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
+            } catch (e) {
+                document.documentElement.dataset.theme = 'dark';
+            }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morse SMMMFN — Catalog electronic</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/teacher.css" />
+    <link rel="stylesheet" href="/css/gradebook.css" />
+</head>
+<body class="dashboard-body">
+    <div id="auth-gate" class="auth-gate" data-i18n="auth.checkingAccess">Checking access&hellip;</div>
+
+    <div id="dashboard" hidden>
+        <nav class="app-nav" aria-label="Main">
+            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+            <div class="app-nav-links">
+                <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
+                <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+                <a href="/sessions.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/gradebook.html" class="app-nav-link active" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+                <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
+            </div>
+            <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+            <div class="app-nav-lang-toggle" id="lang-toggle">
+                <button type="button" data-lang-btn="ro">RO</button>
+                <button type="button" data-lang-btn="en">EN</button>
+            </div>
+            <div class="app-nav-right">
+                <span id="teacher-name" class="app-nav-user"></span>
+                <button id="logout-button" class="app-nav-logout" type="button" data-i18n="nav.logout">Log out</button>
+            </div>
+        </nav>
+
+        <main class="dash-main">
+            <h1><span class="accent" data-i18n="gradebook.title">Electronic Gradebook</span></h1>
+            <p class="subtitle" data-i18n="gradebook.subtitle">Grades and notes for each student.</p>
+
+            <div class="gb-layout">
+                <!-- Student picker -->
+                <section class="panel gb-students-panel">
+                    <div class="panel-header">
+                        <h2 data-i18n="gradebook.studentsHeading">Students</h2>
+                    </div>
+                    <div class="gb-filters">
+                        <input type="search" id="gb-search" placeholder="Search student&hellip;" data-i18n-placeholder="gradebook.searchStudent" autocomplete="off" />
+                        <select id="gb-class-filter">
+                            <option value="" data-i18n="teacher.allClasses">All classes</option>
+                        </select>
+                    </div>
+                    <ul id="gb-student-list" class="gb-student-list" aria-label="Students">
+                        <li class="muted gb-list-empty" data-i18n="common.loading">Loading&hellip;</li>
+                    </ul>
+                </section>
+
+                <!-- Selected student's gradebook -->
+                <section class="panel gb-detail-panel" id="gb-detail-panel">
+                    <div id="gb-detail-empty" class="gb-detail-empty">
+                        <p class="muted" data-i18n="gradebook.selectStudentPrompt">Select a student from the list to open their gradebook.</p>
+                    </div>
+
+                    <div id="gb-detail" hidden>
+                        <div class="gb-student-header">
+                            <div>
+                                <h2 id="gb-student-name">&mdash;</h2>
+                                <p class="muted gb-student-meta" id="gb-student-meta">&mdash;</p>
+                            </div>
+                        </div>
+
+                        <form id="gb-add-form" class="gb-add-form" novalidate>
+                            <div class="gb-type-toggle" role="radiogroup">
+                                <button type="button" class="gb-type-btn is-active" data-entry-type="grade" role="radio" aria-checked="true" data-i18n="gradebook.addGrade">Add grade</button>
+                                <button type="button" class="gb-type-btn" data-entry-type="note" role="radio" aria-checked="false" data-i18n="gradebook.addNote">Add note</button>
+                            </div>
+                            <div class="gb-add-fields">
+                                <div class="modal-field gb-grade-field" id="gb-grade-field">
+                                    <label for="gb-grade-input"><span data-i18n="gradebook.grade">Grade</span> <span class="muted" data-i18n="gradebook.gradeHint">Whole number, 1–10</span></label>
+                                    <input type="number" id="gb-grade-input" min="1" max="10" step="1" inputmode="numeric" />
+                                </div>
+                                <div class="modal-field gb-note-field">
+                                    <label for="gb-note-input" id="gb-note-label" data-i18n="gradebook.noteOptional">Note (optional)</label>
+                                    <textarea id="gb-note-input" rows="2" maxlength="2000"></textarea>
+                                </div>
+                            </div>
+                            <div id="gb-add-error" class="modal-error" hidden></div>
+                            <div class="gb-add-actions">
+                                <button type="submit" class="btn btn-primary btn-small" id="gb-add-submit" data-i18n="common.save">Save</button>
+                            </div>
+                        </form>
+
+                        <div id="gb-pending-section" class="gb-section" hidden>
+                            <h3 class="gb-section-title" data-i18n="gradebook.pendingHeading">To confirm — Formal Test results</h3>
+                            <p class="muted gb-section-hint" data-i18n="gradebook.pendingHint">Created automatically when a Formal Test ends.</p>
+                            <ul id="gb-pending-list" class="gb-entry-list"></ul>
+                        </div>
+
+                        <div class="gb-section">
+                            <h3 class="gb-section-title" data-i18n="gradebook.entriesHeading">Gradebook entries</h3>
+                            <ul id="gb-entry-list" class="gb-entry-list"></ul>
+                            <p id="gb-no-entries" class="muted" hidden data-i18n="gradebook.noEntries">No saved entries for this student yet.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/js/i18n.js"></script>
+    <script src="/js/nav.js"></script>
+    <script src="/js/grading.js"></script>
+    <script src="/js/gradebook.js"></script>
+</body>
+</html>

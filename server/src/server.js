@@ -19,6 +19,7 @@ const morseRoutes = require('./modules/morse-engine/morseRoutes');
 const practiceRoutes = require('./modules/practice/practiceRoutes');
 const sessionsRoutes = require('./modules/sessions/sessionsRoutes');
 const statsRoutes = require('./modules/stats/statsRoutes');
+const gradebookRoutes = require('./modules/gradebook/gradebookRoutes');
 const realtimeHub = require('./realtime/hub');
 
 async function main() {
@@ -96,6 +97,9 @@ async function main() {
     // ---- Phase 11: statistics (teacher class-wide; self-or-teacher per student) -
     app.use('/api/stats', statsRoutes);
 
+    // ---- Electronic gradebook ("Catalog electronic") — teacher-only --------
+    app.use('/api/gradebook', gradebookRoutes);
+
     // Any /api/* path that didn't match a route above gets a clean JSON 404
     // instead of falling through to Express's default HTML error page.
     app.use('/api', (req, res) => {
@@ -104,6 +108,22 @@ async function main() {
 
     // ---- Static client ------------------------------------------------------
     const clientPublicDir = path.join(__dirname, '..', '..', 'client', 'public');
+
+    // Teacher-only pages are refused server-side for anyone who isn't a
+    // logged-in teacher (redirected to the home/login page), so typing the
+    // URL directly never even serves the page to a student. The page
+    // scripts still re-check the role, and every API they call is
+    // requireRole('teacher') on its own — this is an extra layer, not the
+    // only one.
+    const TEACHER_ONLY_PAGES = ['/teacher.html', '/gradebook.html'];
+    app.get(TEACHER_ONLY_PAGES, (req, res, next) => {
+        const rawToken = req.cookies ? req.cookies[config.auth.cookieName] : null;
+        const session = sessionService.validateAndRefresh(rawToken);
+        if (!session || session.user.role !== 'teacher') {
+            return res.redirect(302, '/');
+        }
+        return next();
+    });
     app.use(express.static(clientPublicDir));
 
     // ---- Global error handler -------------------------------------------------

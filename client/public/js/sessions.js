@@ -27,10 +27,11 @@ function showToast(message, type = 'default') {
 }
 
 const MODE_LABELS = {
-    audio_to_text: 'Audio → Text',
-    morse_to_text: 'Morse → Text',
-    text_to_morse: 'Text → Morse',
-    character_recognition: 'Character Recognition',
+    get audio_to_text() { return t('groupSession.modeAudioToText'); },
+    get morse_to_text() { return t('groupSession.modeMorseToText'); },
+    get text_to_morse() { return t('groupSession.modeTextToMorse'); },
+    get character_recognition() { return t('groupSession.modeCharacterRecognition'); },
+    get transmission() { return t('groupSession.modeTransmission'); },
 };
 
 let classesCache = [];
@@ -74,7 +75,7 @@ function selectWizardType(type) {
 function renderWizardClassList() {
     const container = el('wizard-class-list');
     if (classesCache.length === 0) {
-        container.innerHTML = '<span class="muted">No active classes yet — create one from the Dashboard first.</span>';
+        container.innerHTML = `<span class="muted">${escapeHtml(t('sessions.noActiveClasses'))}</span>`;
         return;
     }
     container.innerHTML = classesCache
@@ -106,7 +107,7 @@ function selectWizardMode(mode) {
 /** Populates the Step 4 summary line and shows/hides settings that don't apply to the selected exercise type. */
 function renderWizardSettingsStep() {
     const cls = classesCache.find((c) => c.id === wizardClassId);
-    const typeLabel = wizardType === 'test' ? 'Formal Test' : 'Group Practice';
+    const typeLabel = wizardType === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice');
     el('wizard-summary').textContent = `${typeLabel} · ${cls ? cls.name : '—'} · ${MODE_LABELS[wizardMode] || wizardMode}`;
 
     // A radiogram (audio_to_text) is always the fixed 3x10x4/120-character
@@ -114,6 +115,11 @@ function renderWizardSettingsStep() {
     // length is not configurable for it, so hide the field entirely
     // rather than show a control that's silently ignored.
     el('new-length-field').hidden = wizardMode === 'audio_to_text';
+
+    // Timing tolerance (dot/dash/gap classification forgiveness) only
+    // applies to Transmission — every other mode has no Space-bar keying
+    // to classify.
+    el('new-tolerance-field').hidden = wizardMode !== 'transmission';
 }
 
 function resetWizard() {
@@ -146,7 +152,7 @@ async function loadParticipantsForSelectedClass() {
     const classId = wizardClassId;
     const container = el('participants-list');
     if (!classId) {
-        container.innerHTML = '<span class="muted">Select a class to choose participants&hellip;</span>';
+        container.innerHTML = `<span class="muted">${escapeHtml(t('sessions.selectClassFirst'))}</span>`;
         studentsInSelectedClass = [];
         return;
     }
@@ -154,7 +160,7 @@ async function loadParticipantsForSelectedClass() {
         const { users } = await api(`/api/users?role=student&classId=${classId}&status=active`);
         studentsInSelectedClass = users;
         if (users.length === 0) {
-            container.innerHTML = '<span class="muted">No active students in this class yet.</span>';
+            container.innerHTML = `<span class="muted">${escapeHtml(t('sessions.noActiveStudents'))}</span>`;
             return;
         }
         container.innerHTML = users
@@ -169,7 +175,7 @@ async function loadParticipantsForSelectedClass() {
             })
             .join('');
     } catch (err) {
-        container.innerHTML = `<span class="muted">Could not load students: ${escapeHtml(err.message)}</span>`;
+        container.innerHTML = `<span class="muted">${escapeHtml(t('sessions.couldNotLoadStudents'))}: ${escapeHtml(err.message)}</span>`;
     }
 }
 
@@ -186,25 +192,25 @@ async function loadSessions() {
     const { sessions } = await api('/api/sessions');
     const tbody = el('sessions-tbody');
     if (sessions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted">No sessions yet. Create one above.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(t('sessions.noSessionsYet'))}</td></tr>`;
         return;
     }
     tbody.innerHTML = '';
     sessions.forEach((s) => {
         const tr = document.createElement('tr');
-        const typeLabel = s.type === 'test' ? 'Formal Test' : 'Group Practice';
+        const typeLabel = s.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice');
         tr.innerHTML = `
             <td>${escapeHtml(s.className || '—')}</td>
             <td>${typeLabel} &middot; ${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</td>
             <td>${escapeHtml(s.difficulty || '—')}</td>
             <td>${s.wpm || '—'}</td>
             <td>${s.exerciseCount}</td>
-            <td><span class="badge status-${s.status}">${s.status}</span></td>
+            <td><span class="badge status-${s.status}">${t('groupSession.sessionStatus' + s.status.charAt(0).toUpperCase() + s.status.slice(1))}</span></td>
             <td class="col-actions"></td>
         `;
         const btn = document.createElement('button');
         btn.className = 'btn btn-secondary btn-small';
-        btn.textContent = 'Monitor';
+        btn.textContent = t('sessions.monitorBtn');
         btn.addEventListener('click', () => openMonitor(s.id));
         tr.querySelector('.col-actions').appendChild(btn);
         tbody.appendChild(tr);
@@ -228,6 +234,7 @@ async function createSession(e) {
         wpm: el('new-wpm').value || undefined,
         farnsworthWpm: el('new-farnsworth').value || undefined,
         toneFrequencyHz: el('new-tone').value || undefined,
+        toleranceFactor: el('new-tolerance').value || undefined,
         length: el('new-length').value || undefined,
         exerciseCount: Number(el('new-count').value),
         instructions: el('new-instructions').value.trim() || undefined,
@@ -247,7 +254,7 @@ async function createSession(e) {
 
     try {
         const { session } = await api('/api/sessions', { method: 'POST', body: JSON.stringify(body) });
-        showToast('Session created.', 'success');
+        showToast(t('sessions.createdToast'), 'success');
         resetWizard();
         await loadSessions();
         openMonitor(session.id);
@@ -292,8 +299,7 @@ function renderProgress() {
     el('progress-panel').hidden = false;
     const submittedCount = (progressByItem.get(currentItemIndex) || new Set()).size;
     const total = currentItemsTotal !== null ? currentItemsTotal : '?';
-    el('progress-summary').textContent =
-        `Item ${currentItemIndex + 1} of ${total} — ${submittedCount} submission(s) so far`;
+    el('progress-summary').textContent = t('sessions.progressSummary', { current: currentItemIndex + 1, total, count: submittedCount });
 }
 
 /** Renders the centralized 4-10 school grade (see grading.js) as a small badge, or an em dash if this item has no grade yet. */
@@ -308,7 +314,7 @@ function renderResultDetailRow(r) {
     const correctAnswerCell =
         r.expectedAnswer !== null && r.expectedAnswer !== undefined
             ? `<span class="result-answer result-answer-correct">${escapeHtml(r.expectedAnswer)}</span>`
-            : `<span class="result-answer-unavailable">Original radiogram unavailable for this historical test.</span>`;
+            : `<span class="result-answer-unavailable">${escapeHtml(t('sessions.originalUnavailable'))}</span>`;
     return `
         <tr>
             <td>${r.orderIndex + 1}</td>
@@ -316,7 +322,7 @@ function renderResultDetailRow(r) {
             <td><span class="result-answer">${escapeHtml(r.submittedText || '—')}</span></td>
             <td>${r.attemptCount}</td>
             <td>${r.score !== null && r.score !== undefined ? r.score + '%' : '—'}</td>
-            <td>${r.grade ? `<span class="badge status-${r.grade === 'pass' ? 'running' : 'cancelled'}">${r.grade}</span>` : '—'}</td>
+            <td>${r.grade ? `<span class="badge status-${r.grade === 'pass' ? 'running' : 'cancelled'}">${r.grade === 'pass' ? t('sessions.pass') : t('sessions.fail')}</span>` : '—'}</td>
             <td>${renderMarkBadge(r.characterGrade)}</td>
         </tr>
     `;
@@ -356,7 +362,7 @@ async function loadResults(sessionId) {
         el('results-panel').hidden = false;
         const tbody = el('results-tbody');
         if (results.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="muted">No results yet.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(t('sessions.noResultsYet'))}</td></tr>`;
             return;
         }
 
@@ -379,7 +385,7 @@ async function loadResults(sessionId) {
                 <td class="results-toggle-icon">&#9656;</td>
                 <td>${escapeHtml(name)}</td>
                 <td>${accuracy !== null ? accuracy.toFixed(2) + '%' : '—'}</td>
-                <td>${grade ? `<span class="badge status-${grade === 'pass' ? 'running' : 'cancelled'}">${grade}</span>` : '—'}</td>
+                <td>${grade ? `<span class="badge status-${grade === 'pass' ? 'running' : 'cancelled'}">${grade === 'pass' ? t('sessions.pass') : t('sessions.fail')}</span>` : '—'}</td>
                 <td>${mark !== null ? renderMarkBadge({ grade: mark }) : '—'}</td>
             `;
 
@@ -395,7 +401,7 @@ async function loadResults(sessionId) {
                 <td colspan="5" class="results-detail-cell">
                     <table class="data-table results-detail-table">
                         <thead>
-                            <tr><th>Item</th><th>Correct Answer</th><th>Student Answer</th><th>Attempts</th><th>Score</th><th>Grade</th><th>Mark</th></tr>
+                            <tr><th>${t('groupSession.item')}</th><th>${t('sessions.correctAnswerCol')}</th><th>${t('sessions.studentAnswerCol')}</th><th>${t('sessions.attempts')}</th><th>${t('common.score')}</th><th>${t('common.grade')}</th><th>${t('groupSession.mark')}</th></tr>
                         </thead>
                         <tbody>${detailBody}</tbody>
                     </table>
@@ -439,7 +445,7 @@ function connectWebSocket(sessionId) {
             currentItemsTotal = msg.itemsTotal;
             progressByItem.set(msg.itemIndex, new Set());
             renderProgress();
-            showToast(`Item ${msg.itemIndex + 1} of ${msg.itemsTotal} starting shortly…`);
+            showToast(t('sessions.itemStartingShortly', { current: msg.itemIndex + 1, total: msg.itemsTotal }));
         } else if (msg.type === 'item_active') {
             currentItemIndex = msg.itemIndex;
             renderProgress();
@@ -450,7 +456,7 @@ function connectWebSocket(sessionId) {
         } else if (msg.type === 'item_closed') {
             renderProgress();
         } else if (msg.type === 'session_finished') {
-            showToast('Session finished.', 'success');
+            showToast(t('sessions.sessionFinishedToast'), 'success');
             loadResults(sessionId);
         } else if (msg.type === 'error') {
             showToast(msg.error, 'error');
@@ -472,15 +478,15 @@ function connectWebSocket(sessionId) {
 }
 
 function renderMonitor(session, roster) {
-    el('monitor-title').textContent = `Session #${session.id}`;
+    el('monitor-title').textContent = `${t('sessions.sessionWord')} #${session.id}`;
     const badge = el('monitor-status-badge');
-    badge.textContent = session.status;
+    badge.textContent = t('groupSession.sessionStatus' + session.status.charAt(0).toUpperCase() + session.status.slice(1));
     badge.className = `badge status-${session.status}`;
 
     el('monitor-class').textContent = session.className || '—';
     el('monitor-mode').textContent = MODE_LABELS[session.exerciseMode] || session.exerciseMode;
     el('monitor-difficulty').textContent = session.difficulty || '—';
-    el('monitor-wpm').textContent = session.wpm || '(difficulty default)';
+    el('monitor-wpm').textContent = session.wpm || t('sessions.difficultyDefault');
     el('monitor-count').textContent = session.exerciseCount;
 
     const connectedCount = roster.filter((r) => r.connectionStatus === 'connected').length;
@@ -490,7 +496,7 @@ function renderMonitor(session, roster) {
     el('monitor-participants-label').hidden = !isRestricted;
     el('monitor-participants').hidden = !isRestricted;
     if (isRestricted) {
-        el('monitor-participants').textContent = `${session.participantIds.length} selected student(s) (not the whole class)`;
+        el('monitor-participants').textContent = t('sessions.selectedStudentsNote', { count: session.participantIds.length });
     }
 
     const instructionsBox = el('monitor-instructions-box');
@@ -516,7 +522,7 @@ function renderMonitor(session, roster) {
 
     const tbody = el('roster-tbody');
     if (roster.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="muted">No students in this class yet.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(t('sessions.noStudentsInClass'))}</td></tr>`;
         return;
     }
     tbody.innerHTML = '';
@@ -527,8 +533,8 @@ function renderMonitor(session, roster) {
             <td>${escapeHtml(r.rank || '—')}</td>
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(r.className || '—')}</td>
-            <td class="connection-${r.connectionStatus}">${r.connectionStatus === 'connected' ? '● Connected' : '○ Disconnected'}</td>
-            <td>${r.isReady ? '✓ Ready' : '—'}</td>
+            <td class="connection-${r.connectionStatus}">${r.connectionStatus === 'connected' ? '● ' + t('sessions.connectedWord') : '○ ' + t('sessions.disconnectedWord')}</td>
+            <td>${r.isReady ? '✓ ' + t('sessions.ready') : '—'}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -586,7 +592,7 @@ async function init() {
     el('btn-resume').addEventListener('click', () => sendTransition('resume'));
     el('btn-stop').addEventListener('click', () => sendTransition('stop'));
     el('btn-cancel').addEventListener('click', () => {
-        if (confirm('Cancel this session? This cannot be undone.')) sendTransition('cancel');
+        if (confirm(t('sessions.confirmCancel'))) sendTransition('cancel');
     });
 
     // Wizard: Step 1 (type) and Step 3 (mode) are both click-to-select,
@@ -635,6 +641,12 @@ async function init() {
     if (Number.isInteger(openId) && openId > 0) {
         openMonitor(openId);
     }
+
+    // "My Sessions" rows are built from fetched data and don't
+    // retranslate themselves on a same-page language switch.
+    document.addEventListener('morseTrainer:languageChanged', () => {
+        loadSessions();
+    });
 }
 
 init();

@@ -2,9 +2,9 @@ const sessionRepository = require('./sessionRepository');
 const sessionEngine = require('./sessionEngine');
 const sessionRuntime = require('./sessionRuntime');
 const classRepository = require('../classes/classRepository');
-const { VALID_MODES } = require('../practice/practiceEngine');
 const { findDifficultyPreset } = require('../morse-engine/difficultyPresets');
 const gradingService = require('../grading/gradingService');
+const gradebookService = require('../gradebook/gradebookService');
 const hub = require('../../realtime/hub');
 const logger = require('../../logger');
 
@@ -50,8 +50,8 @@ function createSession(req, res) {
     if (!classRepository.findById(classId)) {
         return res.status(400).json({ error: 'classId does not refer to an existing class.' });
     }
-    if (!VALID_MODES.includes(exerciseMode)) {
-        return res.status(400).json({ error: `exerciseMode must be one of: ${VALID_MODES.join(', ')}` });
+    if (!sessionEngine.SESSION_EXERCISE_MODES.includes(exerciseMode)) {
+        return res.status(400).json({ error: `exerciseMode must be one of: ${sessionEngine.SESSION_EXERCISE_MODES.join(', ')}` });
     }
     if (!difficulty || !findDifficultyPreset(difficulty)) {
         return res.status(400).json({ error: 'A valid difficulty preset is required.' });
@@ -96,6 +96,10 @@ function createSession(req, res) {
             length: itemLength,
             characters,
             exerciseCount,
+            // Only meaningful for exerciseMode 'transmission' — see
+            // sessionEngine.buildTransmissionExercise; harmlessly ignored
+            // by every other mode's item builder.
+            toleranceFactor: toNumberOrUndefined(body.toleranceFactor),
         });
     } catch (err) {
         return res.status(400).json({ error: err.message });
@@ -201,7 +205,13 @@ const openSession = makeTransitionHandler('open', 'opened_at', null);
 const startSessionAction = makeTransitionHandler('start', 'started_at', sessionRuntime.startSession);
 const pauseSession = makeTransitionHandler('pause', 'paused_at', sessionRuntime.pauseSession);
 const resumeSession = makeTransitionHandler('resume', null, sessionRuntime.resumeSession);
-const stopSession = makeTransitionHandler('stop', 'ended_at', sessionRuntime.haltSession);
+// A teacher stopping a running/paused Formal Test also finishes it, so it
+// gets the same TEMPORARY gradebook entries an auto-finish creates (a
+// no-op for group practice; idempotent if both paths ever fire).
+const stopSession = makeTransitionHandler('stop', 'ended_at', (id) => {
+    sessionRuntime.haltSession(id);
+    gradebookService.safeRecordFormalTestResults(id);
+});
 const cancelSession = makeTransitionHandler('cancel', 'ended_at', sessionRuntime.haltSession);
 
 /**

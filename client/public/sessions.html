@@ -10,6 +10,13 @@
             } catch (e) {
                 document.documentElement.dataset.theme = 'dark';
             }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,35 +26,41 @@
     <link rel="stylesheet" href="/css/sessions.css" />
 </head>
 <body class="dashboard-body">
-    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+    <div id="auth-gate" class="auth-gate" data-i18n="auth.checkingAccess">Checking access&hellip;</div>
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
             <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
-                <a href="/" class="app-nav-link">Home</a>
-                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
-                <a href="/sessions.html" class="app-nav-link active">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link">Statistics</a>
+                <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
+                <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+                <a href="/sessions.html" class="app-nav-link active" data-i18n="nav.groupSessions">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+                <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
             <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+            <div class="app-nav-lang-toggle" id="lang-toggle">
+                <button type="button" data-lang-btn="ro">RO</button>
+                <button type="button" data-lang-btn="en">EN</button>
+            </div>
             <div class="app-nav-right">
                 <span id="teacher-name" class="app-nav-user"></span>
-                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+                <button id="logout-button" class="app-nav-logout" type="button" data-i18n="nav.logout">Log out</button>
             </div>
         </nav>
 
         <main class="dash-main">
-            <h1><span class="accent">Group</span> Sessions</h1>
-            <p class="subtitle">Create, monitor, and review synchronized class exercises.</p>
+            <h1 data-i18n-html="sessions.pageTitle"><span class="accent">Group</span> Sessions</h1>
+            <p class="subtitle" data-i18n="sessions.pageSubtitle">Create, monitor, and review synchronized class exercises.</p>
 
             <!-- LIST + CREATE VIEW -->
             <section id="view-list">
                 <section class="panel reveal-on-scroll" id="wizard-panel">
                     <!-- STEP 1: Group Practice vs Formal Test -->
                     <div class="wizard-step" id="wizard-step-type" data-wizard-step="type">
-                        <p class="wizard-step-label">Step 1 of 4</p>
-                        <h2 class="wizard-step-heading">What kind of session is this?</h2>
+                        <p class="wizard-step-label" data-i18n="sessions.stepLabel1">Step 1 of 4</p>
+                        <h2 class="wizard-step-heading" data-i18n="sessions.step1Heading">What kind of session is this?</h2>
                         <div class="selection-circles">
                             <button type="button" class="selection-circle" data-select-type="group">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -58,8 +71,8 @@
                                         <path d="M14.8 14.3c2.3 0.4 3.7 2.2 3.7 4.7" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Group Practice</span>
-                                <span class="selection-circle-desc">Ungraded — students get feedback right away.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.groupPractice">Group Practice</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.groupPracticeDesc">Ungraded — students get feedback right away.</span>
                             </button>
                             <button type="button" class="selection-circle" data-select-type="test">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -69,27 +82,27 @@
                                         <path d="M9 12.5l2 2 4-4.5" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Formal Test</span>
-                                <span class="selection-circle-desc">Graded &amp; timed — results stay hidden until it ends.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.formalTest">Formal Test</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.formalTestDesc">Graded &amp; timed — results stay hidden until it ends.</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- STEP 2: Class -->
                     <div class="wizard-step" id="wizard-step-class" data-wizard-step="class" hidden>
-                        <button type="button" class="link-button back-link" data-wizard-back="type">&larr; Back</button>
-                        <p class="wizard-step-label">Step 2 of 4</p>
-                        <h2 class="wizard-step-heading">Which class?</h2>
+                        <button type="button" class="link-button back-link" data-wizard-back="type" data-i18n="common.back">&larr; Back</button>
+                        <p class="wizard-step-label" data-i18n="sessions.stepLabel2">Step 2 of 4</p>
+                        <h2 class="wizard-step-heading" data-i18n="sessions.step2Heading">Which class?</h2>
                         <div class="wizard-class-list" id="wizard-class-list">
-                            <span class="muted">Loading classes&hellip;</span>
+                            <span class="muted" data-i18n="sessions.loadingClasses">Loading classes&hellip;</span>
                         </div>
                     </div>
 
                     <!-- STEP 3: Exercise type -->
                     <div class="wizard-step" id="wizard-step-mode" data-wizard-step="mode" hidden>
-                        <button type="button" class="link-button back-link" data-wizard-back="class">&larr; Back</button>
-                        <p class="wizard-step-label">Step 3 of 4</p>
-                        <h2 class="wizard-step-heading">Choose the exercise type</h2>
+                        <button type="button" class="link-button back-link" data-wizard-back="class" data-i18n="common.back">&larr; Back</button>
+                        <p class="wizard-step-label" data-i18n="sessions.stepLabel3">Step 3 of 4</p>
+                        <h2 class="wizard-step-heading" data-i18n="sessions.step3Heading">Choose the exercise type</h2>
                         <div class="selection-circles selection-circles-grid">
                             <button type="button" class="selection-circle" data-select-mode="audio_to_text">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -99,8 +112,8 @@
                                         <path d="M18 9.2l2.8 2.8-2.8 2.8" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Audio → Text</span>
-                                <span class="selection-circle-desc">Listen to the transmitted audio and type what you hear.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.modeAudioToText">Audio → Text</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.modeAudioToTextDesc">Listen to the transmitted audio and type what you hear.</span>
                             </button>
                             <button type="button" class="selection-circle" data-select-mode="morse_to_text">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -114,8 +127,8 @@
                                         <line x1="20" y1="15.5" x2="21.5" y2="15.5" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Morse → Text</span>
-                                <span class="selection-circle-desc">Listen to Morse code and transcribe the received message.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.modeMorseToText">Morse → Text</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.modeMorseToTextDesc">Listen to Morse code and transcribe the received message.</span>
                             </button>
                             <button type="button" class="selection-circle" data-select-mode="text_to_morse">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -129,8 +142,8 @@
                                         <circle cx="21.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Text → Morse</span>
-                                <span class="selection-circle-desc">Read the text and type the matching Morse code.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.modeTextToMorse">Text → Morse</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.modeTextToMorseDesc">Read the text and type the matching Morse code.</span>
                             </button>
                             <button type="button" class="selection-circle" data-select-mode="character_recognition">
                                 <span class="selection-circle-icon" aria-hidden="true">
@@ -139,36 +152,46 @@
                                         <path d="M7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h6" />
                                     </svg>
                                 </span>
-                                <span class="selection-circle-title">Character Recognition</span>
-                                <span class="selection-circle-desc">Identify individual Morse characters, one at a time.</span>
+                                <span class="selection-circle-title" data-i18n="groupSession.modeCharacterRecognition">Character Recognition</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.modeCharacterRecognitionDesc">Identify individual Morse characters, one at a time.</span>
+                            </button>
+                            <button type="button" class="selection-circle" data-select-mode="transmission">
+                                <span class="selection-circle-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="15" width="20" height="5" rx="1.5" />
+                                        <path d="M6 15V9M10 15V6M14 15V9M18 15V11" />
+                                    </svg>
+                                </span>
+                                <span class="selection-circle-title" data-i18n="groupSession.modeTransmission">Morse Transmission</span>
+                                <span class="selection-circle-desc" data-i18n="sessions.modeTransmissionDesc">Read the target text and key it yourself with the Space bar.</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- STEP 4: Settings -->
                     <div class="wizard-step" id="wizard-step-settings" data-wizard-step="settings" hidden>
-                        <button type="button" class="link-button back-link" data-wizard-back="mode">&larr; Back</button>
-                        <p class="wizard-step-label">Step 4 of 4</p>
-                        <h2 class="wizard-step-heading">Configure the exercise</h2>
+                        <button type="button" class="link-button back-link" data-wizard-back="mode" data-i18n="common.back">&larr; Back</button>
+                        <p class="wizard-step-label" data-i18n="sessions.stepLabel4">Step 4 of 4</p>
+                        <h2 class="wizard-step-heading" data-i18n="sessions.step4Heading">Configure the exercise</h2>
                         <p class="subtitle" id="wizard-summary" style="text-align:center;"></p>
 
                         <form id="create-form" class="session-form">
                             <div class="settings-group">
-                                <h3 class="settings-group-title">Content</h3>
+                                <h3 class="settings-group-title" data-i18n="sessions.content">Content</h3>
                                 <div class="pool-quick-actions" id="gs-pool-quick-actions">
-                                    <button type="button" class="chip-button" data-preset="letters">All Letters</button>
-                                    <button type="button" class="chip-button" data-preset="numbers">All Numbers</button>
-                                    <button type="button" class="chip-button" data-preset="punctuation">All Special</button>
-                                    <button type="button" class="chip-button" data-preset="alphanumeric">Letters + Numbers</button>
-                                    <button type="button" class="chip-button" data-preset="all">All Characters</button>
-                                    <button type="button" class="chip-button chip-button-clear" data-preset="clear">Clear</button>
+                                    <button type="button" class="chip-button" data-preset="letters" data-i18n="pool.allLetters">All Letters</button>
+                                    <button type="button" class="chip-button" data-preset="numbers" data-i18n="pool.allNumbers">All Numbers</button>
+                                    <button type="button" class="chip-button" data-preset="punctuation" data-i18n="pool.allSpecial">All Special</button>
+                                    <button type="button" class="chip-button" data-preset="alphanumeric" data-i18n="pool.lettersPlusNumbers">Letters + Numbers</button>
+                                    <button type="button" class="chip-button" data-preset="all" data-i18n="pool.allCharacters">All Characters</button>
+                                    <button type="button" class="chip-button chip-button-clear" data-preset="clear" data-i18n="common.clear">Clear</button>
                                 </div>
 
                                 <div class="char-category" id="gs-char-category-letters">
                                     <div class="char-category-header">
                                         <label class="char-category-select-all">
                                             <input type="checkbox" id="gs-category-select-all-letters" />
-                                            Letters
+                                            <span data-i18n="sessions.letters">Letters</span>
                                         </label>
                                     </div>
                                     <div class="char-grid" id="gs-char-grid-letters"></div>
@@ -177,7 +200,7 @@
                                     <div class="char-category-header">
                                         <label class="char-category-select-all">
                                             <input type="checkbox" id="gs-category-select-all-numbers" />
-                                            Numbers
+                                            <span data-i18n="sessions.numbers">Numbers</span>
                                         </label>
                                     </div>
                                     <div class="char-grid" id="gs-char-grid-numbers"></div>
@@ -186,91 +209,95 @@
                                     <div class="char-category-header">
                                         <label class="char-category-select-all">
                                             <input type="checkbox" id="gs-category-select-all-punctuation" />
-                                            Special characters
+                                            <span data-i18n="sessions.specialChars">Special characters</span>
                                         </label>
                                     </div>
                                     <div class="char-grid" id="gs-char-grid-punctuation"></div>
                                 </div>
-                                <p class="pool-summary" id="gs-pool-summary">No characters selected yet — the difficulty preset's own pool will be used.</p>
+                                <p class="pool-summary" id="gs-pool-summary" data-i18n="sessions.noPoolSelected">No characters selected yet — the difficulty preset's own pool will be used.</p>
                             </div>
 
                             <div class="settings-group">
-                                <h3 class="settings-group-title">Morse</h3>
+                                <h3 class="settings-group-title" data-i18n="sessions.morse">Morse</h3>
                                 <div class="preview-params">
                                     <div class="modal-field">
-                                        <label for="new-difficulty">Difficulty</label>
+                                        <label for="new-difficulty" data-i18n="teacher.difficulty">Difficulty</label>
                                         <select id="new-difficulty">
-                                            <option value="beginner">Beginner</option>
-                                            <option value="easy" selected>Easy</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="hard">Hard</option>
+                                            <option value="beginner" data-i18n="teacher.diffBeginner">Beginner</option>
+                                            <option value="easy" selected data-i18n="teacher.diffEasy">Easy</option>
+                                            <option value="medium" data-i18n="teacher.diffMedium">Medium</option>
+                                            <option value="hard" data-i18n="teacher.diffHard">Hard</option>
                                         </select>
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-wpm">WPM <span class="muted">(blank = difficulty default)</span></label>
+                                        <label for="new-wpm"><span data-i18n="common.wpmShort">WPM</span> <span class="muted" data-i18n="sessions.blankDifficultyDefault">(blank = difficulty default)</span></label>
                                         <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-farnsworth">Farnsworth WPM <span class="muted">(blank = same as WPM)</span></label>
+                                        <label for="new-farnsworth"><span data-i18n="common.farnsworth">Farnsworth WPM</span> <span class="muted" data-i18n="teacher.blankSameAsWpm">(blank = same as WPM)</span></label>
                                         <input type="number" id="new-farnsworth" min="1" max="60" placeholder="&mdash;" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-tone">Tone frequency (Hz) <span class="muted">(blank = 600)</span></label>
+                                        <label for="new-tone"><span data-i18n="common.tone">Tone frequency (Hz)</span> <span class="muted" data-i18n="sessions.blank600">(blank = 600)</span></label>
                                         <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
+                                    </div>
+                                    <div class="modal-field" id="new-tolerance-field" hidden>
+                                        <label for="new-tolerance"><span data-i18n="sessions.timingTolerance">Timing tolerance</span> <span class="muted" data-i18n="sessions.timingToleranceHint">(Transmission only — higher = more forgiving, blank = 0.35)</span></label>
+                                        <input type="number" id="new-tolerance" min="0.1" max="0.8" step="0.05" placeholder="0.35" />
                                     </div>
                                 </div>
                             </div>
 
                             <div class="settings-group">
-                                <h3 class="settings-group-title">Session</h3>
+                                <h3 class="settings-group-title" data-i18n="sessions.session">Session</h3>
                                 <div class="preview-params">
                                     <div class="modal-field" id="new-length-field">
-                                        <label for="new-length">Item length (characters) <span class="muted">(blank = difficulty default)</span></label>
+                                        <label for="new-length"><span data-i18n="sessions.itemLength">Item length (characters)</span> <span class="muted" data-i18n="sessions.blankDifficultyDefault">(blank = difficulty default)</span></label>
                                         <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-count">Number of exercises</label>
+                                        <label for="new-count" data-i18n="sessions.numberOfExercises">Number of exercises</label>
                                         <input type="number" id="new-count" min="1" max="100" value="5" required />
                                     </div>
                                 </div>
 
                                 <div class="modal-field">
-                                    <label for="new-instructions">Instructions for students <span class="muted">(optional, shown in the waiting room)</span></label>
-                                    <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once."></textarea>
+                                    <label for="new-instructions"><span data-i18n="sessions.instructionsForStudents">Instructions for students</span> <span class="muted" data-i18n="sessions.instructionsHint">(optional, shown in the waiting room)</span></label>
+                                    <textarea id="new-instructions" rows="2" placeholder="e.g. Type your answer in capital letters. You will hear each item once." data-i18n-placeholder="sessions.instructionsPlaceholder"></textarea>
                                 </div>
 
                                 <div class="modal-field">
                                     <div class="participants-header">
-                                        <label>Participants <span class="muted">(default: everyone in the class)</span></label>
-                                        <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;">Select/deselect all</button>
+                                        <label><span data-i18n="sessions.participants">Participants</span> <span class="muted" data-i18n="sessions.participantsHint">(default: everyone in the class)</span></label>
+                                        <button id="participants-toggle-all" class="link-button" type="button" style="width:auto;padding:0;" data-i18n="sessions.selectDeselectAll">Select/deselect all</button>
                                     </div>
                                     <div id="participants-list" class="participants-list">
-                                        <span class="muted">Select a class to choose participants&hellip;</span>
+                                        <span class="muted" data-i18n="sessions.selectClassFirst">Select a class to choose participants&hellip;</span>
                                     </div>
                                 </div>
 
                                 <fieldset id="test-settings" class="preview-params" hidden>
-                                    <legend>Formal Test Settings</legend>
+                                    <legend data-i18n="sessions.formalTestSettings">Formal Test Settings</legend>
                                     <div class="modal-field">
-                                        <label for="new-prep-time">Preparation time before each item (seconds)</label>
+                                        <label for="new-prep-time" data-i18n="sessions.prepTime">Preparation time before each item (seconds)</label>
                                         <input type="number" id="new-prep-time" min="1" max="30" value="5" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-answer-time">Answer time per item (seconds)</label>
+                                        <label for="new-answer-time" data-i18n="sessions.answerTime">Answer time per item (seconds)</label>
                                         <input type="number" id="new-answer-time" min="3" max="180" value="20" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-allowed-attempts">Allowed attempts per item</label>
+                                        <label for="new-allowed-attempts" data-i18n="sessions.allowedAttempts">Allowed attempts per item</label>
                                         <input type="number" id="new-allowed-attempts" min="1" max="5" value="1" />
                                     </div>
                                     <div class="modal-field">
-                                        <label for="new-pass-threshold">Pass threshold (% accuracy, blank = ungraded)</label>
+                                        <label for="new-pass-threshold" data-i18n="sessions.passThreshold">Pass threshold (% accuracy, blank = ungraded)</label>
                                         <input type="number" id="new-pass-threshold" min="0" max="100" placeholder="&mdash;" />
                                     </div>
                                 </fieldset>
                             </div>
 
-                            <button type="submit" class="btn btn-primary btn-large">Start Group Session</button>
+                            <button type="submit" class="btn btn-primary btn-large" data-i18n="sessions.startGroupSession">Start Group Session</button>
                         </form>
                         <div id="create-error" class="modal-error" hidden></div>
                     </div>
@@ -278,16 +305,16 @@
 
                 <section class="panel collapsible-panel reveal-on-scroll" id="my-sessions-panel">
                     <button type="button" class="collapsible-header" id="my-sessions-toggle" aria-expanded="false" aria-controls="my-sessions-body">
-                        <span class="collapsible-header-title">My Sessions</span>
+                        <span class="collapsible-header-title" data-i18n="sessions.mySessions">My Sessions</span>
                         <span class="collapsible-header-icon" aria-hidden="true">&#9656;</span>
                     </button>
                     <div class="collapsible-body" id="my-sessions-body">
                         <div class="table-wrap">
                             <table class="data-table">
                                 <thead>
-                                    <tr><th>Class</th><th>Type</th><th>Difficulty</th><th>WPM</th><th>Exercises</th><th>Status</th><th class="col-actions">Actions</th></tr>
+                                    <tr><th data-i18n="common.class">Class</th><th data-i18n="teacher.type">Type</th><th data-i18n="teacher.difficulty">Difficulty</th><th data-i18n="common.wpmShort">WPM</th><th data-i18n="teacher.exercises">Exercises</th><th data-i18n="common.status">Status</th><th class="col-actions" data-i18n="teacher.actions">Actions</th></tr>
                                 </thead>
-                                <tbody id="sessions-tbody"><tr><td colspan="7" class="muted">Loading&hellip;</td></tr></tbody>
+                                <tbody id="sessions-tbody"><tr><td colspan="7" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
                             </table>
                         </div>
                     </div>
@@ -296,72 +323,72 @@
 
             <!-- MONITOR VIEW -->
             <section id="view-monitor" hidden>
-                <button id="back-to-list-button" class="link-button" type="button" style="text-align:left;">&larr; Back to all sessions</button>
-                <div id="monitor-connection-banner" class="connection-banner" hidden>&#9888; Live connection lost — reconnecting&hellip; (roster/progress may be stale)</div>
+                <button id="back-to-list-button" class="link-button" type="button" style="text-align:left;" data-i18n="sessions.backToAllSessions">&larr; Back to all sessions</button>
+                <div id="monitor-connection-banner" class="connection-banner" hidden>&#9888; <span data-i18n="sessions.liveConnectionLost">Live connection lost — reconnecting&hellip; (roster/progress may be stale)</span></div>
 
                 <section class="panel">
                     <div class="panel-header">
-                        <h2 id="monitor-title">Session</h2>
+                        <h2 id="monitor-title" data-i18n="sessions.sessionWord">Session</h2>
                         <span id="monitor-status-badge" class="badge">&mdash;</span>
                     </div>
 
                     <dl class="profile-list monitor-config">
-                        <dt>Class</dt><dd id="monitor-class">&mdash;</dd>
-                        <dt>Exercise type</dt><dd id="monitor-mode">&mdash;</dd>
-                        <dt>Difficulty</dt><dd id="monitor-difficulty">&mdash;</dd>
-                        <dt>WPM</dt><dd id="monitor-wpm">&mdash;</dd>
-                        <dt>Exercises</dt><dd id="monitor-count">&mdash;</dd>
-                        <dt>Connected</dt><dd id="monitor-connected">&mdash;</dd>
-                        <dt id="monitor-participants-label" hidden>Participants</dt><dd id="monitor-participants" hidden>&mdash;</dd>
+                        <dt data-i18n="common.class">Class</dt><dd id="monitor-class">&mdash;</dd>
+                        <dt data-i18n="sessions.exerciseType">Exercise type</dt><dd id="monitor-mode">&mdash;</dd>
+                        <dt data-i18n="teacher.difficulty">Difficulty</dt><dd id="monitor-difficulty">&mdash;</dd>
+                        <dt data-i18n="common.wpmShort">WPM</dt><dd id="monitor-wpm">&mdash;</dd>
+                        <dt data-i18n="teacher.exercises">Exercises</dt><dd id="monitor-count">&mdash;</dd>
+                        <dt data-i18n="sessions.connected">Connected</dt><dd id="monitor-connected">&mdash;</dd>
+                        <dt id="monitor-participants-label" hidden data-i18n="sessions.participants">Participants</dt><dd id="monitor-participants" hidden>&mdash;</dd>
                     </dl>
 
                     <div id="monitor-instructions-box" class="modal-note" hidden>
-                        <strong>Instructions shown to students:</strong> <span id="monitor-instructions"></span>
+                        <strong data-i18n="sessions.instructionsShownToStudents">Instructions shown to students:</strong> <span id="monitor-instructions"></span>
                     </div>
 
                     <div class="session-controls">
-                        <button id="btn-open" class="btn btn-primary" type="button">Open for Joining</button>
-                        <button id="btn-start" class="btn btn-primary" type="button">Start</button>
-                        <button id="btn-pause" class="btn btn-secondary" type="button">Pause</button>
-                        <button id="btn-resume" class="btn btn-primary" type="button">Continue</button>
-                        <button id="btn-stop" class="btn btn-secondary" type="button">Stop</button>
-                        <button id="btn-cancel" class="btn btn-danger" type="button">Cancel Session</button>
+                        <button id="btn-open" class="btn btn-primary" type="button" data-i18n="sessions.openForJoining">Open for Joining</button>
+                        <button id="btn-start" class="btn btn-primary" type="button" data-i18n="common.start">Start</button>
+                        <button id="btn-pause" class="btn btn-secondary" type="button" data-i18n="common.pause">Pause</button>
+                        <button id="btn-resume" class="btn btn-primary" type="button" data-i18n="sessions.continueBtn">Continue</button>
+                        <button id="btn-stop" class="btn btn-secondary" type="button" data-i18n="common.stop">Stop</button>
+                        <button id="btn-cancel" class="btn btn-danger" type="button" data-i18n="sessions.cancelSession">Cancel Session</button>
                     </div>
                 </section>
 
                 <section class="panel" id="progress-panel" hidden>
                     <div class="panel-header">
-                        <h2>Live Progress</h2>
+                        <h2 data-i18n="sessions.liveProgress">Live Progress</h2>
                         <span id="progress-summary" class="muted">&mdash;</span>
                     </div>
                 </section>
 
                 <section class="panel">
                     <div class="panel-header">
-                        <h2>Roster</h2>
-                        <span class="muted">Updates live as students join, ready up, or leave.</span>
+                        <h2 data-i18n="sessions.roster">Roster</h2>
+                        <span class="muted" data-i18n="sessions.rosterHint">Updates live as students join, ready up, or leave.</span>
                     </div>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
-                                <tr><th>Rank</th><th>Name</th><th>Class</th><th>Connection</th><th>Ready</th></tr>
+                                <tr><th data-i18n="auth.rank">Rank</th><th data-i18n="common.name">Name</th><th data-i18n="common.class">Class</th><th data-i18n="sessions.connection">Connection</th><th data-i18n="sessions.ready">Ready</th></tr>
                             </thead>
-                            <tbody id="roster-tbody"><tr><td colspan="5" class="muted">Loading&hellip;</td></tr></tbody>
+                            <tbody id="roster-tbody"><tr><td colspan="5" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
                         </table>
                     </div>
                 </section>
 
                 <section class="panel" id="results-panel" hidden>
                     <div class="panel-header">
-                        <h2>Results</h2>
+                        <h2 data-i18n="common.results">Results</h2>
                     </div>
-                    <p class="muted">Click a student to see their per-exercise breakdown.</p>
+                    <p class="muted" data-i18n="sessions.clickStudentBreakdown">Click a student to see their per-exercise breakdown.</p>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
-                                <tr><th></th><th>Student</th><th>Accuracy</th><th>Grade</th><th>Mark</th></tr>
+                                <tr><th></th><th data-i18n="sessions.student">Student</th><th data-i18n="common.accuracy">Accuracy</th><th data-i18n="common.grade">Grade</th><th data-i18n="groupSession.mark">Mark</th></tr>
                             </thead>
-                            <tbody id="results-tbody"><tr><td colspan="5" class="muted">Not finished yet.</td></tr></tbody>
+                            <tbody id="results-tbody"><tr><td colspan="5" class="muted" data-i18n="sessions.notFinishedYet">Not finished yet.</td></tr></tbody>
                         </table>
                     </div>
                 </section>
@@ -371,6 +398,7 @@
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
     <script src="/js/character-pool.js"></script>
     <script src="/js/grading.js"></script>

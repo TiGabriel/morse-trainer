@@ -10,7 +10,7 @@
  * NOTE: this phase deliberately stops at generating Morse *data* and
  * *timing numbers*. It does not play audio — that's a later phase.
  */
-const { CHAR_TO_MORSE, MORSE_TO_CHAR, CHARSETS, isSupportedChar } = require('./morseMap');
+const { CHAR_TO_MORSE, MORSE_TO_CHAR, CHARSETS, isSupportedChar, KOCH_ORDER, learnedLettersPool } = require('./morseMap');
 const { textToMorse } = require('./textToMorse');
 const { morseToText } = require('./morseToText');
 const { validateText, validateMorse } = require('./validator');
@@ -27,6 +27,8 @@ module.exports = {
     MORSE_TO_CHAR,
     CHARSETS,
     DIFFICULTY_PRESETS,
+    KOCH_ORDER,
+    learnedLettersPool,
 
     // Conversion
     textToMorse,

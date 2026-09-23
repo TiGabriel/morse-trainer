@@ -85,7 +85,7 @@ function makeSession(overrides = {}) {
     const session = sessionRepository.createSession({
         classId: 1,
         type: overrides.type || 'group',
-        exerciseMode: 'audio_to_text',
+        exerciseMode: overrides.exerciseMode || 'audio_to_text',
         difficulty: 'easy',
         wpm: undefined,
         farnsworthWpm: undefined,
@@ -97,7 +97,13 @@ function makeSession(overrides = {}) {
         passThresholdPercent: overrides.passThresholdPercent ?? null,
         createdBy: 1,
     });
-    const { items } = sessionEngine.generateItems({ exerciseMode: session.exerciseMode, difficulty: session.difficulty, exerciseCount: 1 });
+    const { items } = sessionEngine.generateItems({
+        exerciseMode: session.exerciseMode,
+        difficulty: session.difficulty,
+        exerciseCount: 1,
+        characters: overrides.characters,
+        length: overrides.length,
+    });
     sessionRepository.insertItems(session.id, 1, items);
     const item = sessionRepository.getItemByIndex(session.id, 0);
     return { session, item };
@@ -238,6 +244,94 @@ test('submitAttempt: formal tests withhold score/answer from the immediate respo
     assert.equal(res.body.score, undefined);
     assert.equal(res.body.expectedAnswer, undefined);
     assert.equal(res.body.characterGrade, undefined, 'a Formal Test must never reveal its character grade before the test ends, same as score/expectedAnswer');
+});
+
+// ---------------------------------------------------------------------
+// Morse Transmission integration: security + grading via the shared
+// submitAttempt endpoint (no separate transmission-specific endpoint —
+// it reuses the exact same server-authoritative machinery every other
+// mode goes through).
+// ---------------------------------------------------------------------
+const CLIENT_JS_DIR = path.resolve(__dirname, '../../../../../client/public/js');
+const { TransmissionEngine } = require(path.join(CLIENT_JS_DIR, 'morse-transmitter-core.js'));
+const { CHAR_TO_MORSE } = require(path.join(CLIENT_JS_DIR, 'morse-receiver-map.js'));
+
+function keyTextPerfectlyAsJson(text, wpm) {
+    const engine = new TransmissionEngine({ wpm, toleranceFactor: 0.35 });
+    const unitMs = 1200 / wpm;
+    [...text].forEach((ch, charIndex) => {
+        const morse = CHAR_TO_MORSE[ch.toUpperCase()];
+        [...morse].forEach((sym, i) => {
+            engine.feedTone(sym === '.' ? unitMs : 3 * unitMs);
+            if (i < morse.length - 1) engine.feedGap(unitMs);
+        });
+        if (charIndex < text.length - 1) engine.feedGap(3 * unitMs);
+    });
+    engine.flush();
+    return JSON.stringify(engine.elementLog);
+}
+
+test('submitAttempt (transmission): a Formal Test still withholds score/decoded text/timing stats from the immediate response', () => {
+    const { session, item } = makeSession({ type: 'test', exerciseMode: 'transmission', characters: ['E', 'T'], length: 3 });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+
+    const submittedAnswer = keyTextPerfectlyAsJson(item.exercise.text, item.exercise.wpm);
+    const res = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer }), res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.submitted, true);
+    assert.equal(res.body.score, undefined, 'score must stay hidden until the test ends');
+    assert.equal(res.body.expectedAnswer, undefined);
+    assert.equal(res.body.characterGrade, undefined);
+    // The response body must not carry the raw element log or decoded
+    // text anywhere either — nothing beyond the plain submission ack.
+    assert.deepEqual(Object.keys(res.body).sort(), ['attemptCount', 'submitted']);
+});
+
+test('submitAttempt (transmission): Group Practice reveals score/grade immediately, same as every other mode', () => {
+    const { session, item } = makeSession({ type: 'group', exerciseMode: 'transmission', characters: ['S', 'O'], length: 4 });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+
+    const submittedAnswer = keyTextPerfectlyAsJson(item.exercise.text, item.exercise.wpm);
+    const res = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer }), res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.score.accuracyPercent, 100);
+    assert.equal(res.body.expectedAnswer, item.exercise.expectedAnswer);
+    assert.ok(res.body.characterGrade);
+});
+
+test('submitAttempt (transmission): the server re-derives the transmitted text — a submission with garbage timings cannot self-report a perfect score', () => {
+    const { session, item } = makeSession({ type: 'group', exerciseMode: 'transmission', characters: ['S'], length: 1 });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+    assert.equal(item.exercise.text, 'S'); // S = "..." — a single long press decodes to something else entirely
+
+    const unitMs = 1200 / item.exercise.wpm;
+    const garbage = JSON.stringify([{ type: 'tone', durationMs: unitMs * 3 }]); // one dash-length press -> "T", not "S"
+    const res = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer: garbage }), res);
+
+    assert.notEqual(res.body.score.accuracyPercent, 100);
+});
+
+test('submitAttempt (transmission): allowedAttempts is enforced identically to every other mode', () => {
+    const { session, item } = makeSession({ type: 'test', exerciseMode: 'transmission', allowedAttempts: 1, characters: ['E'], length: 1 });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+
+    const submittedAnswer = keyTextPerfectlyAsJson(item.exercise.text, item.exercise.wpm);
+    const first = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer }), first);
+    assert.equal(first.statusCode, 201);
+
+    const second = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer }), second);
+    assert.equal(second.statusCode, 429);
 });
 
 // ---------------------------------------------------------------------
@@ -445,4 +539,93 @@ test('submitAttempt: a student excluded from a participant-restricted test is re
     const caraRes = mockRes();
     sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, studentId: 5 }), caraRes);
     assert.equal(caraRes.statusCode, 403);
+});
+
+// ---------------------------------------------------------------------
+// Morse Transmission as a Group Session / Formal Test exercise mode
+// ---------------------------------------------------------------------
+
+function createReq(body) {
+    return { body: { classId: 1, difficulty: 'easy', exerciseCount: 1, ...body }, user: { id: 1, username: 'teacher1' } };
+}
+
+test('createSession handler: accepts every Group Session exercise mode, including transmission', () => {
+    ['audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition', 'transmission'].forEach((exerciseMode) => {
+        ['group', 'test'].forEach((type) => {
+            const res = mockRes();
+            sessionsController.createSession(createReq({ type, exerciseMode }), res);
+            assert.equal(res.statusCode, 201, `${type}/${exerciseMode} should be creatable (got ${JSON.stringify(res.body)})`);
+            assert.equal(res.body.session.exerciseMode, exerciseMode);
+            const items = sessionRepository.listItems(res.body.session.id);
+            assert.equal(items.length, 1);
+            assert.equal(items[0].exercise.mode, exerciseMode === 'audio_to_text' ? 'audio_to_text' : exerciseMode);
+        });
+    });
+});
+
+test('createSession handler: a transmission session stores a visible target plus the teacher tolerance', () => {
+    const res = mockRes();
+    sessionsController.createSession(createReq({ type: 'group', exerciseMode: 'transmission', characters: ['E', 'T'], length: 4, toleranceFactor: 0.5 }), res);
+    assert.equal(res.statusCode, 201);
+    const [item] = sessionRepository.listItems(res.body.session.id);
+    assert.equal(item.exercise.mode, 'transmission');
+    assert.equal(item.exercise.toleranceFactor, 0.5);
+    assert.ok(/^[ET\s]+$/.test(item.exercise.text));
+    assert.equal(item.exercise.expectedAnswer, item.exercise.text);
+});
+
+test('createSession handler: still rejects an unknown exerciseMode', () => {
+    const res = mockRes();
+    sessionsController.createSession(createReq({ type: 'group', exerciseMode: 'bogus_mode' }), res);
+    assert.equal(res.statusCode, 400);
+    assert.ok(res.body.error.includes('transmission'), 'the error lists transmission as a valid mode');
+});
+
+// ---------------------------------------------------------------------
+// Electronic gradebook: automatic TEMPORARY Formal Test entries
+// ---------------------------------------------------------------------
+
+test('stopSession on a Formal Test creates ONE temporary gradebook entry per participating student, never duplicated', () => {
+    const gradebookRepository = require('../../gradebook/gradebookRepository');
+    const gradebookService = require('../../gradebook/gradebookService');
+
+    const { session, item } = makeSession({ type: 'test', exerciseMode: 'morse_to_text', passThresholdPercent: 50 });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+    const submitRes = mockRes();
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, studentId: 2, submittedAnswer: item.exercise.text }), submitRes);
+    assert.equal(submitRes.statusCode, 201);
+
+    const before = gradebookRepository.listForStudent(2).filter((e) => e.sourceSessionId === session.id);
+    assert.equal(before.length, 0, 'nothing is recorded while the test is still running');
+
+    const stopRes = mockRes();
+    sessionsController.stopSession({ params: { id: String(session.id) }, user: { id: 1, username: 'teacher1' } }, stopRes);
+    assert.equal(stopRes.statusCode, 200);
+
+    const entries = gradebookRepository.listForStudent(2).filter((e) => e.sourceSessionId === session.id);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].source, 'formal_test');
+    assert.equal(entries[0].isPermanent, false, 'automatic entries start temporary');
+    assert.equal(entries[0].grade, 10, 'a perfect answer is the authoritative 4-10 grade 10');
+    assert.equal(entries[0].details.accuracyPercent, 100);
+    assert.equal(entries[0].details.passFail, 'pass');
+    assert.equal(entries[0].teacherId, 1);
+
+    // Cara (id 5) is in the class but never submitted — no result, no entry.
+    assert.equal(gradebookRepository.listForStudent(5).filter((e) => e.sourceSessionId === session.id).length, 0);
+
+    // Processing the "finished" event again must never duplicate.
+    assert.equal(gradebookService.recordFormalTestResults(session.id), 0);
+    assert.equal(gradebookRepository.listForStudent(2).filter((e) => e.sourceSessionId === session.id).length, 1);
+});
+
+test('stopSession on Group Practice never creates gradebook entries', () => {
+    const gradebookRepository = require('../../gradebook/gradebookRepository');
+    const { session, item } = makeSession({ type: 'group', exerciseMode: 'morse_to_text' });
+    toRunning(session.id);
+    mockRuntimeState = { currentItemIndex: 0, currentDeadlineAt: Date.now() + 10000 };
+    sessionsController.submitAttempt(submitReq({ sessionId: session.id, itemId: item.id, submittedAnswer: item.exercise.text }), mockRes());
+    sessionsController.stopSession({ params: { id: String(session.id) }, user: { id: 1, username: 'teacher1' } }, mockRes());
+    assert.equal(gradebookRepository.listForStudent(2).filter((e) => e.sourceSessionId === session.id).length, 0);
 });

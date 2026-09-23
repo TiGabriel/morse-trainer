@@ -10,6 +10,13 @@
             } catch (e) {
                 document.documentElement.dataset.theme = 'dark';
             }
+            try {
+                var lang = localStorage.getItem('morseTrainerLanguage');
+                document.documentElement.dataset.lang = lang === 'en' ? 'en' : 'ro';
+                document.documentElement.lang = document.documentElement.dataset.lang;
+            } catch (e) {
+                document.documentElement.dataset.lang = 'ro';
+            }
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,97 +24,307 @@
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/teacher.css" />
     <link rel="stylesheet" href="/css/sessions.css" />
+    <link rel="stylesheet" href="/css/stats.css" />
 </head>
 <body class="dashboard-body">
-    <div id="auth-gate" class="auth-gate">Checking access&hellip;</div>
+    <div id="auth-gate" class="auth-gate" data-i18n="auth.checkingAccess">Checking access&hellip;</div>
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
             <a href="/" class="app-nav-brand">Morse SMMMFN</a>
             <div class="app-nav-links">
-                <a href="/" class="app-nav-link">Home</a>
-                <a href="/teacher.html" class="app-nav-link">Dashboard</a>
-                <a href="/sessions.html" class="app-nav-link">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link active">Statistics</a>
+                <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
+                <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
+                <a href="/sessions.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
+                <a href="/stats.html" class="app-nav-link active" data-i18n="nav.statistics">Statistics</a>
+                <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
+                <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
             <button class="app-nav-theme-toggle" id="theme-toggle-button" type="button">&#127753;</button>
+            <div class="app-nav-lang-toggle" id="lang-toggle">
+                <button type="button" data-lang-btn="ro">RO</button>
+                <button type="button" data-lang-btn="en">EN</button>
+            </div>
             <div class="app-nav-right">
                 <span id="teacher-name" class="app-nav-user"></span>
-                <button id="logout-button" class="app-nav-logout" type="button">Log out</button>
+                <button id="logout-button" class="app-nav-logout" type="button" data-i18n="nav.logout">Log out</button>
             </div>
         </nav>
 
         <main class="dash-main">
-            <h1><span class="accent">Statistics</span></h1>
-            <p class="subtitle">Class-wide and per-student practice/test performance.</p>
+            <h1><span class="accent" data-i18n="nav.statistics">Statistics</span></h1>
+            <p class="subtitle" id="stats-page-subtitle" data-i18n="stats.pageSubtitle">Class-wide and per-student practice/test performance.</p>
 
+            <div id="teacher-view" hidden>
             <section class="panel reveal-on-scroll">
                 <div class="panel-header">
-                    <h2>Class Summary</h2>
+                    <h2 data-i18n="stats.classSummary">Class Summary</h2>
+                    <button id="class-export-csv-button" class="btn btn-secondary btn-small no-print" type="button" style="width:auto;" data-i18n="stats.exportClassCsv">Export Class CSV</button>
                 </div>
                 <div class="modal-field" style="max-width: 320px;">
-                    <label for="stats-class-select">Class</label>
+                    <label for="stats-class-select" data-i18n="common.class">Class</label>
                     <select id="stats-class-select"></select>
                 </div>
 
-                <div id="stats-empty-notice" class="modal-note" hidden>
+                <div id="stats-empty-notice" class="modal-note" hidden data-i18n="stats.noDataYet">
                     No data yet — statistics appear once students complete practice exercises or formal tests.
                 </div>
 
                 <dl class="profile-list monitor-config" id="stats-summary-grid">
-                    <dt>Students</dt><dd id="stats-student-count">&mdash;</dd>
-                    <dt>Practice attempts</dt><dd id="stats-practice-count">&mdash;</dd>
-                    <dt>Practice avg. accuracy</dt><dd id="stats-practice-accuracy">&mdash;</dd>
-                    <dt>Formal tests completed</dt><dd id="stats-test-count">&mdash;</dd>
-                    <dt>Formal test avg. score</dt><dd id="stats-test-score">&mdash;</dd>
-                    <dt>Formal test pass rate</dt><dd id="stats-test-pass-rate">&mdash;</dd>
-                    <dt>Group sessions completed</dt><dd id="stats-group-count">&mdash;</dd>
-                    <dt>Group session avg. score</dt><dd id="stats-group-score">&mdash;</dd>
+                    <dt data-i18n="teacher.students">Students</dt><dd id="stats-student-count">&mdash;</dd>
+                    <dt data-i18n="stats.practiceAttempts">Practice attempts</dt><dd id="stats-practice-count">&mdash;</dd>
+                    <dt data-i18n="stats.practiceAvgAccuracy">Practice avg. accuracy</dt><dd id="stats-practice-accuracy">&mdash;</dd>
+                    <dt data-i18n="stats.formalTestsCompleted">Formal tests completed</dt><dd id="stats-test-count">&mdash;</dd>
+                    <dt data-i18n="stats.formalTestAvgScore">Formal test avg. score</dt><dd id="stats-test-score">&mdash;</dd>
+                    <dt data-i18n="stats.formalTestPassRate">Formal test pass rate</dt><dd id="stats-test-pass-rate">&mdash;</dd>
+                    <dt data-i18n="stats.groupSessionsCompleted">Group sessions completed</dt><dd id="stats-group-count">&mdash;</dd>
+                    <dt data-i18n="stats.groupSessionAvgScore">Group session avg. score</dt><dd id="stats-group-score">&mdash;</dd>
                 </dl>
             </section>
 
             <section class="panel reveal-on-scroll">
                 <div class="panel-header">
-                    <h2>Student Breakdown</h2>
-                    <span class="muted">Click a student to see their individual progress.</span>
+                    <h2 data-i18n="stats.studentBreakdown">Student Breakdown</h2>
+                    <span class="muted" data-i18n="stats.clickStudentProgress">Click a student to see their individual progress.</span>
                 </div>
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Rank</th><th>Name</th>
-                                <th>Practice Attempts</th><th>Practice Avg.</th>
-                                <th>Tests Taken</th><th>Test Avg.</th><th>Pass Rate</th>
+                                <th data-i18n="auth.rank">Rank</th><th data-i18n="common.name">Name</th>
+                                <th data-i18n="teacher.practiceAttempts">Practice Attempts</th><th data-i18n="stats.practiceAvg">Practice Avg.</th>
+                                <th data-i18n="stats.testsTaken">Tests Taken</th><th data-i18n="stats.testAvg">Test Avg.</th><th data-i18n="stats.passRate">Pass Rate</th>
                             </tr>
                         </thead>
-                        <tbody id="stats-students-tbody"><tr><td colspan="7" class="muted">Select a class above.</td></tr></tbody>
+                        <tbody id="stats-students-tbody"><tr><td colspan="7" class="muted" data-i18n="stats.selectClassAbove">Select a class above.</td></tr></tbody>
                     </table>
                 </div>
             </section>
 
             <section class="panel" id="student-detail-panel" hidden>
                 <div class="panel-header">
-                    <h2 id="student-detail-title">Student Progress</h2>
-                    <button id="student-detail-close" class="link-button" type="button" style="width:auto;padding:0;">Close</button>
+                    <h2 id="student-detail-title" data-i18n="stats.studentProgress">Student Progress</h2>
+                    <button id="student-detail-close" class="link-button no-print" type="button" style="width:auto;padding:0;" data-i18n="common.close">Close</button>
                 </div>
                 <dl class="profile-list monitor-config">
-                    <dt>Practice attempts</dt><dd id="detail-practice-count">&mdash;</dd>
-                    <dt>Practice avg. accuracy</dt><dd id="detail-practice-accuracy">&mdash;</dd>
-                    <dt>Recent trend (last 5)</dt><dd id="detail-trend">&mdash;</dd>
+                    <dt data-i18n="stats.practiceAttempts">Practice attempts</dt><dd id="detail-practice-count">&mdash;</dd>
+                    <dt data-i18n="stats.practiceAvgAccuracy">Practice avg. accuracy</dt><dd id="detail-practice-accuracy">&mdash;</dd>
+                    <dt data-i18n="stats.recentTrend">Recent trend (last 5)</dt><dd id="detail-trend">&mdash;</dd>
                 </dl>
                 <div class="table-wrap">
                     <table class="data-table">
-                        <thead><tr><th>Date</th><th>Attempts</th><th>Avg. Accuracy</th></tr></thead>
-                        <tbody id="detail-by-day-tbody"><tr><td colspan="3" class="muted">No recent activity.</td></tr></tbody>
+                        <thead><tr><th data-i18n="common.date">Date</th><th data-i18n="sessions.attempts">Attempts</th><th data-i18n="stats.avgAccuracy">Avg. Accuracy</th></tr></thead>
+                        <tbody id="detail-by-day-tbody"><tr><td colspan="3" class="muted" data-i18n="stats.noRecentActivity">No recent activity.</td></tr></tbody>
                     </table>
                 </div>
+
+                <div class="panel-header no-print" style="margin-top:1.5rem;">
+                    <h3 style="margin:0;" data-i18n="stats.individualResults">Individual Results</h3>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button id="detail-export-csv-button" class="btn btn-secondary btn-small" type="button" style="width:auto;" data-i18n="stats.exportCsv">Export CSV</button>
+                        <button id="detail-print-button" class="btn btn-secondary btn-small" type="button" style="width:auto;" data-i18n="common.print">Print</button>
+                        <button id="detail-reset-history-button" class="btn btn-danger btn-small" type="button" style="width:auto;" data-i18n="stats.resetHistory">Reset History&hellip;</button>
+                    </div>
+                </div>
+
+                <form class="stats-filter-bar no-print" id="detail-filter-form">
+                    <div class="modal-field">
+                        <label for="detail-filter-direction" data-i18n="stats.direction">Direction</label>
+                        <select id="detail-filter-direction">
+                            <option value="" data-i18n="common.all">All</option>
+                            <option value="reception" data-i18n="stats.reception">Reception</option>
+                            <option value="transmission" data-i18n="stats.transmission">Transmission</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label for="detail-filter-exercise-type" data-i18n="sessions.exerciseType">Exercise type</label>
+                        <select id="detail-filter-exercise-type">
+                            <option value="" data-i18n="common.all">All</option>
+                            <option value="radiogram_training" data-i18n="stats.exRadiogramTraining">Radiogram Training</option>
+                            <option value="character_training" data-i18n="stats.exCharacterTraining">Character Training</option>
+                            <option value="audio_to_text" data-i18n="stats.exReceptionAudio">Reception (Audio → Text)</option>
+                            <option value="text_to_morse" data-i18n="groupSession.modeTransmission">Transmission</option>
+                            <option value="morse_to_text" data-i18n="groupSession.modeMorseToText">Morse → Text</option>
+                            <option value="character_recognition" data-i18n="groupSession.modeCharacterRecognition">Character Recognition</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label for="detail-filter-since" data-i18n="stats.fromDate">From date</label>
+                        <input type="date" id="detail-filter-since" />
+                    </div>
+                    <div class="modal-field">
+                        <label for="detail-filter-until" data-i18n="stats.toDate">To date</label>
+                        <input type="date" id="detail-filter-until" />
+                    </div>
+                    <div class="modal-field">
+                        <label for="detail-filter-min-wpm" data-i18n="stats.minWpm">Min WPM</label>
+                        <input type="number" id="detail-filter-min-wpm" min="1" max="60" placeholder="&mdash;" />
+                    </div>
+                    <div class="modal-field">
+                        <label for="detail-filter-max-wpm" data-i18n="stats.maxWpm">Max WPM</label>
+                        <input type="number" id="detail-filter-max-wpm" min="1" max="60" placeholder="&mdash;" />
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-i18n="stats.applyFilters">Apply Filters</button>
+                    <button type="button" id="detail-filter-clear" class="link-button" style="width:auto;padding:0.5rem;" data-i18n="common.clear">Clear</button>
+                </form>
+
+                <div id="detail-history-empty-notice" class="modal-note" hidden data-i18n="stats.noExercisesMatch">No exercises match these filters.</div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="stats.dateTime">Date/Time</th><th data-i18n="teacher.type">Type</th><th data-i18n="stats.direction">Direction</th><th data-i18n="common.wpmShort">WPM</th>
+                                <th data-i18n="common.accuracy">Accuracy</th><th data-i18n="common.errors">Errors</th><th data-i18n="common.grade">Grade</th>
+                                <th data-i18n="stats.actualWpm">Actual WPM</th><th data-i18n="stats.rhythm">Rhythm</th>
+                                <th class="no-print" data-i18n="teacher.actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-history-tbody"><tr><td colspan="10" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
+                    </table>
+                </div>
+                <div style="text-align:center; margin-top: 0.75rem;" class="no-print">
+                    <span class="muted" id="detail-history-count-label"></span>
+                    <button id="detail-history-load-more-button" class="btn btn-secondary btn-small" type="button" hidden data-i18n="stats.loadMore">Load more</button>
+                </div>
             </section>
+            </div>
+
+            <!-- ================= STUDENT VIEW: My History & Progress ================= -->
+            <div id="student-view" hidden>
+                <section class="panel reveal-on-scroll">
+                    <div class="panel-header">
+                        <h2 data-i18n="stats.personalStatistics">Personal Statistics</h2>
+                    </div>
+                    <dl class="profile-list monitor-config" id="my-stats-grid">
+                        <dt data-i18n="stats.totalExercises">Total exercises</dt><dd id="my-total-exercises">&mdash;</dd>
+                        <dt data-i18n="stats.averageAccuracy">Average accuracy</dt><dd id="my-avg-accuracy">&mdash;</dd>
+                        <dt data-i18n="stats.bestAccuracy">Best accuracy</dt><dd id="my-best-accuracy">&mdash;</dd>
+                        <dt data-i18n="stats.averageWpm">Average WPM</dt><dd id="my-avg-wpm">&mdash;</dd>
+                        <dt data-i18n="stats.bestWpm">Best WPM</dt><dd id="my-best-wpm">&mdash;</dd>
+                        <dt data-i18n="stats.totalErrors">Total errors</dt><dd id="my-total-errors">&mdash;</dd>
+                        <dt data-i18n="stats.receptionAverage">Reception average</dt><dd id="my-reception-avg">&mdash;</dd>
+                        <dt data-i18n="stats.transmissionAverage">Transmission average</dt><dd id="my-transmission-avg">&mdash;</dd>
+                    </dl>
+                    <div id="my-stats-empty-notice" class="modal-note" hidden data-i18n="stats.noCompletedExercises">
+                        No completed exercises yet — practice something in Individual Training and your progress will appear here.
+                    </div>
+                </section>
+
+                <section class="panel reveal-on-scroll">
+                    <div class="panel-header">
+                        <h2 data-i18n="stats.progressOverTime">Progress Over Time</h2>
+                        <span class="muted" data-i18n="stats.last30Days">Last 30 days</span>
+                    </div>
+                    <div class="stats-chart-grid">
+                        <div class="stats-chart-card">
+                            <h3 data-i18n="stats.accuracyPercent">Accuracy (%)</h3>
+                            <div id="chart-accuracy"></div>
+                        </div>
+                        <div class="stats-chart-card">
+                            <h3 data-i18n="stats.speedWpm">Speed (WPM)</h3>
+                            <div id="chart-wpm"></div>
+                        </div>
+                        <div class="stats-chart-card">
+                            <h3 data-i18n="common.errors">Errors</h3>
+                            <div id="chart-errors"></div>
+                        </div>
+                        <div class="stats-chart-card">
+                            <h3 data-i18n="stats.receptionVsTransmission">Reception vs. Transmission (avg. accuracy)</h3>
+                            <div id="chart-direction"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel reveal-on-scroll" id="weak-areas-panel">
+                    <div class="panel-header">
+                        <h2 data-i18n="stats.weakAreas">Weak Areas</h2>
+                        <span class="muted" data-i18n="stats.weakAreasHint">Characters that repeatedly cause problems (3+ scored occurrences, below 80% accuracy).</span>
+                    </div>
+                    <div id="weak-areas-empty-notice" class="modal-note" hidden data-i18n="stats.noWeakCharacters">
+                        No weak characters identified yet — either there isn't enough history, or nothing stands out. Nice work.
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead><tr><th data-i18n="stats.character">Character</th><th data-i18n="sessions.attempts">Attempts</th><th data-i18n="common.errors">Errors</th><th data-i18n="common.accuracy">Accuracy</th></tr></thead>
+                            <tbody id="weak-areas-tbody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel reveal-on-scroll">
+                    <div class="panel-header">
+                        <h2 data-i18n="stats.myHistory">My History</h2>
+                    </div>
+
+                    <form class="stats-filter-bar" id="history-filter-form">
+                        <div class="modal-field">
+                            <label for="history-filter-direction" data-i18n="stats.direction">Direction</label>
+                            <select id="history-filter-direction">
+                                <option value="" data-i18n="common.all">All</option>
+                                <option value="reception" data-i18n="stats.reception">Reception</option>
+                                <option value="transmission" data-i18n="stats.transmission">Transmission</option>
+                            </select>
+                        </div>
+                        <div class="modal-field">
+                            <label for="history-filter-exercise-type" data-i18n="sessions.exerciseType">Exercise type</label>
+                            <select id="history-filter-exercise-type">
+                                <option value="" data-i18n="common.all">All</option>
+                                <option value="radiogram_training" data-i18n="stats.exRadiogramTraining">Radiogram Training</option>
+                                <option value="character_training" data-i18n="stats.exCharacterTraining">Character Training</option>
+                                <option value="audio_to_text" data-i18n="stats.exReceptionAudio">Reception (Audio → Text)</option>
+                                <option value="text_to_morse" data-i18n="groupSession.modeTransmission">Transmission</option>
+                                <option value="morse_to_text" data-i18n="groupSession.modeMorseToText">Morse → Text</option>
+                                <option value="character_recognition" data-i18n="groupSession.modeCharacterRecognition">Character Recognition</option>
+                            </select>
+                        </div>
+                        <div class="modal-field">
+                            <label for="history-filter-since" data-i18n="stats.fromDate">From date</label>
+                            <input type="date" id="history-filter-since" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="history-filter-until" data-i18n="stats.toDate">To date</label>
+                            <input type="date" id="history-filter-until" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="history-filter-min-wpm" data-i18n="stats.minWpm">Min WPM</label>
+                            <input type="number" id="history-filter-min-wpm" min="1" max="60" placeholder="&mdash;" />
+                        </div>
+                        <div class="modal-field">
+                            <label for="history-filter-max-wpm" data-i18n="stats.maxWpm">Max WPM</label>
+                            <input type="number" id="history-filter-max-wpm" min="1" max="60" placeholder="&mdash;" />
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-i18n="stats.applyFilters">Apply Filters</button>
+                        <button type="button" id="history-filter-clear" class="link-button" style="width:auto;padding:0.5rem;" data-i18n="common.clear">Clear</button>
+                    </form>
+
+                    <div id="history-empty-notice" class="modal-note" hidden data-i18n="stats.noExercisesMatch">No exercises match these filters.</div>
+
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="stats.dateTime">Date/Time</th><th data-i18n="teacher.type">Type</th><th data-i18n="stats.direction">Direction</th><th data-i18n="common.wpmShort">WPM</th>
+                                    <th data-i18n="common.accuracy">Accuracy</th><th data-i18n="common.errors">Errors</th><th data-i18n="common.grade">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody"><tr><td colspan="7" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div style="text-align:center; margin-top: 0.75rem;">
+                        <span class="muted" id="history-count-label"></span>
+                        <button id="history-load-more-button" class="btn btn-secondary btn-small" type="button" hidden data-i18n="stats.loadMore">Load more</button>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
     <div id="toast" class="toast" hidden></div>
 
+    <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/mini-chart.js"></script>
     <script src="/js/stats.js"></script>
 </body>
 </html>

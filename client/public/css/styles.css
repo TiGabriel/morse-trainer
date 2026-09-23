@@ -386,6 +386,48 @@ code {
     transform: rotate(-12deg);
 }
 
+/*
+ * Language selector — placed right after the theme toggle so it rides
+ * along on the same margin-left:auto right-alignment without needing
+ * its own (see .app-nav-theme-toggle's comment above for why that
+ * matters on index.html specifically).
+ */
+.app-nav-lang-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--border-strong);
+    overflow: hidden;
+}
+.app-nav-lang-toggle button {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    padding: 0.38rem 0.6rem;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+.app-nav-lang-toggle button + button {
+    border-left: 1px solid var(--border-strong);
+}
+.app-nav-lang-toggle button:hover {
+    color: var(--text);
+}
+.app-nav-lang-toggle button.is-active {
+    background: var(--accent);
+    color: #fff;
+}
+
+@media (max-width: 640px) {
+    .app-nav-lang-toggle button {
+        padding: 0.32rem 0.5rem;
+        font-size: 0.68rem;
+    }
+}
+
 @media (max-width: 640px) {
     .app-nav {
         flex-wrap: wrap;
@@ -776,8 +818,40 @@ tr[aria-expanded="true"] .results-toggle-icon {
 }
 
 /* ===================== index.html ===================== */
-#status {
-    font-size: 0.95rem;
+/* Home is a narrow, centered column (not the full 1100px dashboard
+   width): the centered "Morse SMMMFN - Server ONLINE" header, then the
+   share/login cards with their own content centered. */
+.home-main {
+    max-width: 680px;
+}
+.home-title {
+    text-align: center;
+    margin: 0.5rem 0 0 0;
+}
+.home-status {
+    color: var(--text-muted);
+    font-weight: 650;
+}
+.home-status.ok { color: var(--success); }
+.home-status.err { color: var(--error); }
+
+.home-main .share-box,
+.home-main .auth-box {
+    text-align: center;
+}
+.home-main #login-form {
+    margin: 0 auto;
+}
+.home-main .profile-box .profile-list {
+    width: fit-content;
+    margin: 0 auto;
+    text-align: left;
+}
+.home-main #student-training-link-box {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 1.25rem;
 }
 
 .share-box {

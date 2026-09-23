@@ -204,3 +204,123 @@ test('computeGrade: pass/fail against a configured threshold', () => {
     assert.equal(sessionEngine.computeGrade(60, 70), 'fail');
     assert.equal(sessionEngine.computeGrade(70, 70), 'pass'); // exactly at threshold passes
 });
+
+// ---------------------------------------------------------------------
+// Formal Test / Group Session integration of Morse Transmission
+// ---------------------------------------------------------------------
+const path = require('path');
+const CLIENT_JS_DIR = path.resolve(__dirname, '../../../../../client/public/js');
+const { TransmissionEngine } = require(path.join(CLIENT_JS_DIR, 'morse-transmitter-core.js'));
+const { CHAR_TO_MORSE } = require(path.join(CLIENT_JS_DIR, 'morse-receiver-map.js'));
+
+/** Perfectly keys `text` at the given WPM and returns the raw element log, JSON-stringified — exactly the shape a real student submission carries as `submittedAnswer` for a 'transmission' item. */
+function keyTextPerfectlyAsJson(text, wpm) {
+    const engine = new TransmissionEngine({ wpm, toleranceFactor: 0.35 });
+    const unitMs = 1200 / wpm;
+    [...text].forEach((ch, charIndex) => {
+        const morse = CHAR_TO_MORSE[ch.toUpperCase()];
+        [...morse].forEach((sym, i) => {
+            engine.feedTone(sym === '.' ? unitMs : 3 * unitMs);
+            if (i < morse.length - 1) engine.feedGap(unitMs);
+        });
+        if (charIndex < text.length - 1) engine.feedGap(3 * unitMs);
+    });
+    engine.flush();
+    return JSON.stringify(engine.elementLog);
+}
+
+test('generateItems: transmission items expose a visible target (never withheld) built via transmissionEngine, not a second generator', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 2 });
+    assert.equal(items.length, 2);
+    items.forEach((item) => {
+        const { exercise } = item;
+        assert.equal(exercise.mode, 'transmission');
+        assert.ok(exercise.text.length > 0);
+        assert.equal(exercise.text, exercise.expectedAnswer);
+        assert.equal(exercise.durationMs, 0, 'no audio playback phase for transmission');
+        assert.ok(exercise.wpm > 0);
+        assert.equal(exercise.toleranceFactor, sessionEngine.DEFAULT_TRANSMISSION_TOLERANCE_FACTOR);
+    });
+});
+
+test('generateItems: an explicit toleranceFactor overrides the default for transmission items (teacher-configurable timing tolerance)', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, toleranceFactor: 0.5 });
+    assert.equal(items[0].exercise.toleranceFactor, 0.5);
+    assert.notEqual(0.5, sessionEngine.DEFAULT_TRANSMISSION_TOLERANCE_FACTOR);
+});
+
+test('generateItems: an invalid toleranceFactor (0, negative, non-finite) falls back to the default rather than producing an unusable classifier', () => {
+    for (const bad of [0, -0.1, NaN, undefined]) {
+        const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, toleranceFactor: bad });
+        assert.equal(items[0].exercise.toleranceFactor, sessionEngine.DEFAULT_TRANSMISSION_TOLERANCE_FACTOR);
+    }
+});
+
+test('generateItems: transmission honors an explicit characters override and item length', () => {
+    const { items } = sessionEngine.generateItems({
+        exerciseMode: 'transmission',
+        difficulty: 'easy',
+        exerciseCount: 1,
+        characters: ['A', 'B'],
+        length: 6,
+    });
+    const { exercise } = items[0];
+    assert.equal(exercise.text.length, 6);
+    for (const ch of exercise.text) assert.ok(['A', 'B'].includes(ch));
+});
+
+test('gradeSubmission (transmission): a perfectly-keyed target scores 100%', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, characters: ['A', 'B', 'C'], length: 5 });
+    const { exercise } = items[0];
+    const submittedAnswer = keyTextPerfectlyAsJson(exercise.text, exercise.wpm);
+
+    const score = sessionEngine.gradeSubmission(exercise, submittedAnswer);
+    assert.equal(score.accuracyPercent, 100);
+    assert.equal(score.decodedText, exercise.text);
+    assert.equal(score.timingStats.timingErrorCount, 0);
+});
+
+test('gradeSubmission (transmission): categorizes wrong, missing, and extra characters', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, characters: ['A', 'B', 'C', 'D', 'E'], length: 5 });
+    const { exercise } = items[0];
+
+    const wrong = sessionEngine.gradeSubmission(exercise, keyTextPerfectlyAsJson('Z'.repeat(exercise.text.length), exercise.wpm));
+    assert.equal(wrong.correctCount, 0);
+    assert.equal(wrong.incorrectCount, exercise.text.length);
+
+    const missing = sessionEngine.gradeSubmission(exercise, keyTextPerfectlyAsJson(exercise.text.slice(0, -1), exercise.wpm));
+    assert.equal(missing.missingCount, 1);
+    assert.equal(missing.correctCount, exercise.text.length - 1);
+
+    const extra = sessionEngine.gradeSubmission(exercise, keyTextPerfectlyAsJson(`${exercise.text}Q`, exercise.wpm));
+    assert.equal(extra.extraCount, 1);
+    assert.equal(extra.correctCount, exercise.text.length);
+});
+
+test('gradeSubmission (transmission): timing errors are detected and counted from real mistimed presses', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, characters: ['E'], length: 1 });
+    const { exercise } = items[0]; // "E" = a single dot
+    const unitMs = 1200 / exercise.wpm;
+    const badLog = JSON.stringify([{ type: 'tone', durationMs: unitMs * 0.1 }]); // way too short
+    const score = sessionEngine.gradeSubmission(exercise, badLog);
+    assert.ok(score.timingStats.timingErrorCount >= 1);
+});
+
+test('gradeSubmission (transmission): never trusts a client-reported decoding — re-derives it from the raw element log', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, characters: ['E', 'T'], length: 3 });
+    const { exercise } = items[0];
+    // Garbage timings that do not spell the target, wrapped exactly like
+    // a real submission (raw element log only — there is no field for a
+    // client to separately claim its own decoded text at all).
+    const garbage = JSON.stringify([{ type: 'tone', durationMs: 1 }]);
+    const score = sessionEngine.gradeSubmission(exercise, garbage);
+    assert.notEqual(score.decodedText, exercise.text);
+});
+
+test('gradeSubmission (transmission): grade calculation flows through computeGrade like every other mode', () => {
+    const { items } = sessionEngine.generateItems({ exerciseMode: 'transmission', difficulty: 'easy', exerciseCount: 1, characters: ['S', 'O'], length: 4 });
+    const { exercise } = items[0];
+    const score = sessionEngine.gradeSubmission(exercise, keyTextPerfectlyAsJson(exercise.text, exercise.wpm));
+    assert.equal(sessionEngine.computeGrade(score.accuracyPercent, 70), 'pass');
+    assert.equal(sessionEngine.computeGrade(0, 70), 'fail');
+});

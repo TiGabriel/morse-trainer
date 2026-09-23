@@ -27,17 +27,17 @@
             maxPlays: readReplayPolicy(),
             autoPlay: el('preview-autoplay').checked,
             onStart: ({ playCount }) => {
-                el('preview-status').textContent = 'Playing…';
+                el('preview-status').textContent = t('teacher.playing');
                 el('preview-play-count').textContent = String(playCount);
             },
             onEnd: () => {
-                el('preview-status').textContent = 'Finished';
+                el('preview-status').textContent = t('teacher.finished');
             },
             onStop: () => {
-                el('preview-status').textContent = 'Stopped';
+                el('preview-status').textContent = t('teacher.stopped');
             },
             onBlockedReplay: () => {
-                el('preview-status').textContent = 'Replay blocked by current policy';
+                el('preview-status').textContent = t('teacher.replayBlocked');
             },
         });
         return player;
@@ -82,14 +82,14 @@
         currentPlan = result.plan;
         currentDurationMs = result.durationMs;
 
-        el('preview-morse').textContent = result.morse || '(empty)';
+        el('preview-morse').textContent = result.morse || t('teacher.emptyParens');
         el('preview-duration').textContent = formatMs(result.durationMs);
         el('preview-play-count').textContent = '0';
-        el('preview-status').textContent = 'Ready';
+        el('preview-status').textContent = t('teacher.ready');
 
         if (result.invalidCharacters && result.invalidCharacters.length > 0) {
             const chars = [...new Set(result.invalidCharacters.map((c) => `"${c.char}"`))].join(', ');
-            showWarning(`Unsupported character(s) skipped: ${chars}`);
+            showWarning(t('teacher.unsupportedCharsSkipped', { chars }));
         }
 
         const p = ensurePlayer();
@@ -117,7 +117,7 @@
             // in case wpm/tone/text changed since the last load.
             const text = el('preview-text').value.trim();
             if (!text) {
-                showWarning('Enter some text first.');
+                showWarning(t('teacher.enterTextFirst'));
                 return;
             }
             await loadPreview(text);
@@ -125,7 +125,7 @@
             applyLiveSettings();
             const started = await p.play();
             if (!started) {
-                el('preview-status').textContent = 'Replay blocked by current policy';
+                el('preview-status').textContent = t('teacher.replayBlocked');
             }
         });
 

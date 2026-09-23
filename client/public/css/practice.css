@@ -1192,3 +1192,87 @@
         font-size: 2.25rem;
     }
 }
+
+/* ===================== Morse Transmission ===================== */
+.tx-target {
+    font-family: var(--pt-mono);
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-align: center;
+    padding: 1.1rem 1rem;
+    background: var(--pt-surface);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
+    color: var(--pt-text);
+    word-break: break-all;
+}
+
+.tx-key-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.75rem 1.25rem;
+    margin: 1.25rem 0;
+    background: var(--pt-surface);
+    border: 1.5px solid var(--pt-border);
+    border-radius: var(--pt-r-lg);
+    text-align: center;
+    box-shadow: var(--pt-shadow-xs);
+    outline: none;
+    transition: border-color var(--pt-transition), background var(--pt-transition);
+}
+.tx-key-area:focus-visible {
+    border-color: var(--pt-accent);
+}
+.tx-key-area.is-pressed {
+    border-color: var(--pt-accent);
+    background: var(--pt-accent-soft-strong);
+}
+
+.tx-key-hint {
+    font-size: 0.82rem;
+    color: var(--pt-text-muted);
+}
+.tx-key-hint kbd {
+    font-family: var(--pt-mono);
+    background: var(--pt-bg);
+    border: 1px solid var(--pt-border-strong);
+    border-radius: var(--pt-r-sm);
+    padding: 0.1rem 0.5rem;
+}
+
+.tx-current-morse {
+    font-family: var(--pt-mono);
+    font-size: 2.25rem;
+    font-weight: 600;
+    min-height: 2.6rem;
+    letter-spacing: 0.2em;
+    color: var(--pt-accent);
+}
+
+.tx-feedback {
+    min-height: 1.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--pt-text-muted);
+}
+.tx-feedback.state-correct {
+    color: var(--pt-success);
+}
+.tx-feedback.state-warning {
+    color: var(--pt-warning);
+}
+
+.tx-decoded {
+    font-family: var(--pt-mono);
+    font-size: 1.3rem;
+    min-height: 2.4rem;
+    padding: 0.85rem 1rem;
+    background: var(--pt-surface);
+    border: 1px solid var(--pt-border);
+    border-radius: var(--pt-r-md);
+    color: var(--pt-text);
+    word-break: break-all;
+}
