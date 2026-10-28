@@ -4,9 +4,13 @@ const { requireAuth, requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
 
-// The whole electronic gradebook is teacher-only — reading included.
-// Students have no route here at all, not even for their own entries.
 router.use(requireAuth);
+
+// The one student route: read-only, self-scoped (req.user.id — never a
+// URL param), official grades only. See gradebookController.listMyGrades.
+router.get('/me', requireRole('student'), gradebookController.listMyGrades);
+
+// Everything else in the electronic gradebook is teacher-only — reading included.
 router.use(requireRole('teacher'));
 
 router.get('/pending-counts', gradebookController.getPendingCounts);

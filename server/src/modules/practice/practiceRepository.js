@@ -109,11 +109,11 @@ function buildHistoryFilter(studentId, { exerciseType, direction, since, until, 
         params.push(...types);
     }
     if (since) {
-        clauses.push('date(created_at) >= date(?)');
+        clauses.push('local_date(created_at) >= date(?)');
         params.push(since);
     }
     if (until) {
-        clauses.push('date(created_at) <= date(?)');
+        clauses.push('local_date(created_at) <= date(?)');
         params.push(until);
     }
     if (Number.isFinite(minWpm)) {

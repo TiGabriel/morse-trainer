@@ -147,12 +147,16 @@
             unsavedNote: 'Modificările nesalvate se vor pierde.', play: 'Redă', wpmShort: 'VPM',
             backToSettings: '← Înapoi la setări', backToSettingsShort: 'Schimbă setările',
             resultNotSaved: 'Rezultatul nu a putut fi salvat în istoric: {message}',
-            groupsUnit: 'grupuri', farnsworthNote: ' (Farnsworth {wpm} VPM)', targetUnit: 'țintă',
+            groupsUnit: 'grupuri', farnsworthNote: ' (Farnsworth {wpm} VPM)',
+            groupPause: 'Pauză între grupe (secunde)', groupPauseHint: '(gol = pauza standard de 7 puncte)',
+            groupPauseStandard: 'Pauza standard la {wpm} VPM: {seconds} s', groupPauseNote: ' · pauză între grupe {seconds} s',
+            answerCounter: '{count} / {max} caractere', groupSize: 'Caractere pe grupă', groupSizeHint: '(0 = fără grupe)',
+            defaultValue: '(gol = {value})', targetUnit: 'țintă',
         },
         nav: {
             home: 'Acasă', dashboard: 'Panou profesor', groupSessions: 'Sesiuni de grup',
             gradebook: 'Catalog electronic', morseAlphabet: 'Alfabet Morse',
-            statistics: 'Statistici', individualTraining: 'Pregătire individuală',
+            statistics: 'Statistici', myStatistics: 'Statisticile mele', practice: 'Practică', individualTraining: 'Pregătire individuală',
             logout: 'Deconectare', themeToLight: 'Comută la tema deschisă',
             themeToDark: 'Comută la tema închisă', languageLabel: 'Limbă',
             switchToRomanian: 'Comută în română', switchToEnglish: 'Switch to English',
@@ -320,7 +324,7 @@
             modeCharacterRecognitionDesc: 'Identifică fiecare caracter Morse, pe rând.',
             modeTransmissionDesc: 'Citește textul țintă și transmite-l tu cu bara de spațiu.',
             stepLabel4: 'Pasul 4 din 4', step4Heading: 'Configurează exercițiul',
-            content: 'Conținut', noPoolSelected: 'Niciun caracter selectat încă — se va folosi setul implicit al dificultății.',
+            content: 'Conținut', noPoolSelected: 'Niciun caracter selectat încă — se vor folosi toate literele.', radiogramShapeNote: 'Radiograma are mereu 3 rânduri × 10 grupe × 4 caractere (120 de caractere).',
             morse: 'Morse', blankDifficultyDefault: '(gol = valoare implicită a dificultății)', blank600: '(gol = 600)',
             timingTolerance: 'Toleranță temporizare', timingToleranceHint: '(doar Transmisie — mai mare = mai permisiv, gol = 0.35)',
             session: 'Sesiune', itemLength: 'Lungime element (caractere)', numberOfExercises: 'Număr de exerciții',
@@ -371,6 +375,8 @@
             individualResults: 'Rezultate individuale', exportCsv: 'Exportă CSV', resetHistory: 'Resetează istoricul…',
             direction: 'Direcție', reception: 'Recepție', transmission: 'Transmisie',
             exRadiogramTraining: 'Antrenament radiogramă', exCharacterTraining: 'Antrenament caractere',
+            myGrades: 'Notele mele', noGradesYet: 'Nicio notă încă — notele apar aici după ce profesorul le trece în catalog.',
+            gradeCol: 'Notă', gradeSource: 'Sursă', gradeDetails: 'Detalii', gradeTeacher: 'Profesor', gradeAverage: 'Media: {value}',
             exReceptionAudio: 'Recepție (Audio → Text)', fromDate: 'De la data', toDate: 'Până la data',
             minWpm: 'VPM minim', maxWpm: 'VPM maxim', applyFilters: 'Aplică filtrele', noExercisesMatch: 'Niciun exercițiu nu corespunde acestor filtre.',
             dateTime: 'Data/Ora', actualWpm: 'VPM real', rhythm: 'Ritm', loadMore: 'Încarcă mai multe',
@@ -418,6 +424,7 @@
             receptionTitle: 'Antrenament recepție',
             receptionDesc: 'Copiere oarbă: ascultă audio Morse și scrie ce auzi, fără nicio referință afișată până la evaluare.',
             transmissionDesc: 'Transmite tu însuți o secvență țintă folosind bara de spațiu — decodare în timp real și feedback de temporizare pe măsură ce transmiți.',
+            freeTransmissionDesc: 'Fără țintă, fără evaluare, fără setări — transmite orice cu bara de spațiu și urmărește decodarea în timp real.',
             backToHub: '← Înapoi la Pregătirea individuală',
         },
         characterTraining: {
@@ -451,7 +458,8 @@
             editEntry: 'Editează intrarea', addGradeTitle: 'Adaugă notă — {name}', addNoteTitle: 'Adaugă observație — {name}',
             confirmDelete: 'Ștergeți această intrare? Acțiunea nu poate fi anulată.',
             confirmDiscard: 'Renunțați la această intrare temporară de la testul formal? Nota nu va fi trecută în catalog.',
-            confirmPermanent: 'Salvați permanent această notă în catalog? După salvare, nota nu mai poate fi modificată sau ștearsă.',
+            confirmPermanent: 'Salvați permanent această notă în catalog? După salvare, nota nu mai poate fi modificată.',
+            confirmDeletePermanent: 'Ștergeți această notă OFICIALĂ de la testul formal din catalog? Elevul nu o va mai vedea. Acțiunea nu poate fi anulată.',
             toastSaved: 'Intrare salvată.', toastPermanent: 'Salvată permanent în catalog.', toastDeleted: 'Intrare ștearsă.',
             gradeLocked: 'Notă oficială — nu mai poate fi modificată.',
             byTeacher: 'de {name}', updatedAt: 'actualizat {date}',
@@ -466,6 +474,46 @@
             countChars: '{count} caractere', playHint: 'Apăsați pe un caracter pentru a-l asculta ({wpm} WPM, {hz} Hz).',
             legend: '· = punct (scurt)   − = linie (lungă)', playChar: 'Ascultă {char}',
             loadError: 'Nu s-a putut încărca alfabetul: {message}',
+            studentSubtitle: 'Caracterele Morse puse la dispoziție de profesor pentru clasa ta.',
+            notConfigured: 'Profesorul nu a configurat încă caracterele disponibile.',
+        },
+        classMorse: {
+            column: 'Alfabet Morse', configure: 'Configurează alfabetul Morse', configureShort: 'Configurează',
+            modalTitle: 'Configurează alfabetul Morse — {name}',
+            hint: 'Elevii din această clasă vor vedea în pagina Alfabet Morse doar caracterele selectate.',
+            availableChars: 'Caractere disponibile', selectAll: 'Selectează tot', clearAll: 'Șterge selecția',
+            search: 'Caută caracter…', selectedCount: '{count} / {total} selectate',
+            none: 'Niciun caracter', allChars: 'Toate caracterele', enabledCount: '{count} caractere activate',
+            letters: 'Litere', numbers: 'Cifre', special: 'Caractere speciale', noMatch: 'Niciun caracter găsit.',
+            saved: 'Alfabetul Morse pentru „{name}” a fost salvat.',
+        },
+        slots: {
+            title: '🎰 Păcănele Demo', close: 'Închide', credits: 'Credite Demo',
+            demoNote: 'Credite fictive, fără nicio valoare reală. Doar pentru distracție.',
+            spin: 'ÎNVÂRTIRE', spinning: 'Se învârte…',
+            reels: 'Role', reelLabel: 'Rola {n}: {symbols}', ready: 'Apasă ÎNVÂRTIRE pentru a juca!',
+            betPerLine: 'Pariu / linie', lines: 'Linii', totalBet: 'Pariu total',
+            betDown: 'Scade pariul pe linie', betUp: 'Crește pariul pe linie',
+            linesDown: 'Mai puține linii', linesUp: 'Mai multe linii',
+            cantAfford: 'Credite Demo insuficiente pentru acest pariu. Scade pariul sau numărul de linii.',
+            smallWin: 'Câștig!', mediumWin: 'Câștig frumos!', bigWin: 'BIG WIN!', jackpot: 'JACKPOT!', bonus: 'BONUS!',
+            tryAgain: 'Încearcă din nou!', won: '+{amount} credite demo',
+            lineWin: 'Linia {line}: {symbols} → +{amount}', scatterWin: '{symbols} SCATTER → +{amount}',
+            bonusWin: '{symbols} BONUS → +{amount}', skip: 'Clic pentru a continua',
+            empty: 'Nu mai ai Credite Demo.', reset: 'Resetare credite',
+            resetDone: 'Credite demo resetate la {amount}.', payouts: 'Tabel câștiguri',
+            resultAnnounce: 'Rezultat: {message} Câștig total: {amount} credite demo.',
+            payNote: 'Câștigurile pe linie sunt multiplicatori ai pariului pe linie. Liniile plătesc de la stânga la dreapta, începând cu rola 1.',
+            payHeadSymbol: 'Simbol',
+            wildRule: 'Înlocuiește orice simbol, cu excepția SCATTER și BONUS. O linie doar cu WILD plătește ca {symbol}.',
+            scatterRule: 'Plătește oriunde pe role, independent de linii: 3 = {three}×, 4 = {four}×, 5 = {five}× pariul total.',
+            bonusRule: '{count} sau mai multe oriunde: bonus de {mult}× pariul total.',
+            jackpotRule: 'JACKPOT: {count} × {symbol} pe o linie activă (WILD se socotește).',
+            paylinesTitle: 'Linii de câștig',
+            symbols: {
+                crown: 'Coroană', anchor: 'Ancoră', ship: 'Navă', radio: 'Radio', star: 'Stea',
+                diamond: 'Diamant', cherry: 'Cireșe', trident: 'Trident', wild: 'WILD', scatter: 'SCATTER', bonus: 'BONUS',
+            },
         },
         _end: true,
     };
@@ -492,12 +540,16 @@
             unsavedNote: 'Unsaved changes will be lost.', play: 'Play', wpmShort: 'WPM',
             backToSettings: '← Back to settings', backToSettingsShort: 'Change settings',
             resultNotSaved: 'Result could not be saved to your history: {message}',
-            groupsUnit: 'groups', farnsworthNote: ' (Farnsworth {wpm} WPM)', targetUnit: 'target',
+            groupsUnit: 'groups', farnsworthNote: ' (Farnsworth {wpm} WPM)',
+            groupPause: 'Pause between groups (seconds)', groupPauseHint: '(blank = standard 7-dot gap)',
+            groupPauseStandard: 'Standard pause at {wpm} WPM: {seconds} s', groupPauseNote: ' · group pause {seconds} s',
+            answerCounter: '{count} / {max} characters', groupSize: 'Characters per group', groupSizeHint: '(0 = ungrouped)',
+            defaultValue: '(blank = {value})', targetUnit: 'target',
         },
         nav: {
             home: 'Home', dashboard: 'Dashboard', groupSessions: 'Group Sessions',
             gradebook: 'Electronic Gradebook', morseAlphabet: 'Morse Alphabet',
-            statistics: 'Statistics', individualTraining: 'Individual Training',
+            statistics: 'Statistics', myStatistics: 'My Statistics', practice: 'Practice', individualTraining: 'Individual Training',
             logout: 'Log out', themeToLight: 'Switch to light theme',
             themeToDark: 'Switch to dark theme', languageLabel: 'Language',
             switchToRomanian: 'Switch to Romanian', switchToEnglish: 'Switch to English',
@@ -665,7 +717,7 @@
             modeCharacterRecognitionDesc: 'Identify individual Morse characters, one at a time.',
             modeTransmissionDesc: 'Read the target text and key it yourself with the Space bar.',
             stepLabel4: 'Step 4 of 4', step4Heading: 'Configure the exercise',
-            content: 'Content', noPoolSelected: "No characters selected yet — the difficulty preset's own pool will be used.",
+            content: 'Content', noPoolSelected: 'No characters selected yet — all letters will be used.', radiogramShapeNote: 'A radiogram is always 3 rows × 10 groups × 4 characters (120 characters).',
             morse: 'Morse', blankDifficultyDefault: '(blank = difficulty default)', blank600: '(blank = 600)',
             timingTolerance: 'Timing tolerance', timingToleranceHint: '(Transmission only — higher = more forgiving, blank = 0.35)',
             session: 'Session', itemLength: 'Item length (characters)', numberOfExercises: 'Number of exercises',
@@ -716,6 +768,8 @@
             individualResults: 'Individual Results', exportCsv: 'Export CSV', resetHistory: 'Reset History…',
             direction: 'Direction', reception: 'Reception', transmission: 'Transmission',
             exRadiogramTraining: 'Radiogram Training', exCharacterTraining: 'Character Training',
+            myGrades: 'My Grades', noGradesYet: 'No grades yet — grades appear here once your teacher records them in the gradebook.',
+            gradeCol: 'Grade', gradeSource: 'Source', gradeDetails: 'Details', gradeTeacher: 'Teacher', gradeAverage: 'Average: {value}',
             exReceptionAudio: 'Reception (Audio → Text)', fromDate: 'From date', toDate: 'To date',
             minWpm: 'Min WPM', maxWpm: 'Max WPM', applyFilters: 'Apply Filters', noExercisesMatch: 'No exercises match these filters.',
             dateTime: 'Date/Time', actualWpm: 'Actual WPM', rhythm: 'Rhythm', loadMore: 'Load more',
@@ -763,6 +817,7 @@
             receptionTitle: 'Reception Training',
             receptionDesc: "Blind copy: listen to Morse audio and type what you hear, with no reference shown until you're graded.",
             transmissionDesc: 'Key a target sequence yourself using the Space bar — real-time decoding and timing feedback as you send.',
+            freeTransmissionDesc: 'No target, no grading, no settings — key anything with the Space bar and watch it decode in real time.',
             backToHub: '← Back to Individual Training',
         },
         characterTraining: {
@@ -796,7 +851,8 @@
             editEntry: 'Edit entry', addGradeTitle: 'Add grade — {name}', addNoteTitle: 'Add note — {name}',
             confirmDelete: 'Delete this entry? This cannot be undone.',
             confirmDiscard: 'Discard this temporary Formal Test entry? The grade will not be recorded in the gradebook.',
-            confirmPermanent: 'Save this grade permanently in the gradebook? Once saved it can no longer be changed or deleted.',
+            confirmPermanent: 'Save this grade permanently in the gradebook? Once saved it can no longer be changed.',
+            confirmDeletePermanent: 'Delete this OFFICIAL Formal Test grade from the gradebook? The student will no longer see it. This cannot be undone.',
             toastSaved: 'Entry saved.', toastPermanent: 'Saved permanently in the gradebook.', toastDeleted: 'Entry deleted.',
             gradeLocked: 'Official grade — can no longer be changed.',
             byTeacher: 'by {name}', updatedAt: 'updated {date}',
@@ -811,14 +867,117 @@
             countChars: '{count} characters', playHint: 'Click a character to hear it ({wpm} WPM, {hz} Hz).',
             legend: '· = dot (short)   − = dash (long)', playChar: 'Play {char}',
             loadError: 'Could not load the alphabet: {message}',
+            studentSubtitle: 'The Morse characters your teacher has made available to your class.',
+            notConfigured: 'Your teacher has not configured the available characters yet.',
+        },
+        classMorse: {
+            column: 'Morse Alphabet', configure: 'Configure Morse Alphabet', configureShort: 'Configure',
+            modalTitle: 'Configure Morse Alphabet — {name}',
+            hint: 'Students in this class will only see the selected characters on the Morse Alphabet page.',
+            availableChars: 'Available characters', selectAll: 'Select All', clearAll: 'Clear All',
+            search: 'Search character…', selectedCount: '{count} / {total} selected',
+            none: 'No characters', allChars: 'All characters', enabledCount: '{count} characters enabled',
+            letters: 'Letters', numbers: 'Numbers', special: 'Special Characters', noMatch: 'No matching characters.',
+            saved: 'Morse Alphabet saved for "{name}".',
+        },
+        slots: {
+            title: '🎰 SMMMFN Lucky Slots', close: 'Close', credits: 'Demo Credits',
+            demoNote: 'Fictional credits with no real-world value. Just for fun.',
+            spin: 'SPIN', spinning: 'Spinning…',
+            reels: 'Reels', reelLabel: 'Reel {n}: {symbols}', ready: 'Press SPIN to play!',
+            betPerLine: 'Bet / Line', lines: 'Lines', totalBet: 'Total Bet',
+            betDown: 'Decrease bet per line', betUp: 'Increase bet per line',
+            linesDown: 'Fewer lines', linesUp: 'More lines',
+            cantAfford: 'Not enough Demo Credits for this bet. Lower the bet or the number of lines.',
+            smallWin: 'Win!', mediumWin: 'Great win!', bigWin: 'BIG WIN!', jackpot: 'JACKPOT!', bonus: 'BONUS!',
+            tryAgain: 'Try again!', won: '+{amount} demo credits',
+            lineWin: 'Line {line}: {symbols} → +{amount}', scatterWin: '{symbols} SCATTER → +{amount}',
+            bonusWin: '{symbols} BONUS → +{amount}', skip: 'Click to continue',
+            empty: 'No more Demo Credits.', reset: 'Reset Demo Credits',
+            resetDone: 'Demo credits reset to {amount}.', payouts: 'Payout table',
+            resultAnnounce: 'Result: {message} Total win: {amount} demo credits.',
+            payNote: 'Line wins are multiples of the bet per line. Lines pay left to right, starting from reel 1.',
+            payHeadSymbol: 'Symbol',
+            wildRule: 'Substitutes for every symbol except SCATTER and BONUS. A line of only WILDs pays as {symbol}.',
+            scatterRule: 'Pays anywhere on the reels, independent of paylines: 3 = {three}×, 4 = {four}×, 5 = {five}× total bet.',
+            bonusRule: '{count} or more anywhere: a bonus of {mult}× total bet.',
+            jackpotRule: 'JACKPOT: {count} × {symbol} on an active line (WILD counts).',
+            paylinesTitle: 'Paylines',
+            symbols: {
+                crown: 'Crown', anchor: 'Anchor', ship: 'Ship', radio: 'Radio', star: 'Star',
+                diamond: 'Diamond', cherry: 'Cherry', trident: 'Trident', wild: 'WILD', scatter: 'SCATTER', bonus: 'BONUS',
+            },
         },
         _end: true,
     };
     const DICTS = { ro: RO, en: EN };
 
+    /**
+     * Server clock. The server PC's system clock is authoritative: every
+     * stored timestamp comes from the server, and this page's own clock is
+     * never trusted for anything server-side. On load, one GET /api/time
+     * round trip gives (a) the server's time zone, used to DISPLAY dates
+     * in the server's local time rather than this PC's, and (b) an
+     * estimated offset of this PC's clock from the server's (same half-
+     * round-trip model as clock-sync.js). Group Sessions keep their own
+     * continuous WebSocket ping/pong sync on top of this — nothing here
+     * replaces it. If the request fails, display falls back to this
+     * browser's own zone and the offset stays 0.
+     */
+    const serverClock = { timeZone: undefined, offsetMs: 0, synced: false };
+    const serverClockReady = (async () => {
+        try {
+            const sentAt = Date.now();
+            const res = await fetch('/api/time', { cache: 'no-store' });
+            const receivedAt = Date.now();
+            if (!res.ok) return serverClock;
+            const data = await res.json();
+            if (typeof data.serverNow === 'number') {
+                serverClock.offsetMs = data.serverNow + (receivedAt - sentAt) / 2 - receivedAt;
+                serverClock.synced = true;
+            }
+            if (typeof data.timeZone === 'string' && data.timeZone) {
+                try {
+                    new Intl.DateTimeFormat('en-GB', { timeZone: data.timeZone }); // throws on an unknown zone
+                    serverClock.timeZone = data.timeZone;
+                } catch {
+                    // unknown to this browser — keep the browser's own zone
+                }
+            }
+        } catch {
+            // server unreachable — keep defaults
+        }
+        return serverClock;
+    })();
+
+    /** Estimated current server time (epoch ms). */
+    function serverNow() {
+        return Date.now() + serverClock.offsetMs;
+    }
+
+    /**
+     * Server timestamps -> human-readable, in the SERVER's time zone once
+     * known. Accepts SQLite UTC "YYYY-MM-DD HH:MM:SS" (no zone marker —
+     * read as UTC) or ISO strings. Summer/winter time handled by Intl.
+     */
+    function formatDateTime(value) {
+        if (!value) return '—';
+        const s = String(value).trim().replace(' ', 'T');
+        const d = new Date(/T/.test(s) && !/(?:[zZ]|[+-]\d\d:?\d\d)$/.test(s) ? `${s}Z` : s);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString(currentLanguage() === 'en' ? 'en-GB' : 'ro-RO', {
+            timeZone: serverClock.timeZone,
+            year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        });
+    }
+
     window.I18N = {
         t,
         setLanguage,
+        formatDateTime,
+        serverClock,
+        serverClockReady,
+        serverNow,
         getLanguage: currentLanguage,
         applyTranslations,
         SUPPORTED_LANGS,

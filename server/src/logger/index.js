@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { localDateTime } = require('../utils/serverTime');
 
 const LOG_DIR = path.join(__dirname, '..', '..', 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'server.log');
@@ -30,7 +31,7 @@ function formatArg(arg) {
 function write(level, args) {
     if (LEVELS[level] > currentLevelValue) return;
 
-    const timestamp = new Date().toISOString();
+    const timestamp = localDateTime(); // server PC's local system time, not UTC
     const line = `[${timestamp}] [${level.toUpperCase()}] ${args.map(formatArg).join(' ')}`;
 
     const consoleFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;

@@ -20,8 +20,10 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/faviconsmmmfn.png" />
     <title>Morse SMMMFN — Group Sessions</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/slot-machine.css" />
     <link rel="stylesheet" href="/css/teacher.css" />
     <link rel="stylesheet" href="/css/sessions.css" />
 </head>
@@ -30,12 +32,13 @@
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+            <a href="/" class="app-nav-brand"><img class="app-nav-logo" src="/img/logosmmmfn.jpg" alt="" width="413" height="484" />Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
                 <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
                 <a href="/sessions.html" class="app-nav-link active" data-i18n="nav.groupSessions">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/practice.html" class="app-nav-link" data-i18n="nav.practice">Practice</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics" data-i18n-student="nav.myStatistics">Statistics</a>
                 <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
                 <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
@@ -214,24 +217,15 @@
                                     </div>
                                     <div class="char-grid" id="gs-char-grid-punctuation"></div>
                                 </div>
-                                <p class="pool-summary" id="gs-pool-summary" data-i18n="sessions.noPoolSelected">No characters selected yet — the difficulty preset's own pool will be used.</p>
+                                <p class="pool-summary" id="gs-pool-summary" data-i18n="sessions.noPoolSelected">No characters selected yet — all letters will be used.</p>
                             </div>
 
                             <div class="settings-group">
                                 <h3 class="settings-group-title" data-i18n="sessions.morse">Morse</h3>
                                 <div class="preview-params">
                                     <div class="modal-field">
-                                        <label for="new-difficulty" data-i18n="teacher.difficulty">Difficulty</label>
-                                        <select id="new-difficulty">
-                                            <option value="beginner" data-i18n="teacher.diffBeginner">Beginner</option>
-                                            <option value="easy" selected data-i18n="teacher.diffEasy">Easy</option>
-                                            <option value="medium" data-i18n="teacher.diffMedium">Medium</option>
-                                            <option value="hard" data-i18n="teacher.diffHard">Hard</option>
-                                        </select>
-                                    </div>
-                                    <div class="modal-field">
-                                        <label for="new-wpm"><span data-i18n="common.wpmShort">WPM</span> <span class="muted" data-i18n="sessions.blankDifficultyDefault">(blank = difficulty default)</span></label>
-                                        <input type="number" id="new-wpm" min="1" max="60" placeholder="&mdash;" />
+                                        <label for="new-wpm" data-i18n="common.wpm">WPM (character speed)</label>
+                                        <input type="number" id="new-wpm" min="1" max="60" value="10" required />
                                     </div>
                                     <div class="modal-field">
                                         <label for="new-farnsworth"><span data-i18n="common.farnsworth">Farnsworth WPM</span> <span class="muted" data-i18n="teacher.blankSameAsWpm">(blank = same as WPM)</span></label>
@@ -240,6 +234,11 @@
                                     <div class="modal-field">
                                         <label for="new-tone"><span data-i18n="common.tone">Tone frequency (Hz)</span> <span class="muted" data-i18n="sessions.blank600">(blank = 600)</span></label>
                                         <input type="number" id="new-tone" min="200" max="1200" placeholder="600" />
+                                    </div>
+                                    <div class="modal-field" id="new-group-pause-field">
+                                        <label for="new-group-pause"><span data-i18n="common.groupPause">Pause between groups (seconds)</span> <span class="muted" data-i18n="common.groupPauseHint">(blank = standard 7-dot gap)</span></label>
+                                        <input type="number" id="new-group-pause" min="0.1" max="10" step="0.1" placeholder="&mdash;" />
+                                        <p class="muted group-pause-standard" id="new-group-pause-standard"></p>
                                     </div>
                                     <div class="modal-field" id="new-tolerance-field" hidden>
                                         <label for="new-tolerance"><span data-i18n="sessions.timingTolerance">Timing tolerance</span> <span class="muted" data-i18n="sessions.timingToleranceHint">(Transmission only — higher = more forgiving, blank = 0.35)</span></label>
@@ -252,9 +251,14 @@
                                 <h3 class="settings-group-title" data-i18n="sessions.session">Session</h3>
                                 <div class="preview-params">
                                     <div class="modal-field" id="new-length-field">
-                                        <label for="new-length"><span data-i18n="sessions.itemLength">Item length (characters)</span> <span class="muted" data-i18n="sessions.blankDifficultyDefault">(blank = difficulty default)</span></label>
-                                        <input type="number" id="new-length" min="1" max="100" placeholder="&mdash;" />
+                                        <label for="new-length" data-i18n="sessions.itemLength">Item length (characters)</label>
+                                        <input type="number" id="new-length" min="1" max="100" value="10" />
                                     </div>
+                                    <div class="modal-field" id="new-group-size-field" hidden>
+                                        <label for="new-group-size"><span data-i18n="common.groupSize">Characters per group</span> <span class="muted" data-i18n="common.groupSizeHint">(0 = ungrouped)</span></label>
+                                        <input type="number" id="new-group-size" min="0" max="10" value="5" />
+                                    </div>
+                                    <p class="muted" id="new-radiogram-shape-note" hidden data-i18n="sessions.radiogramShapeNote">A radiogram is always 3 rows × 10 groups × 4 characters (120 characters).</p>
                                     <div class="modal-field">
                                         <label for="new-count" data-i18n="sessions.numberOfExercises">Number of exercises</label>
                                         <input type="number" id="new-count" min="1" max="100" value="5" required />
@@ -312,9 +316,9 @@
                         <div class="table-wrap">
                             <table class="data-table">
                                 <thead>
-                                    <tr><th data-i18n="common.class">Class</th><th data-i18n="teacher.type">Type</th><th data-i18n="teacher.difficulty">Difficulty</th><th data-i18n="common.wpmShort">WPM</th><th data-i18n="teacher.exercises">Exercises</th><th data-i18n="common.status">Status</th><th class="col-actions" data-i18n="teacher.actions">Actions</th></tr>
+                                    <tr><th data-i18n="common.class">Class</th><th data-i18n="teacher.type">Type</th><th data-i18n="common.wpmShort">WPM</th><th data-i18n="teacher.exercises">Exercises</th><th data-i18n="common.status">Status</th><th class="col-actions" data-i18n="teacher.actions">Actions</th></tr>
                                 </thead>
-                                <tbody id="sessions-tbody"><tr><td colspan="7" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
+                                <tbody id="sessions-tbody"><tr><td colspan="6" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr></tbody>
                             </table>
                         </div>
                     </div>
@@ -335,7 +339,6 @@
                     <dl class="profile-list monitor-config">
                         <dt data-i18n="common.class">Class</dt><dd id="monitor-class">&mdash;</dd>
                         <dt data-i18n="sessions.exerciseType">Exercise type</dt><dd id="monitor-mode">&mdash;</dd>
-                        <dt data-i18n="teacher.difficulty">Difficulty</dt><dd id="monitor-difficulty">&mdash;</dd>
                         <dt data-i18n="common.wpmShort">WPM</dt><dd id="monitor-wpm">&mdash;</dd>
                         <dt data-i18n="teacher.exercises">Exercises</dt><dd id="monitor-count">&mdash;</dd>
                         <dt data-i18n="sessions.connected">Connected</dt><dd id="monitor-connected">&mdash;</dd>
@@ -400,8 +403,11 @@
 
     <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/slot-machine-engine.js"></script>
+    <script src="/js/slot-machine.js"></script>
     <script src="/js/character-pool.js"></script>
     <script src="/js/grading.js"></script>
+    <script src="/js/answer-tools.js"></script>
     <script src="/js/sessions.js"></script>
 </body>
 </html>

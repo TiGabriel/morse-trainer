@@ -281,7 +281,7 @@ function migrate() {
         'INSERT INTO schema_meta (key, value) VALUES (?, ?) ' +
         'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
     );
-    setMeta.run('schema_version', '9');
+    setMeta.run('schema_version', '10');
     setMeta.run('last_migrated_at', new Date().toISOString());
 
     console.log(`[migrate] Schema applied successfully. DB file: ${db.DB_PATH}`);

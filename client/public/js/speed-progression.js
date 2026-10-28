@@ -21,7 +21,7 @@
     // Allow additional speeds later: append/insert here — every consumer
     // (see renderSpeedProgressionChips) rebuilds its chips from this
     // array, so a page never needs its own edit to pick up a change.
-    const SPEED_PROGRESSION_WPM = [10, 12, 14, 16, 18];
+    const SPEED_PROGRESSION_WPM = [6, 8, 10, 12, 14, 16, 18];
 
     /**
      * Builds one "chip" button per progression step inside `containerId`,

@@ -6,6 +6,7 @@
 const db = require('../../db/client');
 const gradingService = require('../grading/gradingService');
 const { analyzeElementLog } = require('../practice/transmissionDecoding');
+const engine = require('../morse-engine');
 
 function toPublicSession(row) {
     if (!row) return null;
@@ -400,6 +401,21 @@ function characterGradeFor(correctCount, expectedAnswer) {
     return gradingService.calculateGrade({ correct: correctCount, total });
 }
 
+/**
+ * Character-by-character alignment of a submitted answer against the
+ * item's expected answer (scoreAnswer's ops — the same alignment grading
+ * used), so result screens can colour every character as correct / wrong /
+ * missing / extra. Null when nothing was submitted.
+ */
+function comparisonOpsFor(expectedAnswer, answerText) {
+    if (typeof expectedAnswer !== 'string' || typeof answerText !== 'string' || answerText === '') return null;
+    try {
+        return engine.scoreAnswer(expectedAnswer.replace(/\s+/g, ''), answerText.replace(/\s+/g, '')).ops;
+    } catch {
+        return null;
+    }
+}
+
 /** Full per-item/per-student results for a session — teacher-facing. Narrowed to selected participants for a restricted formal test, same as the roster. */
 function listResultsForSession(sessionId) {
     const session = findByIdPublic(sessionId);
@@ -429,9 +445,15 @@ function listResultsForSession(sessionId) {
             ? decodeTransmissionRow(exercise, row.submitted_text)
             : { transmittedText: null, timingStats: null };
 
+        const expectedAnswer = typeof exercise.expectedAnswer === 'string' ? exercise.expectedAnswer : null;
+        const answerText = isTransmission ? transmittedText : row.submitted_text;
+
         return {
             orderIndex: row.order_index,
             sessionItemId: row.session_item_id,
+            mode: exercise.mode || null,
+            groupSize: exercise.groupSize || null,
+            comparisonOps: comparisonOpsFor(expectedAnswer, answerText),
             // The exact exercise generated once at session-creation time (see
             // session_items.exercise_json's own comment in schema.sql) — never
             // regenerated, so this is always the literal sequence that was

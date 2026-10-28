@@ -8,6 +8,7 @@ const { analyzeElementLog } = require('./transmissionDecoding');
 const practiceRepository = require('./practiceRepository');
 const gradingService = require('../grading/gradingService');
 const logger = require('../../logger');
+const { normalizeAnswer, formatIntoGroups } = require('./answerFormat');
 
 function toNumberOrUndefined(v) {
     if (v === undefined || v === null || v === '') return undefined;
@@ -35,6 +36,7 @@ function generateExercise(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -91,6 +93,7 @@ function submitAttempt(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -206,6 +209,7 @@ function generateRadiogram(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -247,6 +251,7 @@ function analyzeRadiogram(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -254,7 +259,10 @@ function analyzeRadiogram(req, res) {
     }
 
     const reference = radiogram.text.replace(/\s+/g, '');
-    const submitted = body.submittedAnswer.replace(/\s+/g, '');
+    // Never more characters than the radiogram itself has (the answer box
+    // enforces the same limit), re-spaced into the radiogram's own groups.
+    const submitted = normalizeAnswer(body.submittedAnswer, reference.length);
+    const submittedFormatted = formatIntoGroups(submitted, radiogram.groupSize);
     const score = engine.scoreAnswer(reference, submitted);
     const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
 
@@ -268,7 +276,7 @@ function analyzeRadiogram(req, res) {
         promptText: radiogram.text,
         promptMorse: radiogram.morse,
         expectedAnswer: reference,
-        submittedAnswer: body.submittedAnswer,
+        submittedAnswer: submittedFormatted,
         correctCount: score.correctCount,
         incorrectCount: score.incorrectCount,
         missingCount: score.missingCount,
@@ -288,7 +296,7 @@ function analyzeRadiogram(req, res) {
         referenceGroups: radiogram.groups,
         referenceRows: radiogram.rows,
         groupSize: radiogram.groupSize,
-        submittedAnswer: body.submittedAnswer,
+        submittedAnswer: submittedFormatted,
         score,
         characterGrade,
         createdAt: saved.createdAt,
@@ -421,6 +429,7 @@ function generateReceptionExercise(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -471,6 +480,7 @@ function submitReceptionAttempt(req, res) {
             wpm: toNumberOrUndefined(body.wpm),
             farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
             toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            groupPauseMs: toNumberOrUndefined(body.groupPauseMs),
             seed: body.seed,
         });
     } catch (err) {
@@ -478,7 +488,8 @@ function submitReceptionAttempt(req, res) {
     }
 
     const reference = exercise.text.replace(/\s+/g, '');
-    const submitted = body.submittedAnswer.replace(/\s+/g, '');
+    const submitted = normalizeAnswer(body.submittedAnswer, reference.length);
+    const submittedFormatted = formatIntoGroups(submitted, exercise.groupSize);
     const score = engine.scoreAnswer(reference, submitted);
     const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
 
@@ -492,7 +503,7 @@ function submitReceptionAttempt(req, res) {
         promptText: exercise.text,
         promptMorse: exercise.morse,
         expectedAnswer: reference,
-        submittedAnswer: body.submittedAnswer,
+        submittedAnswer: submittedFormatted,
         correctCount: score.correctCount,
         incorrectCount: score.incorrectCount,
         missingCount: score.missingCount,
@@ -511,7 +522,7 @@ function submitReceptionAttempt(req, res) {
         reference,
         referenceGroups: exercise.groups,
         groupSize: exercise.groupSize,
-        submittedAnswer: body.submittedAnswer,
+        submittedAnswer: submittedFormatted,
         score,
         characterGrade,
         createdAt: saved.createdAt,

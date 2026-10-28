@@ -65,6 +65,17 @@ const { parseMorseWords } = require('./morseParse');
  * Wf were requested higher than Wc after all, or via a degenerate input);
  * standard spacing is the floor, since Farnsworth only ever slows things
  * down, never speeds them up.
+ *
+ * ---------------------------------------------------------------------------
+ * PAUSE BETWEEN GROUPS (optional override)
+ * ---------------------------------------------------------------------------
+ * `groupPauseMs`, when given, replaces the inter-word gap (the silence
+ * between two groups of a radiogram / two words) with an explicit
+ * duration, applied AFTER the standard/Farnsworth math above. It lets a
+ * teacher give students extra writing time between groups without
+ * slowing the characters themselves. It is never allowed to be shorter
+ * than the inter-character gap, or a group boundary would sound shorter
+ * than a gap inside a group.
  * ===========================================================================
  */
 
@@ -80,6 +91,7 @@ const STANDARD_INTER_WORD_UNITS = 7;
  * @param {number} options.wpm - character speed, in words per minute. Required, > 0.
  * @param {number} [options.farnsworthWpm] - effective/overall speed. Defaults to `wpm` (no Farnsworth stretching).
  * @param {number} [options.toneFrequencyHz=600] - tone metadata only; the timing engine does not generate audio.
+ * @param {number} [options.groupPauseMs] - explicit pause between groups/words (ms). Omit for the standard 7-unit (or Farnsworth) gap.
  * @returns {{
  *   wpm: number,
  *   farnsworthWpm: number,
@@ -89,9 +101,10 @@ const STANDARD_INTER_WORD_UNITS = 7;
  *   intraCharGapMs: number,
  *   interCharGapMs: number,
  *   interWordGapMs: number,
+ *   groupPauseMs: number|null,
  * }}
  */
-function computeTiming({ wpm, farnsworthWpm, toneFrequencyHz = 600 } = {}) {
+function computeTiming({ wpm, farnsworthWpm, toneFrequencyHz = 600, groupPauseMs } = {}) {
     if (typeof wpm !== 'number' || !Number.isFinite(wpm) || wpm <= 0) {
         throw new MorseEngineError('wpm must be a positive number.');
     }
@@ -100,6 +113,9 @@ function computeTiming({ wpm, farnsworthWpm, toneFrequencyHz = 600 } = {}) {
     }
     if (typeof toneFrequencyHz !== 'number' || !Number.isFinite(toneFrequencyHz) || toneFrequencyHz <= 0) {
         throw new MorseEngineError('toneFrequencyHz must be a positive number.');
+    }
+    if (groupPauseMs !== undefined && groupPauseMs !== null && (typeof groupPauseMs !== 'number' || !Number.isFinite(groupPauseMs) || groupPauseMs <= 0)) {
+        throw new MorseEngineError('groupPauseMs must be a positive number when provided.');
     }
 
     const dotMs = 1200 / wpm;
@@ -129,6 +145,11 @@ function computeTiming({ wpm, farnsworthWpm, toneFrequencyHz = 600 } = {}) {
         interWordGapMs = STANDARD_INTER_WORD_UNITS * spacingUnitMs;
     }
 
+    const hasGroupPause = groupPauseMs !== undefined && groupPauseMs !== null;
+    if (hasGroupPause) {
+        interWordGapMs = Math.max(groupPauseMs, interCharGapMs);
+    }
+
     return {
         wpm,
         farnsworthWpm: effectiveFarnsworthWpm,
@@ -138,6 +159,7 @@ function computeTiming({ wpm, farnsworthWpm, toneFrequencyHz = 600 } = {}) {
         intraCharGapMs,
         interCharGapMs,
         interWordGapMs,
+        groupPauseMs: hasGroupPause ? interWordGapMs : null,
     };
 }
 

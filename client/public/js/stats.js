@@ -302,9 +302,9 @@ function shortDay(dayStr) {
     return parts.length === 3 ? `${parts[1]}/${parts[2]}` : dayStr;
 }
 
-/** Stored as SQLite's datetime('now') ("YYYY-MM-DD HH:MM:SS") — displayed as-is, just with the separator normalized. */
+/** Server (UTC) timestamp — shown in the server PC's local time (see I18N.formatDateTime). */
 function formatDateTime(value) {
-    return value ? String(value).replace('T', ' ').slice(0, 19) : '—';
+    return window.I18N.formatDateTime(value);
 }
 
 async function loadMyProgress() {
@@ -390,6 +390,47 @@ function currentHistoryFilters() {
     return filters;
 }
 
+// ---------------------------------------------------------------------
+// My Grades (student only) — official gradebook grades, read-only.
+// ---------------------------------------------------------------------
+function gradeBadgeHtml(grade) {
+    const cls = window.GradingService ? window.GradingService.gradeBadgeClass(grade) : 'badge-grade-mid';
+    return `<span class="badge ${cls}">${escapeHtml(grade)}</span>`;
+}
+
+function formalTestDetails(g) {
+    const d = g.details || {};
+    const parts = [];
+    if (d.exerciseMode) parts.push(EXERCISE_TYPE_LABELS[d.exerciseMode] || d.exerciseMode);
+    if (d.accuracyPercent !== null && d.accuracyPercent !== undefined) parts.push(t('gradebook.accuracy', { value: Math.round(d.accuracyPercent * 10) / 10 }));
+    if (d.itemsTotal) parts.push(t('gradebook.itemsAnswered', { answered: d.itemsAnswered, total: d.itemsTotal }));
+    if (d.passFail) parts.push(t(d.passFail === 'pass' ? 'gradebook.pass' : 'gradebook.fail'));
+    return parts.join(' · ');
+}
+
+async function loadMyGrades() {
+    try {
+        const { grades, average } = await api('/api/gradebook/me');
+        el('my-grades-empty-notice').hidden = grades.length > 0;
+        el('my-grades-table-wrap').hidden = grades.length === 0;
+        el('my-grades-average').textContent = average === null ? '' : t('stats.gradeAverage', { value: average });
+        el('my-grades-tbody').innerHTML = grades
+            .map((g) => {
+                const isFormal = g.source === 'formal_test';
+                return `<tr>
+                    <td>${escapeHtml(formatDateTime(g.createdAt))}</td>
+                    <td>${gradeBadgeHtml(g.grade)}</td>
+                    <td>${escapeHtml(t(isFormal ? 'gradebook.sourceFormalTest' : 'gradebook.sourceManual'))}</td>
+                    <td>${isFormal ? escapeHtml(formalTestDetails(g)) || '—' : '—'}</td>
+                    <td>${escapeHtml(g.teacherName || '—')}</td>
+                </tr>`;
+            })
+            .join('');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
 async function loadMyHistory({ reset = true } = {}) {
     if (reset) {
         historyOffset = 0;
@@ -463,6 +504,8 @@ function wireTeacherView() {
 }
 
 async function init() {
+    // Dates on this page are shown in the server's time zone — make sure it's known first (see i18n.js).
+    await window.I18N.serverClockReady;
     let user;
     try {
         ({ user } = await api('/api/auth/me'));
@@ -485,6 +528,7 @@ async function init() {
         el('student-view').hidden = false;
         el('stats-page-subtitle').textContent = t('stats.studentSubtitle');
         wireStudentView();
+        await loadMyGrades();
         await loadMyProgress();
         await loadMyHistory();
     }
@@ -501,6 +545,7 @@ async function init() {
             if (currentDetailStudentId) openStudentDetail(currentDetailStudentId, el('student-detail-title').textContent.replace(/ — .*/, ''));
         } else {
             el('stats-page-subtitle').textContent = t('stats.studentSubtitle');
+            loadMyGrades();
             loadMyProgress();
             loadMyHistory();
         }

@@ -13,6 +13,7 @@
  * the teacher must Stop/Cancel it and start a fresh one.
  */
 const sessionRepository = require('./sessionRepository');
+const sessionEngine = require('./sessionEngine');
 const hub = require('../../realtime/hub');
 const logger = require('../../logger');
 const gradebookService = require('../gradebook/gradebookService');
@@ -88,6 +89,13 @@ function publicItemPayload(item, { includeAnswer = false } = {}) {
         payload.promptText = ex.text;
         payload.groupSize = ex.groupSize;
         payload.toleranceFactor = ex.toleranceFactor;
+    }
+    // How many characters the answer box accepts (group spaces not
+    // counted) and how to space them — e.g. 120 / 4 for a radiogram.
+    const answerLength = sessionEngine.answerCharacterLimit(ex);
+    if (answerLength !== null) {
+        payload.answerLength = answerLength;
+        payload.groupSize = ex.groupSize || null;
     }
     if (includeAnswer) {
         payload.expectedAnswer = ex.expectedAnswer;

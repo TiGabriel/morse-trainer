@@ -138,6 +138,7 @@ function openModal({ title, fields, note, confirmLabel = t('common.save'), onSub
 }
 
 function closeModal() {
+    modalBackdrop.querySelector('.modal').classList.remove('modal-wide');
     modalBackdrop.hidden = true;
     modalBackdrop.style.display = 'none';
     activeModalSubmit = null;
@@ -174,7 +175,7 @@ function renderClasses(classes) {
     tbody.innerHTML = '';
 
     if (classes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(t('teacher.noClassesYet'))}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(t('teacher.noClassesYet'))}</td></tr>`;
         return;
     }
 
@@ -189,8 +190,14 @@ function renderClasses(classes) {
             <td>${escapeHtml(cls.name)}</td>
             <td>${statusBadge}</td>
             <td>${cls.studentCount}</td>
+            <td class="class-morse-cell"><span class="class-morse-summary${(cls.morseCharacters || []).length === 0 ? ' is-empty' : ''}">${escapeHtml(morseSummary(cls.morseCharacters || []))}</span></td>
             <td class="col-actions"><div class="row-actions"></div></td>
         `;
+
+        const morseBtn = makeButton(t('classMorse.configureShort'), 'btn-secondary', () => openMorseAlphabetModal(cls), true);
+        morseBtn.title = t('classMorse.configure');
+        morseBtn.setAttribute('aria-label', `${t('classMorse.configure')}: ${cls.name}`);
+        tr.querySelector('.class-morse-cell').appendChild(morseBtn);
 
         const actions = tr.querySelector('.row-actions');
 
@@ -211,6 +218,149 @@ function renderClasses(classes) {
 
         tbody.appendChild(tr);
     });
+}
+
+// ---------------------------------------------------------------------
+// Class Morse Alphabet visibility — which characters the class's
+// students may see on the Morse Alphabet page. The selectable list is
+// the server's own complete alphabet (GET /api/morse/alphabet, which a
+// teacher always receives in full, generated from morseMap.js), so this
+// picker can never offer a character the Morse engine doesn't support.
+// ---------------------------------------------------------------------
+const MORSE_SUMMARY_MAX_LISTED = 12;
+let fullAlphabetCache = null;
+
+function morseSummary(chars) {
+    if (chars.length === 0) return t('classMorse.none');
+    if (fullAlphabetCache && chars.length === fullAlphabetCache.total) return t('classMorse.allChars');
+    if (chars.length <= MORSE_SUMMARY_MAX_LISTED) return chars.join(' · ');
+    return t('classMorse.enabledCount', { count: chars.length });
+}
+
+async function loadFullAlphabet() {
+    if (!fullAlphabetCache) {
+        const data = await api('/api/morse/alphabet');
+        const toList = (entries) => entries.map((e) => ({ char: e.char, morse: e.morse }));
+        const groups = [
+            { label: 'classMorse.letters', entries: toList(data.letters) },
+            { label: 'classMorse.numbers', entries: toList(data.numbers) },
+            { label: 'classMorse.special', entries: toList(data.punctuation) },
+        ];
+        fullAlphabetCache = { groups, total: groups.reduce((n, g) => n + g.entries.length, 0) };
+    }
+    return fullAlphabetCache;
+}
+
+async function openMorseAlphabetModal(cls) {
+    let alphabet;
+    let current;
+    try {
+        [alphabet, { characters: current }] = await Promise.all([
+            loadFullAlphabet(),
+            api(`/api/classes/${cls.id}/morse-characters`),
+        ]);
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+
+    const selected = new Set(current);
+    const chipByChar = new Map();
+
+    const root = document.createElement('div');
+    root.className = 'morse-picker';
+    root.innerHTML = `
+        <p class="modal-note">${escapeHtml(t('classMorse.hint'))}</p>
+        <div class="morse-picker-toolbar">
+            <input type="search" class="morse-picker-search" placeholder="${escapeHtml(t('classMorse.search'))}" aria-label="${escapeHtml(t('classMorse.search'))}" />
+            <div class="morse-picker-bulk"></div>
+        </div>
+        <div class="morse-picker-count muted" aria-live="polite"></div>
+        <div class="morse-picker-groups"></div>
+        <p class="morse-picker-nomatch muted" hidden>${escapeHtml(t('classMorse.noMatch'))}</p>
+    `;
+    const countEl = root.querySelector('.morse-picker-count');
+    const updateCount = () => {
+        countEl.textContent = `${t('classMorse.availableChars')}: ${t('classMorse.selectedCount', { count: selected.size, total: alphabet.total })}`;
+    };
+    const setChip = (ch, on) => {
+        if (on) selected.add(ch);
+        else selected.delete(ch);
+        const chip = chipByChar.get(ch);
+        chip.classList.toggle('is-selected', on);
+        chip.setAttribute('aria-pressed', String(on));
+    };
+    const setAll = (on) => {
+        chipByChar.forEach((_, ch) => setChip(ch, on));
+        updateCount();
+    };
+
+    const bulk = root.querySelector('.morse-picker-bulk');
+    bulk.appendChild(makeButton(t('classMorse.selectAll'), 'btn-secondary', () => setAll(true), true));
+    bulk.appendChild(makeButton(t('classMorse.clearAll'), 'btn-secondary', () => setAll(false), true));
+
+    const groupsEl = root.querySelector('.morse-picker-groups');
+    alphabet.groups.forEach((group) => {
+        const section = document.createElement('section');
+        section.className = 'morse-picker-group';
+        section.innerHTML = `<h4>${escapeHtml(t(group.label))}</h4><div class="morse-picker-grid"></div>`;
+        const grid = section.querySelector('.morse-picker-grid');
+        group.entries.forEach(({ char, morse }) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'morse-chip';
+            chip.dataset.char = char;
+            chip.dataset.morse = morse;
+            chip.title = `${char}  ${morse}`;
+            chip.innerHTML = `<span class="morse-chip-char">${escapeHtml(char)}</span><span class="morse-chip-code">${escapeHtml(morse)}</span>`;
+            chip.addEventListener('click', () => {
+                setChip(char, !selected.has(char));
+                updateCount();
+            });
+            chipByChar.set(char, chip);
+            grid.appendChild(chip);
+            setChip(char, selected.has(char));
+        });
+        groupsEl.appendChild(section);
+    });
+
+    // Search by the character itself ("A", "7", "?", "/") or, when the
+    // query is 2+ dots/dashes, by Morse pattern prefix (".-").
+    const nomatch = root.querySelector('.morse-picker-nomatch');
+    root.querySelector('.morse-picker-search').addEventListener('input', (e) => {
+        const q = e.target.value.trim().toUpperCase();
+        // A lone "." or "-" is the punctuation character itself, not a pattern.
+        const isPattern = q.length > 1 && /^[.\-]+$/.test(q);
+        let anyVisible = false;
+        groupsEl.querySelectorAll('.morse-picker-group').forEach((section) => {
+            let groupVisible = false;
+            section.querySelectorAll('.morse-chip').forEach((chip) => {
+                const match = !q || chip.dataset.char === q || (isPattern && chip.dataset.morse.startsWith(q));
+                chip.hidden = !match;
+                if (match) groupVisible = true;
+            });
+            section.hidden = !groupVisible;
+            if (groupVisible) anyVisible = true;
+        });
+        nomatch.hidden = anyVisible;
+    });
+    updateCount();
+
+    openModal({
+        title: t('classMorse.modalTitle', { name: cls.name }),
+        fields: [],
+        onSubmit: async () => {
+            const { characters } = await api(`/api/classes/${cls.id}/morse-characters`, {
+                method: 'PUT',
+                body: JSON.stringify({ characters: [...selected] }),
+            });
+            cls.morseCharacters = characters;
+            renderClasses(classesCache);
+            showToast(t('classMorse.saved', { name: cls.name }), 'success');
+        },
+    });
+    modalBody.appendChild(root);
+    modalBackdrop.querySelector('.modal').classList.add('modal-wide');
 }
 
 function populateClassFilter(classes) {
@@ -480,7 +630,7 @@ function renderDashboardSessions() {
 
     tbody.innerHTML = '';
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(t('teacher.noSessionsMatch'))}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(t('teacher.noSessionsMatch'))}</td></tr>`;
         return;
     }
 
@@ -488,7 +638,6 @@ function renderDashboardSessions() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${escapeHtml(s.className || '—')}</td>
-            <td>${escapeHtml(s.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice'))}</td>
             <td>${escapeHtml(s.difficulty || '—')}</td>
             <td>${s.wpm}</td>
             <td>${s.exerciseCount}</td>
@@ -643,6 +792,8 @@ async function init() {
         gradesSearchDebounce = setTimeout(renderGrades, 200);
     });
 
+    // Only needed so class summaries can say "All characters"; the table still renders without it.
+    await loadFullAlphabet().catch(() => {});
     await loadClasses();
     await loadStudents();
     await loadDashboardSessions();

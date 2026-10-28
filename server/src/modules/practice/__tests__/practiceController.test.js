@@ -425,10 +425,13 @@ test('submitReceptionAttempt: correctly categorizes wrong, missing, and extra ch
     assert.equal(missingRes.body.score.missingCount, 1);
     assert.equal(missingRes.body.score.correctCount, reference.length - 1);
 
-    // Extra-character case: submit one character too many.
+    // Extra-character case: an answer is never allowed to be longer than
+    // the exercise itself — anything past its character count is dropped
+    // (the answer box enforces the same limit client-side).
     const extraRes = submitReception(2, 'stud1', exercise, reference + 'X');
-    assert.equal(extraRes.body.score.extraCount, 1);
+    assert.equal(extraRes.body.score.extraCount, 0);
     assert.equal(extraRes.body.score.correctCount, reference.length);
+    assert.equal(extraRes.body.submittedAnswer, reference);
 });
 
 test('submitReceptionAttempt: normalizes group-separator spacing so formatting alone never creates false errors', () => {
@@ -444,10 +447,10 @@ test('submitReceptionAttempt: normalizes group-separator spacing so formatting a
     const res = submitReception(2, 'stud1', exercise, oddlySpaced);
     assert.equal(res.body.score.accuracyPercent, 100, 'spacing differences alone must not count as errors');
 
-    // The raw, literally-typed answer (with its own spacing) is still
-    // stored verbatim — never silently corrected.
+    // Stored/displayed re-spaced into the exercise's own 5-character
+    // groups, whatever spacing the student typed (characters untouched).
     const saved = practiceRepository.findById(res.body.attemptId);
-    assert.equal(saved.submittedAnswer, oddlySpaced);
+    assert.equal(saved.submittedAnswer, full.text);
 });
 
 test('submitReceptionAttempt: replay/restart (same seed, submitted twice) does not regenerate the answer and both attempts persist independently', () => {

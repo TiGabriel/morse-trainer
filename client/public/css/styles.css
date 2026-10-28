@@ -280,11 +280,21 @@ code {
 }
 
 .app-nav-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
     font-weight: 650;
     font-size: 0.95rem;
     color: var(--text);
     text-decoration: none;
     white-space: nowrap;
+}
+/* SMMMFN logo (logosmmmfn.jpg, 413x484): fixed height, width follows the original aspect ratio */
+.app-nav-logo {
+    display: block;
+    height: 2rem;
+    width: auto;
+    border-radius: 4px;
 }
 
 .app-nav-links {
@@ -994,4 +1004,109 @@ tr[aria-expanded="true"] .results-toggle-icon {
 .toast.toast-success {
     border-color: var(--success);
     color: var(--success);
+}
+
+/* =========================================================================
+   Answer comparison (js/answer-tools.js) — reference vs. student answer,
+   one block per group so the two rows stay aligned when the line wraps.
+   correct = green, wrong = amber, missing = red, extra = purple.
+   ========================================================================= */
+.answer-compare {
+    --ac-extra: #9a7fd1;
+    --ac-extra-soft: rgba(154, 127, 209, 0.16);
+    padding: 0.9rem 1rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 1.02rem;
+}
+.ac-row-labels {
+    display: flex;
+    gap: 1rem;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-bottom: 0.5rem;
+}
+.ac-row-labels span:first-child::before {
+    content: "▲ ";
+}
+.ac-row-labels span:last-child::before {
+    content: "▼ ";
+}
+.ac-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1.1rem;
+}
+.ac-group {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ac-line {
+    display: flex;
+    gap: 1px;
+}
+.ac-ans {
+    border-top: 1px dashed var(--border-strong);
+    padding-top: 2px;
+}
+.ac-cell {
+    display: inline-block;
+    min-width: 1.15em;
+    text-align: center;
+    border-radius: 3px;
+    font-weight: 600;
+}
+.ac-match {
+    color: var(--success);
+    background: var(--success-soft);
+}
+.ac-wrong {
+    color: var(--warning);
+    background: var(--warning-soft);
+}
+.ac-missing {
+    color: var(--error);
+    background: var(--error-soft);
+}
+.ac-extra {
+    color: var(--ac-extra, #9a7fd1);
+    background: var(--ac-extra-soft, rgba(154, 127, 209, 0.16));
+}
+.ac-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    margin-right: 0.9em;
+    font-size: var(--fs-helper);
+    color: var(--text-muted);
+}
+.ac-swatch {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    border-radius: 3px;
+}
+.ac-swatch.ac-match { background: var(--success); }
+.ac-swatch.ac-wrong { background: var(--warning); }
+.ac-swatch.ac-missing { background: var(--error); }
+.ac-swatch.ac-extra { background: #9a7fd1; }
+.ac-answer-line {
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    letter-spacing: 0.06em;
+    word-spacing: 0.4em;
+    overflow-wrap: anywhere;
+}
+.answer-counter {
+    font-size: var(--fs-helper);
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 0.25rem;
+}
+.answer-counter.is-full {
+    color: var(--success);
+    font-weight: 600;
 }

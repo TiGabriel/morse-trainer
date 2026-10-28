@@ -56,6 +56,24 @@ function listForStudent(studentId) {
         .map(toPublicEntry);
 }
 
+/**
+ * The student-facing view: only OFFICIAL grades — permanent grade
+ * entries with an actual grade. Temporary (unconfirmed) Formal Test
+ * results and standalone notes are teacher-only and never returned here.
+ */
+function listOfficialGradesForStudent(studentId) {
+    return db
+        .prepare(
+            `${ENTRY_SELECT} WHERE gradebook_entries.student_id = ?
+                AND gradebook_entries.entry_type = 'grade'
+                AND gradebook_entries.is_permanent = 1
+                AND gradebook_entries.grade IS NOT NULL
+             ORDER BY gradebook_entries.created_at DESC, gradebook_entries.id DESC`
+        )
+        .all(studentId)
+        .map(toPublicEntry);
+}
+
 /** Per-student count of temporary (unconfirmed) automatic entries — lets the student picker flag who has something waiting for review. */
 function countPendingByStudent() {
     const rows = db
@@ -124,6 +142,7 @@ module.exports = {
     ENTRY_TYPES,
     findById,
     listForStudent,
+    listOfficialGradesForStudent,
     countPendingByStudent,
     createManualEntry,
     insertFormalTestEntry,

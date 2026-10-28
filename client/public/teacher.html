@@ -20,8 +20,10 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/faviconsmmmfn.png" />
     <title>Morse SMMMFN — Teacher Dashboard</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/slot-machine.css" />
     <link rel="stylesheet" href="/css/teacher.css" />
 </head>
 <body class="dashboard-body">
@@ -29,12 +31,13 @@
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+            <a href="/" class="app-nav-brand"><img class="app-nav-logo" src="/img/logosmmmfn.jpg" alt="" width="413" height="484" />Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
                 <a href="/teacher.html" class="app-nav-link active" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
                 <a href="/sessions.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/practice.html" class="app-nav-link" data-i18n="nav.practice">Practice</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics" data-i18n-student="nav.myStatistics">Statistics</a>
                 <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
                 <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
@@ -66,11 +69,12 @@
                                 <th data-i18n="common.name">Name</th>
                                 <th data-i18n="common.status">Status</th>
                                 <th data-i18n="teacher.students">Students</th>
+                                <th data-i18n="classMorse.column">Morse Alphabet</th>
                                 <th class="col-actions" data-i18n="teacher.actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="classes-tbody">
-                            <tr><td colspan="4" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr>
+                            <tr><td colspan="5" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -173,7 +177,6 @@
                             <tr>
                                 <th data-i18n="common.class">Class</th>
                                 <th data-i18n="teacher.type">Type</th>
-                                <th data-i18n="teacher.difficulty">Difficulty</th>
                                 <th data-i18n="common.wpmShort">WPM</th>
                                 <th data-i18n="teacher.exercises">Exercises</th>
                                 <th data-i18n="common.status">Status</th>
@@ -181,7 +184,7 @@
                             </tr>
                         </thead>
                         <tbody id="dash-sessions-tbody">
-                            <tr><td colspan="7" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr>
+                            <tr><td colspan="6" class="muted" data-i18n="common.loading">Loading&hellip;</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -206,6 +209,8 @@
 
     <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/slot-machine-engine.js"></script>
+    <script src="/js/slot-machine.js"></script>
     <script src="/js/teacher.js"></script>
 </body>
 </html>

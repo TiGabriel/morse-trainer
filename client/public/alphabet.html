@@ -20,8 +20,10 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/faviconsmmmfn.png" />
     <title>Morse SMMMFN — Alfabet Morse</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/slot-machine.css" />
     <link rel="stylesheet" href="/css/alphabet.css" />
 </head>
 <body class="dashboard-body">
@@ -29,12 +31,13 @@
 
     <div id="dashboard" hidden>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+            <a href="/" class="app-nav-brand"><img class="app-nav-logo" src="/img/logosmmmfn.jpg" alt="" width="413" height="484" />Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
                 <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
                 <a href="/sessions.html" class="app-nav-link" id="nav-group-sessions" data-i18n="nav.groupSessions">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/practice.html" class="app-nav-link" data-i18n="nav.practice">Practice</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics" data-i18n-student="nav.myStatistics">Statistics</a>
                 <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
                 <a href="/alphabet.html" class="app-nav-link active" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
@@ -52,13 +55,17 @@
         <main class="dash-main alphabet-main">
             <header class="alphabet-header">
                 <h1><span class="accent" data-i18n="alphabet.title">Morse Alphabet</span></h1>
-                <p class="subtitle" data-i18n="alphabet.subtitle">Every Morse character used by the application.</p>
+                <p class="subtitle" id="alphabet-subtitle" data-i18n="alphabet.subtitle">Every Morse character used by the application.</p>
                 <p class="muted alphabet-hint"><span id="alphabet-play-hint"></span> <span class="alphabet-legend" data-i18n="alphabet.legend">· = dot   — = dash</span></p>
             </header>
 
             <div id="alphabet-error" class="modal-error" hidden></div>
 
-            <section class="panel alphabet-section" aria-labelledby="alphabet-letters-title">
+            <section id="alphabet-empty" class="panel alphabet-empty" hidden>
+                <p data-i18n="alphabet.notConfigured">Your teacher has not configured the available characters yet.</p>
+            </section>
+
+            <section class="panel alphabet-section" id="alphabet-section-letters" aria-labelledby="alphabet-letters-title">
                 <div class="panel-header">
                     <h2 id="alphabet-letters-title" data-i18n="alphabet.letters">Letters</h2>
                     <span class="muted" data-count-for="letters"></span>
@@ -66,7 +73,7 @@
                 <div class="alphabet-grid" id="alphabet-letters"></div>
             </section>
 
-            <section class="panel alphabet-section" aria-labelledby="alphabet-numbers-title">
+            <section class="panel alphabet-section" id="alphabet-section-numbers" aria-labelledby="alphabet-numbers-title">
                 <div class="panel-header">
                     <h2 id="alphabet-numbers-title" data-i18n="alphabet.numbers">Numbers</h2>
                     <span class="muted" data-count-for="numbers"></span>
@@ -74,7 +81,7 @@
                 <div class="alphabet-grid" id="alphabet-numbers"></div>
             </section>
 
-            <section class="panel alphabet-section" aria-labelledby="alphabet-punctuation-title">
+            <section class="panel alphabet-section" id="alphabet-section-punctuation" aria-labelledby="alphabet-punctuation-title">
                 <div class="panel-header">
                     <h2 id="alphabet-punctuation-title" data-i18n="alphabet.special">Special Characters</h2>
                     <span class="muted" data-count-for="punctuation"></span>
@@ -86,6 +93,8 @@
 
     <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/slot-machine-engine.js"></script>
+    <script src="/js/slot-machine.js"></script>
     <script src="/js/morse-audio-player.js"></script>
     <script src="/js/alphabet.js"></script>
 </body>

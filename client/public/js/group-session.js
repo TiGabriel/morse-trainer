@@ -189,7 +189,7 @@ function renderSessionsList(sessions) {
         card.innerHTML = `
             <div class="gs-session-card-info">
                 <strong>${typeLabel} &middot; ${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</strong>
-                <span class="muted">${escapeHtml(s.difficulty || '—')} &middot; ${s.exerciseCount} ${escapeHtml(t('groupSession.itemsUnit'))} &middot; <span class="badge status-${s.status}">${s.status}</span></span>
+                <span class="muted">${s.wpm ? `${s.wpm} ${escapeHtml(t('common.wpmShort'))} &middot; ` : ''}${s.exerciseCount} ${escapeHtml(t('groupSession.itemsUnit'))} &middot; <span class="badge status-${s.status}">${s.status}</span></span>
             </div>
         `;
         const btn = document.createElement('button');
@@ -340,7 +340,7 @@ function renderWaitingRoom(session, roster) {
     showScreen('waiting');
     const modeLabel = MODE_LABELS[session.exerciseMode] || session.exerciseMode;
     const typeLabel = session.type === 'test' ? t('groupSession.formalTest') : t('groupSession.groupPractice');
-    el('waiting-config').textContent = `${typeLabel} · ${modeLabel} · ${session.difficulty || ''} · ${session.exerciseCount} ${t('groupSession.itemsUnit')}`;
+    el('waiting-config').textContent = `${typeLabel} · ${modeLabel} · ${session.wpm ? `${session.wpm} ${t('common.wpmShort')} · ` : ''}${session.exerciseCount} ${t('groupSession.itemsUnit')}`;
 
     const badge = el('waiting-status-badge');
     badge.textContent = t('groupSession.sessionStatus' + session.status.charAt(0).toUpperCase() + session.status.slice(1));
@@ -387,7 +387,9 @@ function onScheduledStart(msg) {
     showScreen('exercise');
     el('exercise-item-progress').textContent = t('groupSession.itemProgress', { current: msg.itemIndex + 1, total: itemsTotal });
     el('exercise-feedback').hidden = true;
+    el('exercise-compare-wrap').hidden = true;
     el('exercise-answer').value = '';
+    updateAnswerCounter(0);
     el('exercise-answer').disabled = true;
     el('exercise-submit-button').disabled = true;
     el('exercise-countdown-banner').hidden = false;
@@ -525,18 +527,20 @@ function prepareItemDisplay(item, { reveal }) {
         el('gs-tx-feedback').className = 'tx-feedback';
     }
 
+    // The answer box's character limit (item.answerLength, spaces between
+    // groups not counted) is enforced by AnswerTools.limitInput, wired once
+    // in init() — it reads currentItem on every keystroke.
     const answerLabel = el('exercise-answer-label');
     const answerInput = el('exercise-answer');
+    answerInput.rows = item.answerLength > 20 ? 4 : 1;
     if (item.mode === 'text_to_morse') {
         answerLabel.textContent = t('groupSession.yourAnswerMorseHint');
-        answerInput.removeAttribute('maxlength');
     } else if (item.mode === 'character_recognition') {
         answerLabel.textContent = t('groupSession.whichCharacterHeard');
-        answerInput.maxLength = 1;
     } else {
         answerLabel.textContent = t('groupSession.yourAnswer');
-        answerInput.removeAttribute('maxlength');
     }
+    updateAnswerCounter(AnswerTools.countChars(answerInput.value));
 }
 
 function updateGsTxLiveDisplay() {
@@ -658,7 +662,14 @@ async function submitAnswer() {
             lastRevealedItemId = currentItem.itemId;
             lastRevealedAnswer = result.expectedAnswer;
             const markNote = result.characterGrade ? t('groupSession.markLabel', { grade: result.characterGrade.grade }) : '';
-            el('exercise-feedback').textContent = t('groupSession.submittedAccuracy', { percent: result.score.accuracyPercent }) + markNote + t('groupSession.correctAnswerLabel', { answer: result.expectedAnswer });
+            el('exercise-feedback').textContent = t('groupSession.submittedAccuracy', { percent: result.score.accuracyPercent }) + markNote;
+            if (currentItem.mode !== 'text_to_morse') {
+                el('exercise-compare-legend').innerHTML = compareLegendHtml();
+                AnswerTools.renderComparison(el('exercise-compare'), result.score.ops, result.groupSize, compareLabels());
+                el('exercise-compare-wrap').hidden = false;
+            } else {
+                el('exercise-feedback').textContent += t('groupSession.correctAnswerLabel', { answer: result.expectedAnswer });
+            }
         } else {
             el('exercise-feedback').textContent = t('groupSession.answerSubmittedPending');
         }
@@ -666,6 +677,26 @@ async function submitAnswer() {
     } catch (err) {
         showToast(err.message, 'error');
     }
+}
+
+function updateAnswerCounter(count) {
+    const counter = el('exercise-answer-counter');
+    const max = currentItem && currentItem.answerLength > 1 ? currentItem.answerLength : 0;
+    counter.textContent = max ? t('common.answerCounter', { count, max }) : '';
+    counter.classList.toggle('is-full', max > 0 && count >= max);
+}
+
+function compareLabels() {
+    return { referenceLabel: t('radiogram.referenceLabel'), answerLabel: t('radiogram.yourAnswerLabel') };
+}
+
+function compareLegendHtml() {
+    return AnswerTools.legendHtml({
+        correct: escapeHtml(t('common.correct2')),
+        wrong: escapeHtml(t('radiogram.wrong')),
+        missing: escapeHtml(t('common.missing2')),
+        extra: escapeHtml(t('common.extra2')),
+    });
 }
 
 // ---------------------------------------------------------------------
@@ -700,15 +731,23 @@ function renderFinishedResults(results) {
         return;
     }
     tbody.innerHTML = '';
+    const anyComparison = results.some((r) => r.comparisonOps && r.mode !== 'text_to_morse');
+    el('finished-compare-legend').innerHTML = anyComparison ? compareLegendHtml() : '';
     results.forEach((r) => {
         const tr = document.createElement('tr');
+        const answer = r.transmittedText || r.submittedText;
         tr.innerHTML = `
             <td>${r.orderIndex + 1}</td>
-            <td>${escapeHtml(r.transmittedText || r.submittedText || '—')}</td>
+            <td class="finished-answer-cell"><span class="result-answer">${escapeHtml(!answer ? '—' : r.mode === 'text_to_morse' ? answer : AnswerTools.formatGroups(answer, r.groupSize))}</span></td>
             <td>${r.score !== undefined && r.score !== null ? r.score + '%' : '—'}</td>
             <td>${r.grade || '—'}</td>
             <td>${renderMarkBadge(r.characterGrade)}</td>
         `;
+        if (r.comparisonOps && r.mode !== 'text_to_morse') {
+            const box = document.createElement('div');
+            AnswerTools.renderComparison(box, r.comparisonOps, r.groupSize, compareLabels());
+            tr.querySelector('.finished-answer-cell').appendChild(box);
+        }
         tbody.appendChild(tr);
     });
 }
@@ -753,8 +792,18 @@ async function init() {
     });
     el('exercise-submit-button').addEventListener('click', submitAnswer);
     el('exercise-answer').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submitAnswer();
+        if (e.key === 'Enter') {
+            e.preventDefault(); // it's a textarea — Enter submits instead of adding a line
+            submitAnswer();
+        }
     });
+    // Never more characters than the item itself has (e.g. 120 for a
+    // radiogram); group spaces don't count.
+    AnswerTools.limitInput(
+        el('exercise-answer'),
+        () => (currentItem && currentItem.answerLength ? currentItem.answerLength : 0),
+        (count) => updateAnswerCounter(count)
+    );
     // Morse Transmission keying — gated inside the handlers themselves to
     // an active, unsubmitted Transmission item only (see
     // onGsTransmissionKeydown), so every other mode/screen's Space

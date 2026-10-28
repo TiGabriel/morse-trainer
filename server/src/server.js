@@ -21,6 +21,7 @@ const sessionsRoutes = require('./modules/sessions/sessionsRoutes');
 const statsRoutes = require('./modules/stats/statsRoutes');
 const gradebookRoutes = require('./modules/gradebook/gradebookRoutes');
 const realtimeHub = require('./realtime/hub');
+const { TIME_ZONE } = require('./utils/serverTime');
 
 async function main() {
     // Foundation from Phase 1: applies the DB schema (idempotent).
@@ -78,6 +79,16 @@ async function main() {
             primary_url: lanUrl,
             all_addresses: getLanAddresses(),
         });
+    });
+
+    // The server PC's system clock is the app's authoritative time. Every
+    // page reads this once on load (see i18n.js) to estimate its offset
+    // from the server clock and to display dates/times in the SERVER's
+    // time zone rather than the viewing PC's. Group Sessions additionally
+    // keep their own continuous WebSocket ping/pong sync (clock-sync.js).
+    app.get('/api/time', (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        res.json({ serverNow: Date.now(), timeZone: TIME_ZONE });
     });
 
     // ---- Phase 3: authentication & account routes -------------------------

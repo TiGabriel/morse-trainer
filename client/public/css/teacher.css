@@ -151,3 +151,121 @@
     min-height: 1.3rem;
     color: var(--accent);
 }
+
+/* Class Morse Alphabet — summary cell + configuration picker */
+.class-morse-cell {
+    white-space: nowrap;
+}
+.class-morse-summary {
+    display: inline-block;
+    max-width: 16rem;
+    margin-right: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color: var(--text-muted);
+}
+
+.class-morse-summary.is-empty {
+    font-family: inherit;
+    font-style: italic;
+}
+
+.modal.modal-wide {
+    max-width: 720px;
+}
+
+.morse-picker-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.morse-picker-search {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+.morse-picker-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.morse-picker-bulk {
+    display: flex;
+    gap: 0.4rem;
+}
+.morse-picker-count {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+.morse-picker-group h4 {
+    margin: 0.85rem 0 0.45rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.morse-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 0.4rem;
+}
+.morse-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.4rem 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.morse-chip:hover {
+    border-color: var(--accent);
+}
+.morse-chip:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.morse-chip.is-selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+.morse-chip-char {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.morse-chip-code {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+}
+.morse-chip:not(.is-selected) .morse-chip-code {
+    opacity: 0.6;
+}
+.morse-picker-nomatch {
+    margin: 0.75rem 0 0;
+    text-align: center;
+}
+@media (max-width: 520px) {
+    .morse-picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+    }
+}

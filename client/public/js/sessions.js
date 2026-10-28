@@ -114,12 +114,34 @@ function renderWizardSettingsStep() {
     // shape (see server sessionEngine.buildRadiogramExercise) — item
     // length is not configurable for it, so hide the field entirely
     // rather than show a control that's silently ignored.
-    el('new-length-field').hidden = wizardMode === 'audio_to_text';
+    el('new-length-field').hidden = wizardMode === 'audio_to_text' || wizardMode === 'character_recognition';
+    el('new-radiogram-shape-note').hidden = wizardMode !== 'audio_to_text';
+
+    // Group size only matters where the item is a string of groups the
+    // student reads/copies (Morse -> Text); the radiogram's 4-character
+    // groups are fixed. Group pause only matters where audio is played.
+    el('new-group-size-field').hidden = wizardMode !== 'morse_to_text';
+    el('new-group-pause-field').hidden = wizardMode !== 'audio_to_text';
+    updateSessionGroupPauseHint();
 
     // Timing tolerance (dot/dash/gap classification forgiveness) only
     // applies to Transmission — every other mode has no Space-bar keying
     // to classify.
     el('new-tolerance-field').hidden = wizardMode !== 'transmission';
+}
+
+/** Shows the standard (blank) group pause at the chosen speed, so the teacher knows what they're lengthening. */
+function updateSessionGroupPauseHint() {
+    const hint = el('new-group-pause-standard');
+    const wpm = Number(el('new-wpm').value);
+    const fw = Number(el('new-farnsworth').value);
+    if (!(wpm > 0)) {
+        hint.textContent = '';
+        return;
+    }
+    const dotMs = 1200 / wpm;
+    const unitMs = fw > 0 && fw < wpm ? Math.max(dotMs, (60000 / fw - 31 * dotMs) / 19) : dotMs;
+    hint.textContent = t('common.groupPauseStandard', { seconds: ((7 * unitMs) / 1000).toFixed(2), wpm });
 }
 
 function resetWizard() {
@@ -192,7 +214,7 @@ async function loadSessions() {
     const { sessions } = await api('/api/sessions');
     const tbody = el('sessions-tbody');
     if (sessions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(t('sessions.noSessionsYet'))}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(t('sessions.noSessionsYet'))}</td></tr>`;
         return;
     }
     tbody.innerHTML = '';
@@ -202,7 +224,6 @@ async function loadSessions() {
         tr.innerHTML = `
             <td>${escapeHtml(s.className || '—')}</td>
             <td>${typeLabel} &middot; ${MODE_LABELS[s.exerciseMode] || s.exerciseMode}</td>
-            <td>${escapeHtml(s.difficulty || '—')}</td>
             <td>${s.wpm || '—'}</td>
             <td>${s.exerciseCount}</td>
             <td><span class="badge status-${s.status}">${t('groupSession.sessionStatus' + s.status.charAt(0).toUpperCase() + s.status.slice(1))}</span></td>
@@ -230,19 +251,19 @@ async function createSession(e) {
         type,
         classId: wizardClassId,
         exerciseMode: wizardMode,
-        difficulty: el('new-difficulty').value,
         wpm: el('new-wpm').value || undefined,
         farnsworthWpm: el('new-farnsworth').value || undefined,
         toneFrequencyHz: el('new-tone').value || undefined,
+        groupPauseMs: Number(el('new-group-pause').value) > 0 ? Math.round(Number(el('new-group-pause').value) * 1000) : undefined,
         toleranceFactor: el('new-tolerance').value || undefined,
         length: el('new-length').value || undefined,
+        groupSize: wizardMode === 'morse_to_text' ? el('new-group-size').value : undefined,
         exerciseCount: Number(el('new-count').value),
         instructions: el('new-instructions').value.trim() || undefined,
         participantIds: getSelectedParticipantIds(),
         // Optional teacher-picked character pool (Individual Training's
         // own picker component, reused as-is — see character-pool.js).
-        // Empty means "no override", so the backend falls back to the
-        // difficulty preset's own pool exactly as before this existed.
+        // Empty means "no override" — the backend then uses all letters.
         characters: groupSessionPool.getSelected(),
     };
     if (type === 'test') {
@@ -311,6 +332,16 @@ function renderMarkBadge(characterGrade) {
 
 /** One row's worth of the per-exercise detail table (Item/Correct Answer/Student Answer/Attempts/Score/Grade/Mark). */
 function renderResultDetailRow(r) {
+    const studentAnswer = r.transmittedText || r.submittedText;
+    let studentAnswerCell = `<span class="result-answer">${escapeHtml(!studentAnswer ? '—' : r.mode === 'text_to_morse' ? studentAnswer : AnswerTools.formatGroups(studentAnswer, r.groupSize))}</span>`;
+    if (r.comparisonOps && r.mode !== 'text_to_morse') {
+        const box = document.createElement('div');
+        AnswerTools.renderComparison(box, r.comparisonOps, r.groupSize, {
+            referenceLabel: t('radiogram.referenceLabel'),
+            answerLabel: t('radiogram.yourAnswerLabel'),
+        });
+        studentAnswerCell += box.outerHTML;
+    }
     const correctAnswerCell =
         r.expectedAnswer !== null && r.expectedAnswer !== undefined
             ? `<span class="result-answer result-answer-correct">${escapeHtml(r.expectedAnswer)}</span>`
@@ -319,7 +350,7 @@ function renderResultDetailRow(r) {
         <tr>
             <td>${r.orderIndex + 1}</td>
             <td>${correctAnswerCell}</td>
-            <td><span class="result-answer">${escapeHtml(r.submittedText || '—')}</span></td>
+            <td>${studentAnswerCell}</td>
             <td>${r.attemptCount}</td>
             <td>${r.score !== null && r.score !== undefined ? r.score + '%' : '—'}</td>
             <td>${r.grade ? `<span class="badge status-${r.grade === 'pass' ? 'running' : 'cancelled'}">${r.grade === 'pass' ? t('sessions.pass') : t('sessions.fail')}</span>` : '—'}</td>
@@ -485,8 +516,7 @@ function renderMonitor(session, roster) {
 
     el('monitor-class').textContent = session.className || '—';
     el('monitor-mode').textContent = MODE_LABELS[session.exerciseMode] || session.exerciseMode;
-    el('monitor-difficulty').textContent = session.difficulty || '—';
-    el('monitor-wpm').textContent = session.wpm || t('sessions.difficultyDefault');
+    el('monitor-wpm').textContent = session.wpm || '—';
     el('monitor-count').textContent = session.exerciseCount;
 
     const connectedCount = roster.filter((r) => r.connectionStatus === 'connected').length;
@@ -613,9 +643,7 @@ async function init() {
 
     // Group Session's character-pool picker — same shared component/data
     // shape as Individual Training's (see character-pool.js), left with
-    // nothing pre-selected so "no override" (difficulty preset governs
-    // the pool, as before) is the actual default state, not just the
-    // visual one.
+    // nothing pre-selected ("no override" = all letters).
     const charsets = await api('/api/practice/charsets');
     groupSessionPool.buildAllGrids(charsets);
     groupSessionPool.wireEvents('gs-pool-quick-actions');
@@ -629,6 +657,10 @@ async function init() {
         mySessionsPanel.dataset.expanded = String(!expanded);
         mySessionsToggle.setAttribute('aria-expanded', String(!expanded));
     });
+
+    el('new-wpm').addEventListener('input', updateSessionGroupPauseHint);
+    el('new-farnsworth').addEventListener('input', updateSessionGroupPauseHint);
+    document.addEventListener('morseTrainer:languageChanged', updateSessionGroupPauseHint);
 
     goToWizardStep('type');
     await loadClasses();

@@ -10,6 +10,7 @@
 const db = require('../../db/client');
 const engine = require('../morse-engine');
 const gradingService = require('../grading/gradingService');
+const { localDateOffset } = require('../../utils/serverTime');
 const { RECEPTION_EXERCISE_TYPES, TRANSMISSION_EXERCISE_TYPES, exerciseDirection } = require('../practice/practiceRepository');
 
 /** Rounds to 2 decimal places, or returns null for "no data" rather than 0/NaN — a student with zero attempts has no average, not a 0% average. */
@@ -77,7 +78,7 @@ function getStudentPracticeSummary(studentId) {
 function getStudentDailySeries(studentId, { days = 30 } = {}) {
     const rows = db
         .prepare(
-            `SELECT date(created_at) AS day,
+            `SELECT local_date(created_at) AS day,
                     COUNT(*) AS count,
                     AVG(accuracy_percent) AS avg_accuracy,
                     AVG(wpm) AS avg_wpm,
@@ -85,11 +86,11 @@ function getStudentDailySeries(studentId, { days = 30 } = {}) {
                     AVG(CASE WHEN ${DIRECTION_CASE_SQL} = 'reception' THEN accuracy_percent END) AS reception_avg_accuracy,
                     AVG(CASE WHEN ${DIRECTION_CASE_SQL} = 'transmission' THEN accuracy_percent END) AS transmission_avg_accuracy
              FROM practice_attempts
-             WHERE student_id = ? AND date(created_at) >= date('now', ?)
+             WHERE student_id = ? AND local_date(created_at) >= ?
              GROUP BY day
              ORDER BY day ASC`
         )
-        .all(studentId, `-${days} days`);
+        .all(studentId, localDateOffset(-days));
     return rows.map((row) => ({
         day: row.day,
         count: row.count,
@@ -349,11 +350,11 @@ function buildTeacherAttemptsFilter({ classId, studentId, exerciseType, directio
         params.push(...types);
     }
     if (since) {
-        clauses.push('date(practice_attempts.created_at) >= date(?)');
+        clauses.push('local_date(practice_attempts.created_at) >= date(?)');
         params.push(since);
     }
     if (until) {
-        clauses.push('date(practice_attempts.created_at) <= date(?)');
+        clauses.push('local_date(practice_attempts.created_at) <= date(?)');
         params.push(until);
     }
     if (Number.isFinite(minWpm)) {

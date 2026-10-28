@@ -78,9 +78,10 @@ function buildCharacterReveal(text, timing) {
  * @param {number} options.wpm - character speed. Required, > 0.
  * @param {number} [options.farnsworthWpm] - effective/overall speed (defaults to wpm — no Farnsworth stretching).
  * @param {number} [options.toneFrequencyHz=600] - oscillator tone frequency.
+ * @param {number} [options.groupPauseMs] - explicit pause between groups (ms); omit for the standard gap.
  * @param {number|string} [options.seed] - reproducibility seed. Omit for a fresh random one (returned in the result).
  */
-function buildRadiogram({ characters, wpm, farnsworthWpm, toneFrequencyHz, seed }) {
+function buildRadiogram({ characters, wpm, farnsworthWpm, toneFrequencyHz, groupPauseMs, seed }) {
     if (!wpm) {
         throw new MorseEngineError('wpm is required.');
     }
@@ -94,7 +95,7 @@ function buildRadiogram({ characters, wpm, farnsworthWpm, toneFrequencyHz, seed 
 
     const resolvedToneFrequencyHz = toneFrequencyHz || 600;
     const { morse } = engine.textToMorse(gen.text);
-    const timing = engine.computeTiming({ wpm, farnsworthWpm, toneFrequencyHz: resolvedToneFrequencyHz });
+    const timing = engine.computeTiming({ wpm, farnsworthWpm, toneFrequencyHz: resolvedToneFrequencyHz, groupPauseMs });
     const plan = engine.buildPlaybackPlan(morse, timing);
     const durationMs = engine.planTotalDurationMs(plan);
     const charReveal = buildCharacterReveal(gen.text, timing);

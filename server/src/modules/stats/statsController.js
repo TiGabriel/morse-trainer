@@ -4,6 +4,7 @@ const userRepository = require('../users/userRepository');
 const practiceRepository = require('../practice/practiceRepository');
 const logger = require('../../logger');
 const { toCsvLines } = require('./csv');
+const { localDateTime, TIME_ZONE } = require('../../utils/serverTime');
 
 const EXERCISE_TYPE_LABELS = {
     audio_to_text: 'Reception (Audio to Text)',
@@ -206,7 +207,7 @@ function exportClassCsv(req, res) {
         [r.firstName, r.lastName].filter(Boolean).join(' ') || r.username,
         r.username,
         r.className,
-        r.createdAt,
+        localDateTime(r.createdAt) || r.createdAt,
         EXERCISE_TYPE_LABELS[r.exerciseType] || r.exerciseType,
         r.direction || '',
         r.wpm ?? '',
@@ -236,7 +237,7 @@ function exportClassCsv(req, res) {
 
     const lines = [
         ['Class Report', cls.name],
-        ['Generated', new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'],
+        ['Generated', `${localDateTime()} (${TIME_ZONE})`],
         ['Students', studentGroups.length],
         ['Results', rows.length],
         [],

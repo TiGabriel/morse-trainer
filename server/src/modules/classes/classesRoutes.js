@@ -14,5 +14,7 @@ router.post('/', requireRole('teacher'), classesController.createClass);
 router.patch('/:id', requireRole('teacher'), classesController.updateClass);
 router.patch('/:id/status', requireRole('teacher'), classesController.setClassActive);
 router.delete('/:id', requireRole('teacher'), classesController.deleteClass);
+router.get('/:id/morse-characters', requireRole('teacher'), classesController.getMorseCharacters);
+router.put('/:id/morse-characters', requireRole('teacher'), classesController.setMorseCharacters);
 
 module.exports = router;

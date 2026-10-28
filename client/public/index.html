@@ -20,17 +20,20 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/faviconsmmmfn.png" />
     <title>Morse SMMMFN</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/slot-machine.css" />
 </head>
 <body>
     <nav class="app-nav" aria-label="Main">
-        <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+        <a href="/" class="app-nav-brand"><img class="app-nav-logo" src="/img/logosmmmfn.jpg" alt="" width="413" height="484" />Morse SMMMFN</a>
         <div class="app-nav-links" id="app-nav-links" hidden>
             <a href="/" class="app-nav-link active" data-i18n="nav.home">Home</a>
             <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
             <a href="/sessions.html" class="app-nav-link" data-i18n="nav.groupSessions">Group Sessions</a>
-            <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+            <a href="/practice.html" class="app-nav-link" data-i18n="nav.practice">Practice</a>
+            <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics" data-i18n-student="nav.myStatistics">Statistics</a>
             <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
             <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
         </div>
@@ -93,6 +96,8 @@
     </main>
     <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/slot-machine-engine.js"></script>
+    <script src="/js/slot-machine.js"></script>
     <script src="/js/app.js"></script>
 </body>
 </html>

@@ -29,6 +29,18 @@
  * A future exercise/test screen decides its own values for these two
  * knobs; the player itself just enforces whatever it's told.
  *
+ * HEADPHONE KEEP-ALIVE
+ * -------------------------------------------------------------------------
+ * Many headphones (Bluetooth/wireless especially, some USB too) and some
+ * audio drivers power down their output after a moment of pure digital
+ * silence and take ~0.1–0.5s to wake up — long enough to swallow a whole
+ * short character (an "E" at 20 WPM is a 60ms tone). So for as long as
+ * the AudioContext exists it also plays a constant sub-audible signal
+ * (KEEP_ALIVE_HZ at KEEP_ALIVE_LEVEL, straight to the destination so
+ * volume/mute don't affect it): the output never sees true silence and
+ * never sleeps. The very first play() after the context is created also
+ * waits OUTPUT_WARM_UP_MS, since the device was asleep until that moment.
+ *
  * USAGE
  * -------------------------------------------------------------------------
  *   const player = new MorseAudioPlayer({ toneFrequencyHz: 600, volume: 0.6 });
@@ -39,6 +51,10 @@
  *   player.stop();                         // stops immediately, forgets position
  *   player.setVolume(0.3);
  */
+const KEEP_ALIVE_HZ = 30; // below what headphones reproduce or ears notice at this level
+const KEEP_ALIVE_LEVEL = 0.001; // ~-60 dBFS: inaudible, but clearly not digital silence
+const OUTPUT_WARM_UP_MS = 400;
+
 class MorseAudioPlayer {
     /**
      * @param {object} [options]
@@ -78,6 +94,8 @@ class MorseAudioPlayer {
         this._endTimeoutId = null;
         this._segmentStartTime = null; // audioContext.currentTime when the current (or last) scheduling run began
         this._elapsedMs = 0; // ms of `plan` already played, across pause/resume — reset on stop()/loadPlan()
+        this._warmUntil = 0; // performance.now() before which the output device may still be waking up
+        this._playRequest = 0; // bumped by play()/stop() so a play() still waiting on warm-up can tell it was cancelled
     }
 
     /** Lazily creates (or resumes) the AudioContext. Must be called from a user-gesture handler the first time, per browser autoplay policy. */
@@ -91,11 +109,33 @@ class MorseAudioPlayer {
             this.masterGain = this.audioContext.createGain();
             this.masterGain.gain.value = this.volume;
             this.masterGain.connect(this.audioContext.destination);
+            this._startKeepAlive();
+            this._warmUntil = performance.now() + OUTPUT_WARM_UP_MS;
         }
         if (this.audioContext.state === 'suspended') {
             return this.audioContext.resume();
         }
         return Promise.resolve();
+    }
+
+    /** Starts the constant sub-audible keep-alive signal — see HEADPHONE KEEP-ALIVE above. Runs until the context is closed. */
+    _startKeepAlive() {
+        const ctx = this.audioContext;
+        const oscillator = ctx.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = KEEP_ALIVE_HZ;
+        const gain = ctx.createGain();
+        gain.gain.value = KEEP_ALIVE_LEVEL;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+    }
+
+    /** Resolves once a freshly created context's output device has had time to wake up (immediately on every later call). */
+    _waitForOutputWarmUp() {
+        const remainingMs = this._warmUntil - performance.now();
+        if (remainingMs <= 0) return Promise.resolve();
+        return new Promise((resolve) => setTimeout(resolve, remainingMs));
     }
 
     /**
@@ -134,7 +174,8 @@ class MorseAudioPlayer {
      * Schedules and starts playback of the currently loaded plan. Safe to
      * call from a click handler (creates/resumes the AudioContext on
      * first use, satisfying browser autoplay-gesture requirements).
-     * @returns {Promise<boolean>} resolves true if playback started, false if blocked by replay policy.
+     * @returns {Promise<boolean>} resolves true if playback started, false if blocked by replay policy
+     *   or cancelled (stop()/loadPlan()/another play()) while waiting for the output to warm up.
      */
     async play() {
         if (!this.canPlay()) {
@@ -142,7 +183,10 @@ class MorseAudioPlayer {
             return false;
         }
 
+        const request = ++this._playRequest;
         await this._ensureAudioContext();
+        await this._waitForOutputWarmUp();
+        if (request !== this._playRequest) return false;
         this.stop(); // clear any previous scheduled/active playback first
         this._elapsedMs = 0;
 
@@ -325,6 +369,7 @@ class MorseAudioPlayer {
 
     /** Immediately stops any scheduled or in-progress playback. */
     stop() {
+        this._playRequest += 1;
         this.stopTone();
         if (this._endTimeoutId) {
             clearTimeout(this._endTimeoutId);

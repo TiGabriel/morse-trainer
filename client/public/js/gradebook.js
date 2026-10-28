@@ -11,7 +11,7 @@
  * server/src/modules/gradebook/): the page is refused to non-teachers
  * before it's even served, every API is requireRole('teacher'), and the
  * temporary/permanent rules (a permanently saved Formal Test grade is
- * locked and can't be deleted) are checked by the controller — the UI
+ * locked — deletable, but never editable) are checked by the controller — the UI
  * only mirrors them by not offering actions that would be refused.
  */
 async function api(path, options = {}) {
@@ -46,15 +46,9 @@ function showToast(message, type = 'default') {
     }, 4000);
 }
 
-/** Stored as SQLite UTC "YYYY-MM-DD HH:MM:SS" — shown in the classroom PC's local time. */
+/** Server (UTC) timestamp — shown in the server PC's local time (see I18N.formatDateTime). */
 function formatDateTime(value) {
-    if (!value) return '—';
-    const d = new Date(String(value).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? '' : 'Z'));
-    if (Number.isNaN(d.getTime())) return String(value);
-    const lang = window.I18N ? window.I18N.getLanguage() : 'ro';
-    return d.toLocaleString(lang === 'en' ? 'en-GB' : 'ro-RO', {
-        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-    });
+    return window.I18N.formatDateTime(value);
 }
 
 const MODE_LABEL_KEYS = {
@@ -246,7 +240,7 @@ function renderEntryList(listEl, list) {
                 <div class="gb-entry-actions">
                     ${!entry.isPermanent ? `<button type="button" class="btn btn-primary btn-small" data-action="confirm">✓ ${escapeHtml(t('gradebook.savePermanently'))}</button>` : ''}
                     <button type="button" class="btn btn-secondary btn-small" data-action="edit">${escapeHtml(t('gradebook.edit'))}</button>
-                    ${!lockedGrade ? `<button type="button" class="btn btn-danger btn-small" data-action="delete">${escapeHtml(t(isFormal ? 'gradebook.discard' : 'gradebook.delete'))}</button>` : ''}
+                    <button type="button" class="btn btn-danger btn-small" data-action="delete">${escapeHtml(t(isFormal && !entry.isPermanent ? 'gradebook.discard' : 'gradebook.delete'))}</button>
                 </div>`;
 
         li.innerHTML = `
@@ -283,7 +277,8 @@ async function handleEntryAction(entryId, action) {
             showToast(t('gradebook.toastPermanent'), 'success');
             await Promise.all([loadEntries(), loadStudents()]);
         } else if (action === 'delete') {
-            const question = entry.source === 'formal_test' ? t('gradebook.confirmDiscard') : t('gradebook.confirmDelete');
+            let question = t('gradebook.confirmDelete');
+            if (entry.source === 'formal_test') question = t(entry.isPermanent ? 'gradebook.confirmDeletePermanent' : 'gradebook.confirmDiscard');
             if (!window.confirm(question)) return;
             await api(`/api/gradebook/entries/${entryId}`, { method: 'DELETE' });
             showToast(t('gradebook.toastDeleted'), 'success');
@@ -380,6 +375,8 @@ async function submitAdd(e) {
 // Bootstrapping
 // ---------------------------------------------------------------------
 async function init() {
+    // Dates on this page are shown in the server's time zone — make sure it's known first (see i18n.js).
+    await window.I18N.serverClockReady;
     let user;
     try {
         ({ user } = await api('/api/auth/me'));

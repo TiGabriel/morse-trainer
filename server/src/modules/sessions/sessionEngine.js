@@ -27,6 +27,7 @@ const radiogramEngine = require('../practice/radiogramEngine');
 const { buildTransmissionTarget } = require('../practice/transmissionEngine');
 const { analyzeElementLog } = require('../practice/transmissionDecoding');
 const engine = require('../morse-engine');
+const { normalizeAnswer, formatIntoGroups } = require('../practice/answerFormat');
 
 // Same default every Individual Training Transmission exercise uses
 // (see receptionEngine.js's sibling, morse-transmitter-core.js's
@@ -42,6 +43,11 @@ const DEFAULT_TRANSMISSION_TOLERANCE_FACTOR = 0.35;
 // simply live in practiceEngine.VALID_MODES. Matches the
 // sessions.exercise_mode CHECK constraint in schema.sql exactly.
 const SESSION_EXERCISE_MODES = [...practiceEngine.VALID_MODES, 'transmission'];
+
+// Modes whose answer is typed plain text (as opposed to Text -> Morse's
+// dot/dash answer or Transmission's key-press log) — these get the
+// character-count limit and group re-spacing (see normalizeSubmission).
+const TEXT_ANSWER_MODES = ['audio_to_text', 'morse_to_text', 'character_recognition'];
 
 // Real-procedure call-up sent immediately before every Group Session
 // radiogram, exactly like Individual Training's Radiogram Training does
@@ -80,50 +86,41 @@ function availableActions(status) {
 const TERMINAL_STATUSES = ['finished', 'cancelled'];
 const ACTIVE_STATUSES_FOR_STUDENTS = ['waiting', 'running', 'paused'];
 
+// Defaults for a Group Session / Formal Test when the teacher leaves a
+// field blank. There are no difficulty presets any more — every value
+// comes from the teacher's own settings, and a blank field means this
+// fixed, predictable default (never a random draw from a range).
+const DEFAULT_SESSION_WPM = 10;
+const DEFAULT_ITEM_LENGTH = 10;
+const DEFAULT_CHARACTER_POOL = 'letters';
+
+function resolvePool(characters) {
+    return characters && characters.length > 0 ? characters : DEFAULT_CHARACTER_POOL;
+}
+
 /**
  * Builds one Group Session "audio_to_text" item as a radiogram: the exact
  * same fixed 3-row x 10-group x 4-character (120-character) block
  * Individual Training's Radiogram Training produces, via the same
- * `radiogramEngine.buildRadiogram()` — never a separately-invented
- * shape. Ignores the difficulty preset's own length/groupSize range
- * (a radiogram's shape is always fixed, per radiogramEngine), but still
- * resolves wpm/farnsworthWpm from that preset's range when the teacher
- * didn't specify one explicitly, by reusing the existing
- * `generateFromDifficulty` resolution (its generated text/length are
- * discarded — only the reproducible wpm/farnsworthWpm draw is used).
+ * `radiogramEngine.buildRadiogram()` — never a separately-invented shape.
  *
  * A VVVV call-up preamble (see RADIOGRAM_PREAMBLE_TEXT) is prepended to
  * the *playback plan only*: it's transmitted as one extra "word" ahead of
  * the radiogram's own groups, using the exact same text/word parsing
  * (`engine.textToMorse` + `engine.buildPlaybackPlan`) already used
  * everywhere else, so it naturally gets normal inter-character spacing
- * within VVVV and a full inter-word gap before the radiogram starts —
- * no bespoke timing logic needed. Every other field on the returned
- * exercise (expectedAnswer, text, groups, rows, morse, durationMs used
- * for grading/history/display) describes the 120-character radiogram
- * ALONE — the preamble is excluded from all of it, per spec.
- *
- * `characters`, when given, overrides the difficulty preset's own
- * character pool (e.g. the teacher picked specific letters/numbers in the
- * Group Session settings UI) — wpm/farnsworthWpm resolution from the
- * preset is unaffected either way.
+ * within VVVV and a full group pause before the radiogram starts. Every
+ * other field on the returned exercise (expectedAnswer, text, groups,
+ * rows, morse, durationMs used for grading/history/display) describes the
+ * 120-character radiogram ALONE — the preamble is excluded from all of it.
  */
-function buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyHz, characters, seed }) {
-    const preset = engine.findDifficultyPreset(difficulty);
-    if (!preset) {
-        throw new SessionError(`Unknown difficulty preset "${difficulty}".`);
-    }
-
-    const overrides = { seed };
-    if (wpm) overrides.wpm = wpm;
-    if (farnsworthWpm) overrides.farnsworthWpm = farnsworthWpm;
-    const resolved = engine.generateFromDifficulty(difficulty, overrides);
-
+function buildRadiogramExercise({ wpm, farnsworthWpm, toneFrequencyHz, groupPauseMs, characters, seed }) {
     const radiogram = radiogramEngine.buildRadiogram({
-        characters: characters && characters.length > 0 ? characters : preset.characters,
-        wpm: resolved.wpm,
-        farnsworthWpm: resolved.farnsworthWpm,
+        characters: resolvePool(characters),
+        wpm: wpm || DEFAULT_SESSION_WPM,
+        farnsworthWpm,
         toneFrequencyHz: toneFrequencyHz || 600,
+        groupPauseMs,
         seed,
     });
 
@@ -135,10 +132,10 @@ function buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyH
     return {
         mode: 'audio_to_text',
         seed: radiogram.seed,
-        difficulty,
         wpm: radiogram.timing.wpm,
         farnsworthWpm: radiogram.timing.farnsworthWpm,
         toneFrequencyHz: radiogram.timing.toneFrequencyHz,
+        groupPauseMs: radiogram.timing.groupPauseMs,
         length: radiogram.totalCharacters,
         text: radiogram.text,
         expectedAnswer: radiogram.text,
@@ -166,39 +163,23 @@ function buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyH
  * transmission has no playback phase at all, the item's entire answer
  * window (`session.answer_time_ms`) IS the keying time.
  *
- * `length`, when given, overrides the difficulty preset's own drawn
- * length (its own random length draw still happens unconditionally, per
- * generateFromDifficulty's own reproducibility contract — see its doc
- * comment); `characters` overrides the preset's own character pool.
  * `toleranceFactor`, when given, overrides the default dot/dash/gap
  * timing-classification tolerance (see morse-transmitter-core.js) —
  * the teacher-facing "Timing tolerance" field in the session wizard.
  */
-function buildTransmissionExercise({ difficulty, wpm, farnsworthWpm, length, characters, seed, toleranceFactor }) {
-    const preset = engine.findDifficultyPreset(difficulty);
-    if (!preset) {
-        throw new SessionError(`Unknown difficulty preset "${difficulty}".`);
-    }
-
-    const overrides = { seed };
-    if (wpm) overrides.wpm = wpm;
-    if (farnsworthWpm) overrides.farnsworthWpm = farnsworthWpm;
-    if (length) overrides.length = length;
-    const resolved = engine.generateFromDifficulty(difficulty, overrides);
-
+function buildTransmissionExercise({ wpm, farnsworthWpm, length, characters, seed, toleranceFactor }) {
     const target = buildTransmissionTarget({
-        characters: characters && characters.length > 0 ? characters : preset.characters,
+        characters: resolvePool(characters),
         groupSize: 0,
-        groupCount: resolved.length,
+        groupCount: length || DEFAULT_ITEM_LENGTH,
         seed,
     });
 
     return {
         mode: 'transmission',
         seed: target.seed,
-        difficulty,
-        wpm: resolved.wpm,
-        farnsworthWpm: resolved.farnsworthWpm,
+        wpm: wpm || DEFAULT_SESSION_WPM,
+        farnsworthWpm,
         toleranceFactor: Number.isFinite(toleranceFactor) && toleranceFactor > 0 ? toleranceFactor : DEFAULT_TRANSMISSION_TOLERANCE_FACTOR,
         length: target.totalCharacters,
         text: target.text,
@@ -213,22 +194,31 @@ function buildTransmissionExercise({ difficulty, wpm, farnsworthWpm, length, cha
 
 /**
  * Generates `exerciseCount` fully pre-built exercises for a session, all
- * sharing the same mode/difficulty/timing configuration. "audio_to_text"
- * items are radiograms (see buildRadiogramExercise); every other mode
- * still composes the existing (already-tested) practice engine per item,
- * exactly as before — no Morse/timing logic is duplicated here either
- * way. Every item gets its own derived seed so items within one session
- * differ, but the whole set is still fully reproducible from `baseSeed`
- * (useful for debugging/tests).
+ * sharing the same mode/timing configuration. "audio_to_text" items are
+ * radiograms (see buildRadiogramExercise); every other mode still
+ * composes the existing (already-tested) practice engine per item — no
+ * Morse/timing logic is duplicated here either way. Every item gets its
+ * own derived seed so items within one session differ, but the whole set
+ * is still fully reproducible from `baseSeed` (useful for debugging/tests).
  *
- * `characters`, when given (a non-empty array from the teacher's own
- * character-pool selection in the Group Session settings UI — the same
- * picker/data shape Individual Training already uses), overrides the
- * difficulty preset's default pool for every item. Omitted/empty means
- * "use the difficulty preset's own pool", exactly as before this option
- * existed.
+ * Every setting is the teacher's own: wpm/farnsworthWpm/tone/group pause,
+ * item length, group size (Morse -> Text only; a radiogram is always
+ * 4-character groups) and the character pool (`characters`, from the
+ * same picker Individual Training uses — empty means all letters).
  */
-function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm, toneFrequencyHz, length, characters, exerciseCount, toleranceFactor }) {
+function generateItems({
+    baseSeed,
+    exerciseMode,
+    wpm,
+    farnsworthWpm,
+    toneFrequencyHz,
+    groupPauseMs,
+    length,
+    groupSize,
+    characters,
+    exerciseCount,
+    toleranceFactor,
+}) {
     if (!Number.isInteger(exerciseCount) || exerciseCount < 1) {
         throw new SessionError('exerciseCount must be a positive integer.');
     }
@@ -239,18 +229,19 @@ function generateItems({ baseSeed, exerciseMode, difficulty, wpm, farnsworthWpm,
         const seed = `${resolvedBaseSeed}:${i}`;
         let exercise;
         if (exerciseMode === 'audio_to_text') {
-            exercise = buildRadiogramExercise({ difficulty, wpm, farnsworthWpm, toneFrequencyHz, characters, seed });
+            exercise = buildRadiogramExercise({ wpm, farnsworthWpm, toneFrequencyHz, groupPauseMs, characters, seed });
         } else if (exerciseMode === 'transmission') {
-            exercise = buildTransmissionExercise({ difficulty, wpm, farnsworthWpm, length, characters, seed, toleranceFactor });
+            exercise = buildTransmissionExercise({ wpm, farnsworthWpm, length, characters, seed, toleranceFactor });
         } else {
             exercise = practiceEngine.buildExercise({
                 mode: exerciseMode,
-                difficulty,
-                wpm,
+                wpm: wpm || DEFAULT_SESSION_WPM,
                 farnsworthWpm,
                 toneFrequencyHz,
-                length,
-                characters: characters && characters.length > 0 ? characters : undefined,
+                groupPauseMs,
+                length: length || DEFAULT_ITEM_LENGTH,
+                groupSize: exerciseMode === 'morse_to_text' ? groupSize : undefined,
+                characters: resolvePool(characters),
                 seed,
             });
         }
@@ -279,6 +270,26 @@ function gradeSubmission(exercise, submittedAnswer) {
     const expected = exercise.expectedAnswer.replace(/\s+/g, '');
     const submitted = submittedAnswer.replace(/\s+/g, '');
     return engine.scoreAnswer(expected, submitted);
+}
+
+/** Characters the student is allowed to type for a typed-text item (group spaces excluded), or null when there's no fixed limit. */
+function answerCharacterLimit(exercise) {
+    if (!TEXT_ANSWER_MODES.includes(exercise.mode)) return null;
+    return exercise.expectedAnswer.replace(/\s+/g, '').length;
+}
+
+/**
+ * Normalizes a typed-text submission for grading/storage: whitespace
+ * stripped, uppercased, capped at the item's own character count (the
+ * answer box already refuses more; this is the server-side guard) and
+ * re-spaced into the item's groups ("ABCDEFGH" -> "ABCD EFGH"). Other
+ * modes (Text -> Morse's dot/dash answers, Transmission's element log)
+ * are returned unchanged.
+ */
+function normalizeSubmission(exercise, submittedAnswer) {
+    const limit = answerCharacterLimit(exercise);
+    if (limit === null) return submittedAnswer;
+    return formatIntoGroups(normalizeAnswer(submittedAnswer, limit), exercise.groupSize);
 }
 
 /**
@@ -325,11 +336,16 @@ module.exports = {
     RADIOGRAM_PREAMBLE_TEXT,
     DEFAULT_TRANSMISSION_TOLERANCE_FACTOR,
     SESSION_EXERCISE_MODES,
+    TEXT_ANSWER_MODES,
+    DEFAULT_SESSION_WPM,
+    DEFAULT_ITEM_LENGTH,
     nextStatus,
     availableActions,
     generateItems,
     buildRadiogramExercise,
     buildTransmissionExercise,
     gradeSubmission,
+    answerCharacterLimit,
+    normalizeSubmission,
     computeGrade,
 };

@@ -91,3 +91,11 @@
         transform: none;
     }
 }
+
+.alphabet-empty {
+    text-align: center;
+    color: var(--text-muted);
+}
+.alphabet-empty p {
+    margin: 0.5rem 0;
+}

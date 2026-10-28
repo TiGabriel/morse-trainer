@@ -95,10 +95,24 @@
         document.querySelectorAll('[data-nav-role]').forEach((link) => {
             link.hidden = link.dataset.navRole !== role;
         });
+        // Students join sessions from group-session.html; teachers run
+        // them from sessions.html (which bounces non-teachers to "/").
+        document.querySelectorAll('.app-nav-link[data-i18n="nav.groupSessions"]').forEach((link) => {
+            link.href = role === 'teacher' ? '/sessions.html' : '/group-session.html';
+        });
+        // Student-specific wording (e.g. "Statistics" -> "My Statistics"):
+        // `data-i18n-student` holds the key to use for a student; the
+        // original data-i18n key is kept in `data-i18n-default` so logging
+        // out / switching role on index.html restores it.
+        document.querySelectorAll('[data-i18n-student]').forEach((node) => {
+            if (!node.dataset.i18nDefault) node.dataset.i18nDefault = node.dataset.i18n;
+            node.dataset.i18n = role === 'student' ? node.dataset.i18nStudent : node.dataset.i18nDefault;
+            if (window.t) node.textContent = window.t(node.dataset.i18n);
+        });
     }
 
     async function loadNavRole() {
-        if (!document.querySelector('[data-nav-role]')) return;
+        if (!document.querySelector('[data-nav-role], [data-i18n-student], .app-nav-link[data-i18n="nav.groupSessions"]')) return;
         try {
             const res = await fetch('/api/auth/me');
             if (!res.ok) return; // logged out — teacher-only links stay hidden

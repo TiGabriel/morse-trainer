@@ -166,6 +166,7 @@ function currentRadiogramSettings() {
         wpm: Number(el('setting-wpm').value) || undefined,
         farnsworthWpm: farnsworthRaw ? Number(farnsworthRaw) : undefined,
         toneFrequencyHz: Number(el('setting-tone').value) || undefined,
+        groupPauseMs: readGroupPauseMs('setting-group-pause'),
     };
 }
 
@@ -291,12 +292,13 @@ function renderRadiogram(radiogram) {
         radiogram.timing.farnsworthWpm !== radiogram.timing.wpm ? t('common.farnsworthNote', { wpm: radiogram.timing.farnsworthWpm }) : '';
     el('radiogram-meta').textContent =
         `${radiogram.totalCharacters} ${t('common.characters')} · ${radiogram.groups.length} ${t('common.groupsUnit')} · ` +
-        `${radiogram.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${radiogram.timing.toneFrequencyHz} Hz`;
+        `${radiogram.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${radiogram.timing.toneFrequencyHz} Hz${groupPauseNote(radiogram.timing)}`;
 
     el('radiogram-replay-button').hidden = true;
     el('radiogram-stop-button').hidden = true;
     el('radiogram-status').textContent = t('radiogram.statusNotStarted');
     el('radiogram-answer').value = '';
+    updateAnswerCounter('radiogram-answer-counter', 0, radiogram.totalCharacters);
     el('radiogram-analyze-button').disabled = true;
 
     const volume = Number(el('radiogram-play-volume').value) / 100;
@@ -305,18 +307,22 @@ function renderRadiogram(radiogram) {
     p.loadPlan(radiogram.plan, { durationMs: radiogram.durationMs });
 }
 
-function playRadiogram() {
+async function playRadiogram() {
     if (!currentRadiogram) return;
     if (radiogramStartedAt === null) radiogramStartedAt = Date.now();
     const volume = Number(el('radiogram-play-volume').value) / 100;
     const p = ensureRadiogramPlayer(volume);
     p.setVolume(volume);
-    p.play();
     el('radiogram-replay-button').hidden = false;
     el('radiogram-stop-button').hidden = false;
     el('radiogram-analyze-button').disabled = true;
     el('radiogram-status').textContent = t('radiogram.statusTransmitting');
-    scheduleRadiogramReveal(currentRadiogram);
+    // Awaited so the reveal timers start when the audio does — the very
+    // first play() waits for the headphones to wake up before scheduling.
+    const radiogram = currentRadiogram;
+    const started = await p.play();
+    if (!started || radiogram !== currentRadiogram) return;
+    scheduleRadiogramReveal(radiogram);
 }
 
 function stopRadiogram() {
@@ -342,6 +348,7 @@ async function analyzeRadiogram() {
         wpm: currentRadiogram.timing.wpm,
         farnsworthWpm: currentRadiogram.timing.farnsworthWpm,
         toneFrequencyHz: currentRadiogram.timing.toneFrequencyHz,
+        groupPauseMs: currentRadiogram.timing.groupPauseMs || undefined,
         seed: currentRadiogram.seed,
         submittedAnswer: normalizeRadiogramAnswer(submittedAnswer),
         durationMs: radiogramStartedAt !== null ? Date.now() - radiogramStartedAt : undefined,
@@ -385,90 +392,79 @@ function renderRadiogramResults(result) {
     el('rgr-extra').textContent = String(score.extraCount);
     el('rgr-errors').textContent = String(score.errorCount);
 
-    renderComparison('rgr-compare', score.ops, result.groupSize || 4);
+    renderComparison('rgr-compare', score.ops, result.groupSize || 4, result.submittedAnswer);
 }
 
 /**
- * Renders the aligned reference/answer comparison as two rows built
- * directly from scoreAnswer's ops (one column per op, so a missing or
- * extra character shifts neither row out of alignment with the other —
- * see scoring.js for why alignment beats index-by-index comparison).
- * Shared by the Radiogram and Reception results screens — one comparison
- * renderer, not a duplicate per exercise type.
+ * Renders the colour-coded reference/answer comparison from scoreAnswer's
+ * alignment ops (see answer-tools.js) — one block per group, so a missing
+ * or extra character never shifts the rows out of alignment. When the
+ * server's normalized answer is given, it's shown above the comparison
+ * re-spaced every `groupSize` characters, whatever spacing was typed.
+ * Shared by the Radiogram, Reception and Transmission results screens.
  */
-function renderComparison(containerId, ops, groupSize) {
+function renderComparison(containerId, ops, groupSize, submittedAnswer) {
     const container = el(containerId);
-    container.innerHTML = '';
-
-    const refRow = document.createElement('div');
-    refRow.className = 'rg-compare-row';
-    const refLabel = document.createElement('span');
-    refLabel.className = 'rg-compare-row-label';
-    refLabel.textContent = t('radiogram.referenceLabel');
-    const refCells = document.createElement('span');
-    refRow.appendChild(refLabel);
-    refRow.appendChild(refCells);
-
-    const subRow = document.createElement('div');
-    subRow.className = 'rg-compare-row';
-    const subLabel = document.createElement('span');
-    subLabel.className = 'rg-compare-row-label';
-    subLabel.textContent = t('radiogram.yourAnswerLabel');
-    const subCells = document.createElement('span');
-    subRow.appendChild(subLabel);
-    subRow.appendChild(subCells);
-
-    let expectedSeen = 0;
-    ops.forEach((op) => {
-        const refCell = document.createElement('span');
-        refCell.className = 'rg-compare-cell';
-        const subCell = document.createElement('span');
-        subCell.className = 'rg-compare-cell';
-
-        if (op.type === 'match') {
-            refCell.textContent = op.expectedChar;
-            subCell.textContent = op.submittedChar;
-            refCell.classList.add('rg-op-match');
-            subCell.classList.add('rg-op-match');
-        } else if (op.type === 'substitution') {
-            refCell.textContent = op.expectedChar;
-            subCell.textContent = op.submittedChar;
-            refCell.classList.add('rg-op-substitution');
-            subCell.classList.add('rg-op-substitution');
-        } else if (op.type === 'missing') {
-            refCell.textContent = op.expectedChar;
-            subCell.textContent = '_';
-            refCell.classList.add('rg-op-missing');
-            subCell.classList.add('rg-op-missing');
-        } else if (op.type === 'extra') {
-            refCell.textContent = '_';
-            subCell.textContent = op.submittedChar;
-            refCell.classList.add('rg-op-extra');
-            subCell.classList.add('rg-op-extra');
-        }
-
-        refCells.appendChild(refCell);
-        subCells.appendChild(subCell);
-
-        // Extra characters have no counterpart in the reference sequence,
-        // so only expected-side-consuming ops advance the group counter —
-        // this keeps the visual grouping lined up with the original 4-char
-        // groups instead of drifting after the first insertion.
-        if (op.type !== 'extra') {
-            expectedSeen += 1;
-            if (expectedSeen % groupSize === 0) {
-                const refGap = document.createElement('span');
-                refGap.className = 'rg-compare-gap';
-                const subGap = document.createElement('span');
-                subGap.className = 'rg-compare-gap';
-                refCells.appendChild(refGap);
-                subCells.appendChild(subGap);
-            }
-        }
+    container.classList.remove('radiogram-compare');
+    const compareBox = document.createElement('div');
+    AnswerTools.renderComparison(compareBox, ops, groupSize, {
+        referenceLabel: t('radiogram.referenceLabel'),
+        answerLabel: t('radiogram.yourAnswerLabel'),
     });
+    container.innerHTML = '';
+    if (typeof submittedAnswer === 'string') {
+        const line = document.createElement('p');
+        line.className = 'ac-answer-line';
+        const label = document.createElement('strong');
+        label.textContent = t('radiogram.yourAnswerLabel') + ': ';
+        const text = document.createElement('span');
+        text.textContent = AnswerTools.formatGroups(submittedAnswer, groupSize) || '—';
+        line.appendChild(label);
+        line.appendChild(text);
+        container.appendChild(line);
+    }
+    container.appendChild(compareBox);
+}
 
-    container.appendChild(refRow);
-    container.appendChild(subRow);
+/** "37 / 120 characters" under an answer box; turns green once the answer is complete. */
+function updateAnswerCounter(counterId, count, max) {
+    const counter = el(counterId);
+    if (!counter) return;
+    counter.textContent = max > 0 ? t('common.answerCounter', { count, max }) : '';
+    counter.classList.toggle('is-full', max > 0 && count >= max);
+}
+
+/** " · group pause 1.5 s" when a custom pause was set, else ''. */
+function groupPauseNote(timing) {
+    return timing && timing.groupPauseMs ? t('common.groupPauseNote', { seconds: (timing.groupPauseMs / 1000).toFixed(1) }) : '';
+}
+
+/** Group-pause input (seconds) -> milliseconds, or undefined when blank (standard gap). */
+function readGroupPauseMs(inputId) {
+    const seconds = Number(el(inputId).value);
+    return seconds > 0 ? Math.round(seconds * 1000) : undefined;
+}
+
+/**
+ * Shows what the standard (blank) group pause currently is at the chosen
+ * speed — 7 dot units, or the Farnsworth-stretched gap — so the teacher
+ * or student knows what they're lengthening.
+ */
+function updateGroupPauseHint(prefix) {
+    const hint = el(`${prefix}group-pause-standard`);
+    if (!hint) return;
+    const wpm = Number(el(`${prefix}setting-wpm`).value);
+    const fw = Number(el(`${prefix}setting-farnsworth`).value);
+    if (!(wpm > 0)) {
+        hint.textContent = '';
+        return;
+    }
+    const dotMs = 1200 / wpm;
+    let unitMs = dotMs;
+    if (fw > 0 && fw < wpm) {
+        unitMs = Math.max(dotMs, (60000 / fw - 31 * dotMs) / 19);
+    }
+    hint.textContent = t('common.groupPauseStandard', { seconds: ((7 * unitMs) / 1000).toFixed(2), wpm });
 }
 
 // =======================================================================
@@ -1033,6 +1029,7 @@ function currentReceptionSettings() {
         wpm: Number(el('rcp-setting-wpm').value) || undefined,
         farnsworthWpm: farnsworthRaw ? Number(farnsworthRaw) : undefined,
         toneFrequencyHz: Number(el('rcp-setting-tone').value) || undefined,
+        groupPauseMs: readGroupPauseMs('rcp-setting-group-pause'),
     };
 }
 
@@ -1090,9 +1087,10 @@ async function generateReception() {
 function renderReceptionPlay(exercise) {
     const farnsworthNote = exercise.timing.farnsworthWpm !== exercise.timing.wpm ? t('common.farnsworthNote', { wpm: exercise.timing.farnsworthWpm }) : '';
     el('rcp-meta').textContent =
-        `${exercise.totalCharacters} ${t('common.characters')} · ${exercise.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${exercise.timing.toneFrequencyHz} Hz`;
+        `${exercise.totalCharacters} ${t('common.characters')} · ${exercise.timing.wpm} ${t('common.wpmShort')}${farnsworthNote} · ${exercise.timing.toneFrequencyHz} Hz${groupPauseNote(exercise.timing)}`;
 
     el('rcp-answer').value = '';
+    updateAnswerCounter('rcp-answer-counter', 0, currentReception ? currentReception.totalCharacters : 0);
     resetReceptionPlaybackButtons();
     receptionAccumulatedMs = 0;
     receptionSegmentStartedAt = null;
@@ -1210,6 +1208,7 @@ function restartReceptionExercise() {
     receptionAccumulatedMs = 0;
     receptionExerciseStartedAt = null;
     el('rcp-answer').value = '';
+    updateAnswerCounter('rcp-answer-counter', 0, currentReception ? currentReception.totalCharacters : 0);
     resetReceptionPlaybackButtons();
     setReceptionProgress(0);
     el('rcp-status').textContent = t('reception.statusNotStarted');
@@ -1233,6 +1232,7 @@ async function submitReceptionAnswer() {
         wpm: currentReception.timing.wpm,
         farnsworthWpm: currentReception.timing.farnsworthWpm,
         toneFrequencyHz: currentReception.timing.toneFrequencyHz,
+        groupPauseMs: currentReception.timing.groupPauseMs || undefined,
         seed: currentReception.seed,
         submittedAnswer,
         durationMs: receptionExerciseStartedAt !== null ? Date.now() - receptionExerciseStartedAt : undefined,
@@ -1274,7 +1274,7 @@ function renderReceptionResults(result) {
     el('rcpr-extra').textContent = String(score.extraCount);
     el('rcpr-errors').textContent = String(score.errorCount);
 
-    renderComparison('rcpr-compare', score.ops, result.groupSize || 5);
+    renderComparison('rcpr-compare', score.ops, result.groupSize, result.submittedAnswer);
 }
 
 // =======================================================================
@@ -1537,7 +1537,7 @@ function renderTransmissionResults(result) {
     el('txr-extra').textContent = String(score.extraCount);
     el('txr-errors').textContent = String(score.errorCount);
 
-    renderComparison('txr-compare', score.ops, result.groupSize || 5);
+    renderComparison('txr-compare', score.ops, result.groupSize);
 
     const tbody = el('txr-timing-tbody');
     tbody.innerHTML = '';
@@ -1553,8 +1553,9 @@ function renderTransmissionResults(result) {
 // around the exact same TransmissionEngine the graded Exercise mode
 // uses, minus everything that makes it an assessment: no target text
 // (never generated, never fetched), no server round-trip at all, no
-// score/grade. Only WPM/tolerance are read from the settings screen —
-// character pool/length don't apply since there's no target to build.
+// score/grade. Opened straight from its own hub card, with no settings
+// screen: WPM/tolerance come from the Morse Transmission settings inputs
+// (defaults 15 WPM / 0.35) — pool/length don't apply, there's no target.
 // =======================================================================
 let freeTxEngine = null;
 let freeTxTimerId = null;
@@ -1697,6 +1698,26 @@ function abortCharacterTrainingRound() {
     if (ctPlayer) ctPlayer.stop();
 }
 
+/**
+ * Hub bubbles: hold the pressed state (.is-pressed, see practice.css)
+ * for a moment so the press reads clearly, then run the exact same
+ * navigation as before. A native <button>, so Enter/Space activate it
+ * too. Under prefers-reduced-motion the CSS drops the scale/lift, but
+ * the (motionless) pressed ring still shows.
+ */
+const HUB_PRESS_MS = 160;
+function wireHubBubble(id, navigate) {
+    const bubble = el(id);
+    bubble.addEventListener('click', () => {
+        if (bubble.classList.contains('is-pressed')) return; // a double-click never navigates twice
+        bubble.classList.add('is-pressed');
+        setTimeout(() => {
+            bubble.classList.remove('is-pressed');
+            navigate();
+        }, HUB_PRESS_MS);
+    });
+}
+
 function onGlobalKeydown(e) {
     if (currentScreen !== 'character-training-session') return;
     if (!ctAwaitingAnswer) return;
@@ -1731,10 +1752,11 @@ async function init() {
     }
 
     // Hub navigation
-    el('hub-card-radiogram').addEventListener('click', () => showScreen('radiogram-settings'));
-    el('hub-card-character-training').addEventListener('click', () => showScreen('character-training-settings'));
-    el('hub-card-reception').addEventListener('click', () => showScreen('reception-settings'));
-    el('hub-card-transmission').addEventListener('click', () => showScreen('transmission-settings'));
+    wireHubBubble('hub-card-radiogram', () => showScreen('radiogram-settings'));
+    wireHubBubble('hub-card-character-training', () => showScreen('character-training-settings'));
+    wireHubBubble('hub-card-reception', () => showScreen('reception-settings'));
+    wireHubBubble('hub-card-transmission', () => showScreen('transmission-settings'));
+    wireHubBubble('hub-card-free-transmission', startFreeTransmission);
 
     document.querySelectorAll('.back-link[data-back-to]').forEach((btn) => {
         btn.addEventListener('click', () => showScreen(btn.dataset.backTo));
@@ -1749,8 +1771,33 @@ async function init() {
     if (window.SpeedProgression) {
         window.SpeedProgression.renderSpeedProgressionChips('speed-progression', (wpm) => {
             el('setting-wpm').value = wpm;
+            updateGroupPauseHint('');
         });
     }
+
+    // Pause-between-groups hint follows the chosen speed.
+    ['', 'rcp-'].forEach((prefix) => {
+        el(`${prefix}setting-wpm`).addEventListener('input', () => updateGroupPauseHint(prefix));
+        el(`${prefix}setting-farnsworth`).addEventListener('input', () => updateGroupPauseHint(prefix));
+        updateGroupPauseHint(prefix);
+    });
+    document.addEventListener('morseTrainer:languageChanged', () => {
+        updateGroupPauseHint('');
+        updateGroupPauseHint('rcp-');
+    });
+
+    // Answer boxes never accept more characters than the exercise has
+    // (spaces between groups don't count).
+    AnswerTools.limitInput(
+        el('radiogram-answer'),
+        () => (currentRadiogram ? currentRadiogram.totalCharacters : 0),
+        (count, max) => updateAnswerCounter('radiogram-answer-counter', count, max)
+    );
+    AnswerTools.limitInput(
+        el('rcp-answer'),
+        () => (currentReception ? currentReception.totalCharacters : 0),
+        (count, max) => updateAnswerCounter('rcp-answer-counter', count, max)
+    );
 
     // Radiogram settings -> generate
     el('generate-button').addEventListener('click', generateRadiogram);
@@ -1805,6 +1852,7 @@ async function init() {
     if (window.SpeedProgression) {
         window.SpeedProgression.renderSpeedProgressionChips('rcp-speed-progression', (wpm) => {
             el('rcp-setting-wpm').value = wpm;
+            updateGroupPauseHint('rcp-');
         });
     }
     document.querySelectorAll('#rcp-length-quick-actions .chip-button').forEach((btn) => {
@@ -1868,7 +1916,6 @@ async function init() {
     el('txr-generate-another-button').addEventListener('click', generateTransmission);
 
     // Free Transmission (no target, no grading)
-    el('tx-free-start-button').addEventListener('click', startFreeTransmission);
     el('txf-clear-button').addEventListener('click', clearFreeTransmission);
     document.addEventListener('keydown', onFreeTxKeydown);
     document.addEventListener('keyup', onFreeTxKeyup);

@@ -1,15 +1,16 @@
 /**
- * Electronic gradebook ("Catalog electronic") — teacher-only HTTP layer.
- * Every route is mounted behind requireAuth + requireRole('teacher') (see
- * gradebookRoutes.js), so a student can never read, create, edit or
- * delete any entry, including their own.
+ * Electronic gradebook ("Catalog electronic") HTTP layer. Every route
+ * except GET /me is mounted behind requireAuth + requireRole('teacher')
+ * (see gradebookRoutes.js); a student can only READ their own official
+ * grades through /me, and can never create, edit or delete anything.
  *
  * Lifecycle rules enforced here (not just in the UI):
  *   - manual entries are permanent as soon as they're saved;
  *   - automatic Formal Test entries start temporary and only become
  *     permanent through the explicit POST .../confirm action;
  *   - a permanent Formal Test entry's grade is locked (it's the official
- *     result) and it can't be deleted — only its note can still change.
+ *     result) — it can't be edited, only its note can still change; a
+ *     teacher can still delete it outright (logged) if it has to go.
  */
 const gradebookRepository = require('./gradebookRepository');
 const userRepository = require('../users/userRepository');
@@ -60,6 +61,28 @@ function listStudentEntries(req, res) {
     const student = findStudentOr404(req, res);
     if (!student) return undefined;
     return res.json({ student, entries: gradebookRepository.listForStudent(student.id) });
+}
+
+/**
+ * GET /api/gradebook/me — student-only, self-scoped: the logged-in
+ * student's official grades. Deliberately a trimmed shape — no teacher
+ * notes/observations (the note field stays teacher-side), no ids of
+ * other users, nothing temporary.
+ */
+function listMyGrades(req, res) {
+    const grades = gradebookRepository.listOfficialGradesForStudent(req.user.id).map((e) => ({
+        id: e.id,
+        grade: e.grade,
+        source: e.source,
+        sourceSessionId: e.sourceSessionId,
+        details: e.details,
+        teacherName: e.teacherName,
+        createdAt: e.createdAt,
+    }));
+    const average = grades.length
+        ? Math.round((grades.reduce((sum, g) => sum + g.grade, 0) / grades.length) * 100) / 100
+        : null;
+    return res.json({ grades, average });
 }
 
 /** POST /api/gradebook/students/:studentId/entries — body { type: 'grade'|'note', grade?, note? } */
@@ -136,12 +159,10 @@ function confirmEntry(req, res) {
 function deleteEntry(req, res) {
     const entry = findEntryOr404(req, res);
     if (!entry) return undefined;
-    if (entry.source === 'formal_test' && entry.isPermanent) {
-        return res.status(409).json({ error: 'A permanently saved Formal Test grade cannot be deleted.' });
-    }
     gradebookRepository.deleteEntry(entry.id);
-    logger.info(`Gradebook: entry ${entry.id} (${entry.source}) deleted by teacher "${req.user.username}"`);
+    const what = entry.isPermanent ? 'permanent' : 'temporary';
+    logger.info(`Gradebook: ${what} entry ${entry.id} (${entry.source}, grade ${entry.grade ?? '—'}) for student ${entry.studentId} deleted by teacher "${req.user.username}"`);
     return res.json({ deleted: true });
 }
 
-module.exports = { getPendingCounts, listStudentEntries, createEntry, updateEntry, confirmEntry, deleteEntry };
+module.exports = { getPendingCounts, listStudentEntries, listMyGrades, createEntry, updateEntry, confirmEntry, deleteEntry };

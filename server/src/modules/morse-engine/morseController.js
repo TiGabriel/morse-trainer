@@ -1,4 +1,6 @@
 const engine = require('./index');
+const userRepository = require('../users/userRepository');
+const classMorseRepository = require('../classes/classMorseRepository');
 
 const DEFAULT_TONE_FREQUENCY_HZ = 600;
 
@@ -79,6 +81,15 @@ const ALPHABET_SAMPLE_WPM = 15;
  * buildPlaybackPlan (the same data shape /preview returns), so the
  * client's existing MorseAudioPlayer can play it with no second Morse
  * audio/timing implementation.
+ *
+ * Role-aware, enforced HERE rather than in the client:
+ *   - teacher -> the complete alphabet (restricted: false).
+ *   - student -> ONLY the characters their current class allows
+ *     (class_morse_characters), looked up fresh from the database on
+ *     every request so a class move or a teacher's edit applies on the
+ *     next reload. Unauthorized characters are never included in the
+ *     response in any form; no class / nothing configured -> empty
+ *     lists (configured: false), never the full alphabet as a fallback.
  */
 function alphabet(req, res) {
     const timing = engine.computeTiming({ wpm: ALPHABET_SAMPLE_WPM, toneFrequencyHz: DEFAULT_TONE_FREQUENCY_HZ });
@@ -89,12 +100,22 @@ function alphabet(req, res) {
             return { char, morse, plan, durationMs: engine.planTotalDurationMs(plan) };
         });
 
+    let allowed = null; // null = unrestricted (teacher)
+    if (req.user.role !== 'teacher') {
+        const row = userRepository.findById(req.user.id);
+        const classId = row ? row.class_id : null;
+        allowed = new Set(classId ? classMorseRepository.listForClass(classId) : []);
+    }
+    const visible = (chars) => (allowed ? chars.filter((ch) => allowed.has(ch)) : chars);
+
     return res.json({
         wpm: ALPHABET_SAMPLE_WPM,
         toneFrequencyHz: DEFAULT_TONE_FREQUENCY_HZ,
-        letters: toEntries(engine.CHARSETS.letters),
-        numbers: toEntries(engine.CHARSETS.numbers),
-        punctuation: toEntries(engine.CHARSETS.punctuation),
+        restricted: allowed !== null,
+        configured: allowed === null || allowed.size > 0,
+        letters: toEntries(visible(engine.CHARSETS.letters)),
+        numbers: toEntries(visible(engine.CHARSETS.numbers)),
+        punctuation: toEntries(visible(engine.CHARSETS.punctuation)),
     });
 }
 

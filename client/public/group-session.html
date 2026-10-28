@@ -20,8 +20,10 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/faviconsmmmfn.png" />
     <title>Morse SMMMFN — Group Session</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/slot-machine.css" />
     <link rel="stylesheet" href="/css/group-session.css" />
     <!-- Reuses Individual Training's .tx-key-area/.tx-current-morse/.tx-feedback/.tx-decoded styles for Morse Transmission items, rather than a duplicate copy of them. -->
     <link rel="stylesheet" href="/css/practice.css" />
@@ -32,12 +34,13 @@
     <div id="app" hidden>
         <div id="connection-banner" class="connection-banner" hidden>&#9888; <span data-i18n="groupSession.connectionLost">Connection lost — reconnecting&hellip;</span></div>
         <nav class="app-nav" aria-label="Main">
-            <a href="/" class="app-nav-brand">Morse SMMMFN</a>
+            <a href="/" class="app-nav-brand"><img class="app-nav-logo" src="/img/logosmmmfn.jpg" alt="" width="413" height="484" />Morse SMMMFN</a>
             <div class="app-nav-links">
                 <a href="/" class="app-nav-link" data-i18n="nav.home">Home</a>
                 <a href="/teacher.html" class="app-nav-link" data-i18n="nav.dashboard" data-nav-role="teacher" hidden>Dashboard</a>
                 <a href="/group-session.html" class="app-nav-link active" data-i18n="nav.groupSessions">Group Sessions</a>
-                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics">Statistics</a>
+                <a href="/practice.html" class="app-nav-link" data-i18n="nav.practice">Practice</a>
+                <a href="/stats.html" class="app-nav-link" data-i18n="nav.statistics" data-i18n-student="nav.myStatistics">Statistics</a>
                 <a href="/gradebook.html" class="app-nav-link" data-i18n="nav.gradebook" data-nav-role="teacher" hidden>Electronic Gradebook</a>
                 <a href="/alphabet.html" class="app-nav-link" data-i18n="nav.morseAlphabet">Morse Alphabet</a>
             </div>
@@ -110,7 +113,8 @@
 
                 <div class="modal-field" id="exercise-answer-field">
                     <label for="exercise-answer" id="exercise-answer-label" data-i18n="groupSession.yourAnswer">Your answer</label>
-                    <input type="text" id="exercise-answer" autocomplete="off" autocapitalize="characters" spellcheck="false" disabled />
+                    <textarea id="exercise-answer" class="radiogram-answer-input" rows="2" autocomplete="off" autocapitalize="characters" spellcheck="false" disabled></textarea>
+                    <p class="answer-counter" id="exercise-answer-counter"></p>
                 </div>
 
                 <div class="exercise-actions">
@@ -118,6 +122,10 @@
                 </div>
 
                 <div id="exercise-feedback" class="modal-note" hidden></div>
+                <div id="exercise-compare-wrap" hidden>
+                    <p class="radiogram-hint" id="exercise-compare-legend"></p>
+                    <div id="exercise-compare"></div>
+                </div>
             </section>
 
             <!-- FINISHED -->
@@ -125,6 +133,7 @@
                 <h1 data-i18n="groupSession.sessionComplete">Session Complete</h1>
                 <p class="subtitle" id="finished-subtitle" data-i18n="groupSession.greatWork">Great work.</p>
 
+                <p class="radiogram-hint" id="finished-compare-legend"></p>
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
@@ -143,12 +152,15 @@
 
     <script src="/js/i18n.js"></script>
     <script src="/js/nav.js"></script>
+    <script src="/js/slot-machine-engine.js"></script>
+    <script src="/js/slot-machine.js"></script>
     <script src="/js/morse-audio-player.js"></script>
     <script src="/js/morse-receiver-map.js"></script>
     <script src="/js/morse-receiver-core.js"></script>
     <script src="/js/morse-transmitter-core.js"></script>
     <script src="/js/clock-sync.js"></script>
     <script src="/js/grading.js"></script>
+    <script src="/js/answer-tools.js"></script>
     <script src="/js/group-session.js"></script>
 </body>
 </html>

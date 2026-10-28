@@ -16,7 +16,7 @@ const { MorseEngineError } = require('../morse-engine/errors');
 
 const VALID_MODES = ['audio_to_text', 'morse_to_text', 'text_to_morse', 'character_recognition'];
 
-function buildExercise({ mode, difficulty, length, characters, wpm, farnsworthWpm, toneFrequencyHz, seed }) {
+function buildExercise({ mode, difficulty, length, groupSize, characters, wpm, farnsworthWpm, toneFrequencyHz, groupPauseMs, seed }) {
     if (!VALID_MODES.includes(mode)) {
         throw new MorseEngineError(`mode must be one of: ${VALID_MODES.join(', ')}`);
     }
@@ -40,8 +40,11 @@ function buildExercise({ mode, difficulty, length, characters, wpm, farnsworthWp
         if (!characters) {
             throw new MorseEngineError('characters is required when no difficulty preset is given.');
         }
-        const gen = engine.generateRandomText({ characters, length: effectiveLength || 10, seed });
-        generated = { text: gen.text, wpm, farnsworthWpm, length: gen.length, seed: gen.seed, difficulty: null };
+        // Single-character drills are never grouped; everything else is
+        // split into space-separated groups when a group size is set.
+        const effectiveGroupSize = mode !== 'character_recognition' && groupSize > 0 ? groupSize : null;
+        const gen = engine.generateRandomText({ characters, length: effectiveLength || 10, groupSize: effectiveGroupSize, seed });
+        generated = { text: gen.text, wpm, farnsworthWpm, length: gen.length, groupSize: gen.groupSize, seed: gen.seed, difficulty: null };
     }
 
     const text = generated.text;
@@ -50,7 +53,12 @@ function buildExercise({ mode, difficulty, length, characters, wpm, farnsworthWp
     const resolvedToneFrequencyHz = toneFrequencyHz || 600;
 
     const { morse } = engine.textToMorse(text);
-    const timing = engine.computeTiming({ wpm: resolvedWpm, farnsworthWpm: resolvedFarnsworthWpm, toneFrequencyHz: resolvedToneFrequencyHz });
+    const timing = engine.computeTiming({
+        wpm: resolvedWpm,
+        farnsworthWpm: resolvedFarnsworthWpm,
+        toneFrequencyHz: resolvedToneFrequencyHz,
+        groupPauseMs,
+    });
     const plan = engine.buildPlaybackPlan(morse, timing);
     const durationMs = engine.planTotalDurationMs(plan);
 
@@ -67,6 +75,7 @@ function buildExercise({ mode, difficulty, length, characters, wpm, farnsworthWp
         farnsworthWpm: resolvedFarnsworthWpm,
         toneFrequencyHz: resolvedToneFrequencyHz,
         length: generated.length ?? effectiveLength,
+        groupSize: generated.groupSize || null,
         text,
         morse,
         timing,

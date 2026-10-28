@@ -244,7 +244,9 @@ CREATE INDEX IF NOT EXISTS idx_practice_attempts_created_at ON practice_attempts
 
 -- Electronic gradebook ("Catalog electronic"): teacher-maintained grades
 -- and written notes/observations per student. Teacher-only, both in the
--- API (requireRole('teacher')) and the UI.
+-- API (requireRole('teacher')) and the UI — except that a student can
+-- read their OWN official grades (permanent grade rows, without notes)
+-- via GET /api/gradebook/me, shown on their "My Statistics" page.
 --   source = 'manual'      -> typed in by a teacher; permanent immediately.
 --   source = 'formal_test' -> created automatically when a Formal Test
 --                             finishes, from that test's own authoritative
@@ -276,6 +278,22 @@ CREATE INDEX IF NOT EXISTS idx_gradebook_entries_student_id ON gradebook_entries
 -- never produce a duplicate (inserts use INSERT OR IGNORE against this).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_gradebook_entries_formal_test_unique
     ON gradebook_entries(student_id, source_session_id) WHERE source = 'formal_test';
+
+-- Morse Alphabet visibility per class: which characters students in a
+-- class may see on the Morse Alphabet reference page. One row per
+-- (class, character); characters are always CHAR_TO_MORSE keys from
+-- morse-engine/morseMap.js (validated on write). No rows = nothing
+-- configured yet = students see NO characters (never the full alphabet
+-- as a fallback). The class is the source of truth — nothing is copied
+-- onto student rows, so moving a student to another class changes what
+-- they see immediately. Deliberately independent of every training/test
+-- character pool.
+CREATE TABLE IF NOT EXISTS class_morse_characters (
+    class_id    INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    morse_char  TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (class_id, morse_char)
+);
 
 -- Schema version bookkeeping for future migrations
 CREATE TABLE IF NOT EXISTS schema_meta (

@@ -19,6 +19,6 @@ test('SPEED_PROGRESSION_WPM: a non-empty, strictly increasing list of positive s
     SPEED_PROGRESSION_WPM.forEach((wpm) => assert.ok(wpm > 0 && wpm <= 60));
 });
 
-test('SPEED_PROGRESSION_WPM: matches the documented default progression (10/12/14/16/18)', () => {
-    assert.deepEqual(SPEED_PROGRESSION_WPM, [10, 12, 14, 16, 18]);
+test('SPEED_PROGRESSION_WPM: matches the documented default progression (6/8/10/12/14/16/18 — slower steps added after 18 WPM proved too fast to start at)', () => {
+    assert.deepEqual(SPEED_PROGRESSION_WPM, [6, 8, 10, 12, 14, 16, 18]);
 });

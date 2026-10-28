@@ -2,7 +2,6 @@ const sessionRepository = require('./sessionRepository');
 const sessionEngine = require('./sessionEngine');
 const sessionRuntime = require('./sessionRuntime');
 const classRepository = require('../classes/classRepository');
-const { findDifficultyPreset } = require('../morse-engine/difficultyPresets');
 const gradingService = require('../grading/gradingService');
 const gradebookService = require('../gradebook/gradebookService');
 const hub = require('../../realtime/hub');
@@ -26,6 +25,17 @@ function clampInt(value, fallback, min, max) {
     return Math.min(Math.max(n, min), max);
 }
 
+/** An optional numeric setting: undefined when blank, otherwise clamped to [min, max]. */
+function optionalClamped(raw, min, max) {
+    const n = toNumberOrUndefined(raw);
+    return n === undefined ? undefined : Math.min(Math.max(n, min), max);
+}
+
+// The difficulty-preset system was removed: sessions are configured only
+// by explicit settings now. The legacy NOT NULL `sessions.difficulty`
+// column is kept (no destructive migration) and simply records this.
+const CUSTOM_SETTINGS_LABEL = 'custom';
+
 /**
  * POST /api/sessions (teacher)
  * Creates a session AND its full set of pre-generated exercise items in
@@ -38,7 +48,6 @@ function createSession(req, res) {
     const type = body.type || 'group';
     const classId = Number(body.classId);
     const exerciseMode = body.exerciseMode;
-    const difficulty = body.difficulty;
     const exerciseCount = clampInt(toNumberOrUndefined(body.exerciseCount), 5, 1, 100);
 
     if (!VALID_TYPES.includes(type)) {
@@ -53,9 +62,15 @@ function createSession(req, res) {
     if (!sessionEngine.SESSION_EXERCISE_MODES.includes(exerciseMode)) {
         return res.status(400).json({ error: `exerciseMode must be one of: ${sessionEngine.SESSION_EXERCISE_MODES.join(', ')}` });
     }
-    if (!difficulty || !findDifficultyPreset(difficulty)) {
-        return res.status(400).json({ error: 'A valid difficulty preset is required.' });
-    }
+
+    // Morse settings — every one is the teacher's explicit choice; a blank
+    // field falls back to a fixed default (never a random draw).
+    const wpm = Math.round(optionalClamped(body.wpm, 1, 60) ?? sessionEngine.DEFAULT_SESSION_WPM);
+    const farnsworthRaw = optionalClamped(body.farnsworthWpm, 1, 60);
+    const farnsworthWpm = farnsworthRaw === undefined ? undefined : Math.round(Math.min(farnsworthRaw, wpm));
+    const toneFrequencyHz = optionalClamped(body.toneFrequencyHz, 200, 1200);
+    const groupPauseMs = optionalClamped(body.groupPauseMs, 50, 10000);
+    const groupSize = body.groupSize === undefined || body.groupSize === '' ? undefined : clampInt(toNumberOrUndefined(body.groupSize), 0, 0, 10);
 
     const prepTimeMs = clampInt(toNumberOrUndefined(body.prepTimeMs), 5000, 1000, 30000);
     const answerTimeMs = body.answerTimeMs === undefined || body.answerTimeMs === '' ? null : clampInt(toNumberOrUndefined(body.answerTimeMs), 15000, 3000, 180000);
@@ -68,8 +83,7 @@ function createSession(req, res) {
     const instructions = typeof body.instructions === 'string' && body.instructions.trim() ? body.instructions.trim().slice(0, 2000) : null;
     // Optional teacher-picked character pool (same shape Individual
     // Training's pool picker produces — an array of single characters).
-    // Omitted/invalid/empty falls back to the difficulty preset's own
-    // pool, unchanged from before this option existed; the engine itself
+    // Omitted/invalid/empty falls back to all letters; the engine itself
     // re-validates/uppercases/dedupes whatever's actually usable here.
     const characters = Array.isArray(body.characters) && body.characters.length > 0 ? body.characters : undefined;
 
@@ -89,11 +103,12 @@ function createSession(req, res) {
     try {
         generated = sessionEngine.generateItems({
             exerciseMode,
-            difficulty,
-            wpm: toNumberOrUndefined(body.wpm),
-            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
-            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            wpm,
+            farnsworthWpm,
+            toneFrequencyHz,
+            groupPauseMs,
             length: itemLength,
+            groupSize,
             characters,
             exerciseCount,
             // Only meaningful for exerciseMode 'transmission' — see
@@ -113,10 +128,10 @@ function createSession(req, res) {
             classId,
             type,
             exerciseMode,
-            difficulty,
-            wpm: toNumberOrUndefined(body.wpm),
-            farnsworthWpm: toNumberOrUndefined(body.farnsworthWpm),
-            toneFrequencyHz: toNumberOrUndefined(body.toneFrequencyHz),
+            difficulty: CUSTOM_SETTINGS_LABEL,
+            wpm,
+            farnsworthWpm,
+            toneFrequencyHz,
             exerciseCount,
             prepTimeMs,
             answerTimeMs,
@@ -259,14 +274,18 @@ function submitAttempt(req, res) {
         return res.status(429).json({ error: 'You have used all allowed attempts for this item.' });
     }
 
+    // Typed answers are capped at the item's own character count and
+    // re-spaced into its groups before anything is stored or graded.
+    const submittedAnswer = sessionEngine.normalizeSubmission(item.exercise, body.submittedAnswer);
+
     const attempt = sessionRepository.upsertAttempt({
         sessionItemId: itemId,
         studentId: req.user.id,
-        submittedText: body.submittedAnswer,
+        submittedText: submittedAnswer,
         durationMs: toNumberOrUndefined(body.durationMs),
     });
 
-    const score = sessionEngine.gradeSubmission(item.exercise, body.submittedAnswer);
+    const score = sessionEngine.gradeSubmission(item.exercise, submittedAnswer);
     const grade = sessionEngine.computeGrade(score.accuracyPercent, session.passThresholdPercent);
     const characterGrade = gradingService.calculateGrade({ correct: score.correctCount, total: score.totalExpected });
     sessionRepository.upsertResult({
@@ -293,7 +312,15 @@ function submitAttempt(req, res) {
     }
     return res
         .status(201)
-        .json({ submitted: true, attemptCount: attempt.attemptCount, score, expectedAnswer: item.exercise.expectedAnswer, characterGrade });
+        .json({
+            submitted: true,
+            attemptCount: attempt.attemptCount,
+            score,
+            expectedAnswer: item.exercise.expectedAnswer,
+            submittedAnswer,
+            groupSize: item.exercise.groupSize || null,
+            characterGrade,
+        });
 }
 
 /** GET /api/sessions/:id/results — full roster for a teacher; own rows only for a student, withheld mid-test. */

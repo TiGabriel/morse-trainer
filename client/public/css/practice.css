@@ -60,22 +60,22 @@
 }
 
 /*
- * Dark variant of this page's own token set (see the file header — this
- * page intentionally has its own warm/paper palette, independent of the
- * rest of the app's slate-blue dark theme in styles.css). Only applied
- * once <html data-theme="dark"> is set by the shared theme toggle.
+ * Dark variant: surfaces, borders and text map straight onto the app-wide
+ * naval dark theme in styles.css, so Individual Training has the same
+ * dark-blue page, cards and text as every other page. Only applied once
+ * <html data-theme="dark"> is set by the shared theme toggle.
  */
 :root[data-theme="dark"] {
-    --pt-bg: #211f1c;
-    --pt-surface: #2c2a26;
-    --pt-surface-alt: #262420;
+    --pt-bg: var(--bg);
+    --pt-surface: var(--surface);
+    --pt-surface-alt: var(--surface-alt);
 
-    --pt-border: #3d3a34;
-    --pt-border-strong: #4d4a42;
+    --pt-border: var(--border);
+    --pt-border-strong: var(--border-strong);
 
-    --pt-text: #f0eee8;
-    --pt-text-muted: #b0aca2;
-    --pt-text-faint: #7d786d;
+    --pt-text: var(--text);
+    --pt-text-muted: var(--text-muted);
+    --pt-text-faint: var(--text-faint);
 
     /* Naval blue, matching the rest of the app's dark-theme primary accent */
     --pt-accent: #4f93c9;
@@ -101,13 +101,10 @@
 
 /* ===================== Shell ===================== */
 /*
- * Light mode: the page background reuses the app-wide --bg/--camo-bg-image
- * tokens directly (styles.css's :root[data-theme="light"]) rather than
- * this file's own --pt-bg, so Individual Training's outer page matches
- * every other page's background color, naval-green camo tint, and depth
- * exactly — only this page's cards/surfaces (--pt-surface, etc.) keep
- * their own distinct warm-paper look. Dark mode is untouched: it keeps
- * this file's own --pt-bg dark-paper tone (see the override below).
+ * The page background reuses the app-wide --bg/--camo-bg-image tokens
+ * directly (styles.css) rather than this file's own --pt-bg, so
+ * Individual Training's outer page matches every other page's background
+ * color, camo tint, and depth exactly, in both themes.
  */
 .practice-body {
     display: block;
@@ -123,7 +120,6 @@
 }
 
 :root[data-theme="dark"] .practice-body {
-    background-color: var(--pt-bg);
     color-scheme: dark;
 }
 
@@ -296,77 +292,173 @@
 }
 
 /* ===================== Individual Training Hub ===================== */
-.hub-cards {
+/*
+ * The hub's categories are large circular "bubbles": icon inside the
+ * circle, title + description below, the whole thing one <button>.
+ * Hover/focus/press are shown by movement + ring thickness, never by
+ * color alone. The small dot/dash row in each circle is decorative
+ * (aria-hidden) — the Morse for the category's initial letter.
+ */
+.hub-screen {
+    text-align: center;
+}
+.hub-screen .subtitle {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 34rem;
+}
+
+.hub-bubbles {
+    --bubble-size: 9.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2.25rem 1.5rem;
+    margin-top: 2.25rem;
+}
+
+.hub-bubble {
+    width: 13.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
-}
-
-.hub-card {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    text-align: left;
-    padding: 1.4rem 1.5rem;
-    background: var(--pt-surface);
-    border: 1px solid var(--pt-border);
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.25rem 0.5rem;
+    background: none;
+    border: none;
     border-radius: var(--pt-r-lg);
     color: var(--pt-text);
-    cursor: pointer;
     font-family: inherit;
-    box-shadow: var(--pt-shadow-xs);
-    transition: border-color var(--pt-transition), box-shadow var(--pt-transition), transform var(--pt-transition);
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
-.hub-card:hover {
-    border-color: var(--pt-accent-border);
-    box-shadow: var(--pt-shadow-md);
-    transform: translateY(-1px);
+.hub-bubble:focus {
+    outline: none;
 }
 
-.hub-card-icon {
-    flex: none;
-    width: 2.6rem;
-    height: 2.6rem;
+.hub-bubble-circle {
+    position: relative;
+    width: var(--bubble-size);
+    height: var(--bubble-size);
+    margin-bottom: 0.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--pt-r-md);
-    background: var(--pt-accent-soft);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, var(--pt-surface) 0%, var(--pt-surface-alt) 100%);
+    border: 1px solid var(--pt-border);
+    box-shadow: var(--pt-shadow-sm), inset 0 0 0 6px var(--pt-accent-soft);
     color: var(--pt-accent);
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
 }
-.hub-card-icon svg {
-    width: 1.35rem;
-    height: 1.35rem;
+.hub-bubble-circle svg {
+    width: 42%;
+    height: 42%;
+    transition: transform 220ms ease;
 }
 
-.hub-card-body {
+.hub-bubble-morse {
+    position: absolute;
+    bottom: 17%;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.35;
+    transition: opacity 220ms ease;
 }
+.hub-bubble-morse i,
+.hub-bubble-morse b {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: currentColor;
+}
+.hub-bubble-morse i { width: 4px; }
+.hub-bubble-morse b { width: 12px; }
 
-.hub-card-title {
+.hub-bubble-title {
     font-size: 1.05rem;
-    font-weight: 600;
+    font-weight: 650;
+    line-height: 1.3;
 }
 
-.hub-card-desc {
+.hub-bubble-desc {
     color: var(--pt-text-muted);
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.82rem;
+    line-height: 1.45;
 }
 
-.hub-card-arrow {
-    flex: none;
-    align-self: center;
-    color: var(--pt-text-faint);
-    transition: transform var(--pt-transition), color var(--pt-transition);
+/* Hover (pointer devices only, so a tap on touch screens doesn't leave it stuck "hovered") */
+@media (hover: hover) {
+    .hub-bubble:hover .hub-bubble-circle {
+        transform: translateY(-4px) scale(1.04);
+        border-color: var(--pt-accent-border);
+        box-shadow: var(--pt-shadow-md), inset 0 0 0 6px var(--pt-accent-soft-strong);
+    }
+    .hub-bubble:hover .hub-bubble-circle svg {
+        transform: scale(1.06);
+    }
+    .hub-bubble:hover .hub-bubble-morse {
+        opacity: 0.8;
+    }
 }
-.hub-card:hover .hub-card-arrow {
-    color: var(--pt-accent);
-    transform: translateX(2px);
+
+/* Keyboard focus: a clear ring around the circle, offset from it */
+.hub-bubble:focus-visible .hub-bubble-circle {
+    border-color: var(--pt-accent);
+    box-shadow: var(--pt-shadow-md), inset 0 0 0 6px var(--pt-accent-soft-strong), 0 0 0 3px var(--pt-bg), 0 0 0 6px var(--pt-accent);
+}
+.hub-bubble:focus-visible .hub-bubble-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* Pressed: sinks in with a thicker inner ring; .is-pressed is held briefly by practice.js before navigating */
+.hub-bubble:active .hub-bubble-circle,
+.hub-bubble.is-pressed .hub-bubble-circle {
+    transform: scale(0.95);
+    border-color: var(--pt-accent);
+    box-shadow: var(--pt-shadow-xs), inset 0 0 0 12px var(--pt-accent-soft-strong);
+    transition-duration: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hub-bubble-circle,
+    .hub-bubble-circle svg {
+        transition: none;
+    }
+    .hub-bubble:hover .hub-bubble-circle,
+    .hub-bubble:hover .hub-bubble-circle svg,
+    .hub-bubble:active .hub-bubble-circle,
+    .hub-bubble.is-pressed .hub-bubble-circle {
+        transform: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .hub-bubbles {
+        --bubble-size: 7.25rem;
+        gap: 1.75rem 0.75rem;
+        margin-top: 1.75rem;
+    }
+    .hub-bubble {
+        width: calc(50% - 0.375rem);
+    }
+    .hub-bubble-title {
+        font-size: 0.95rem;
+    }
+    .hub-bubble-desc {
+        font-size: 0.78rem;
+    }
+}
+
+@media (max-width: 340px) {
+    .hub-bubble {
+        width: 100%;
+    }
 }
 
 /* ===================== Settings groups / pool picker ===================== */

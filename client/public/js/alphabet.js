@@ -1,6 +1,11 @@
 /**
  * Morse Alphabet reference page — for every logged-in user (teacher and
- * student). Rendered entirely from GET /api/morse/alphabet, which is
+ * student). Teachers get the complete alphabet; students get ONLY the
+ * characters their teacher enabled for their class — that filtering is
+ * done by the server (the response simply never contains anything
+ * else), this page just renders whatever it receives, hiding empty
+ * categories and showing a "not configured yet" message when a
+ * student's class has nothing enabled. Rendered entirely from GET /api/morse/alphabet, which is
  * generated from the server's canonical morseMap.js (the same table every
  * exercise, test and decoder uses), so this page can never show a
  * character/code the application doesn't actually support, and there is
@@ -68,10 +73,19 @@ function renderGroup(key, list) {
 
 function renderAll() {
     if (!alphabetData) return;
+    const restricted = !!alphabetData.restricted;
+    el('alphabet-subtitle').textContent = t(restricted ? 'alphabet.studentSubtitle' : 'alphabet.subtitle');
     el('alphabet-play-hint').textContent = t('alphabet.playHint', { wpm: alphabetData.wpm, hz: alphabetData.toneFrequencyHz });
-    renderGroup('letters', alphabetData.letters);
-    renderGroup('numbers', alphabetData.numbers);
-    renderGroup('punctuation', alphabetData.punctuation);
+
+    const groups = ['letters', 'numbers', 'punctuation'];
+    const total = groups.reduce((n, key) => n + alphabetData[key].length, 0);
+    el('alphabet-empty').hidden = total > 0;
+    document.querySelector('.alphabet-hint').hidden = total === 0;
+    groups.forEach((key) => {
+        renderGroup(key, alphabetData[key]);
+        // A student only sees the categories their class has characters in.
+        el(`alphabet-section-${key}`).hidden = alphabetData[key].length === 0;
+    });
 }
 
 async function playEntry(entry, button) {
@@ -102,8 +116,6 @@ async function init() {
     el('auth-gate').hidden = true;
     el('dashboard').hidden = false;
     el('user-name').textContent = `${user.firstName || ''} ${user.lastName || ''} (${user.username})`.trim();
-    // Students join sessions from group-session.html; teachers run them from sessions.html.
-    if (user.role === 'student') el('nav-group-sessions').href = '/group-session.html';
 
     try {
         const res = await fetch('/api/morse/alphabet');
